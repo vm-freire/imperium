@@ -529,3 +529,9 @@ body:has(#scr-page:not(.hidden)) .corner-fs, body:has(#scr-create:not(.hidden)) 
 .enc-item ul{margin:6px 0 0 18px;padding:0}
 .enc-fx{margin-top:6px;font-size:13px;color:#2d5a19}
 @media (max-width:760px){ .enc{grid-template-columns:1fr} .enc-nav{position:static} }
+
+/* painel lateral recolhido: fica so a coluna de abas */
+body.ingame.sb-collapsed #sidebar{width:66px}
+body.ingame.sb-collapsed #panel{display:none}
+body.ingame.sb-collapsed #mapwrap{left:66px}
+body.ingame.sb-collapsed #tabs button.active{background:none;color:#e8d3a3;border-left-color:var(--red)}

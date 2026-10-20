@@ -165,7 +165,17 @@ function refreshAll(){ if (!G) return; derive(); updateTopbar(); renderPanel(); 
 // ------------------------------------------------------------
 //  Painéis laterais
 // ------------------------------------------------------------
-$$('#tabs button').forEach(b=> b.onclick = ()=>{ SFX.page(); UI.tab = b.dataset.tab; $$('#tabs button').forEach(x=>x.classList.toggle('active', x===b)); renderPanel(); });
+// recolher/mostrar o painel lateral: clicar de novo na aba aberta recolhe; clicar numa aba com o painel recolhido abre
+function setSidebar(open){
+  const was = !document.body.classList.contains('sb-collapsed'); if (was === open) return;
+  document.body.classList.toggle('sb-collapsed', !open);
+  setTimeout(()=>{ MapView.resize(); MapView.clampCam && MapView.clampCam(); }, 30);
+}
+$$('#tabs button').forEach(b=> b.onclick = ()=>{
+  const collapsed = document.body.classList.contains('sb-collapsed');
+  if (!collapsed && UI.tab === b.dataset.tab){ SFX.click(); setSidebar(false); return; }
+  SFX.page(); UI.tab = b.dataset.tab; $$('#tabs button').forEach(x=>x.classList.toggle('active', x===b)); setSidebar(true); renderPanel();
+});
 function meter(v, max, color){ return `<div class="meter"><i style="width:${clamp(v/max*100,0,100)}%;background:${color||(v/max>0.6?'#5a8f3c':v/max>0.35?'#c9a13b':'#b3261e')}"></i></div>`; }
 function row(k, v, cls){ return `<div class="row"><span class="k">${k}</span><span class="v ${cls||''}">${v}</span></div>`; }
 
@@ -1403,7 +1413,7 @@ function continueGame(slot){
 // ------------------------------------------------------------
 //  Ligações globais
 // ------------------------------------------------------------
-$('#tb-stats').addEventListener('click', e=>{ if (e.target.closest('#st-app')){ SFX.page(); UI.tab='povo'; $$('#tabs button').forEach(x=>x.classList.toggle('active', x.dataset.tab==='povo')); renderPanel(); } });
+$('#tb-stats').addEventListener('click', e=>{ if (e.target.closest('#st-app')){ SFX.page(); UI.tab='povo'; $$('#tabs button').forEach(x=>x.classList.toggle('active', x.dataset.tab==='povo')); setSidebar(true); renderPanel(); } });
 $('#btn-next').onclick = ()=>{ SFX.init(); nextTurn(); };
 $$('#speed button').forEach(b=> b.onclick = ()=>setSpeed(+b.dataset.s));
 $('#btn-gamemenu').onclick = openGameMenu;
@@ -1432,7 +1442,7 @@ document.addEventListener('fullscreenchange', updateFsButtons);
 document.addEventListener('webkitfullscreenchange', updateFsButtons);
 document.addEventListener('keydown', e=>{ if ((e.key === 'f' || e.key === 'F') && !['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)) toggleFullscreen(); });
 $('#btn-sound').onclick = openOptions;
-$('#tb-nation').onclick = ()=>{ UI.tab='geral'; $$('#tabs button').forEach(x=>x.classList.toggle('active', x.dataset.tab==='geral')); renderPanel(); };
+$('#tb-nation').onclick = ()=>{ UI.tab='geral'; $$('#tabs button').forEach(x=>x.classList.toggle('active', x.dataset.tab==='geral')); setSidebar(true); renderPanel(); };
 $('#btn-wars').onclick = ()=>{ SFX.page(); if (G) openWorldWars(); };
 $$('.map-tools .chip[data-mode]').forEach(c=> c.onclick = ()=>{ MapView.mode = c.dataset.mode; MapView.dirty = true; SFX.click(); updateTopbar(); });
 $('#zoom-in').onclick = ()=>MapView.zoomAt(MapView.cw/2, MapView.ch/2, 1.4);
