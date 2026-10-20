@@ -15,7 +15,7 @@ const TECH_CATS = {
   tra:{n:'Transportes', icon:'🚂', ids:['ferrovias','motor','trem_bala','metro']},
   soc:{n:'Sociedade', icon:'🏛️', ids:['previdencia','keynesianismo']},
   agr:{n:'Agricultura', icon:'🌾', ids:['rev_verde']},
-  cla:{n:'Ciência clássica e navegação', icon:'🧭', ids:['caravela','imprensa','polvora','astrolabio','bancos','navegacao_oceanica','cartografia','fortaleza_estrela','galeao','mosquete','companhias','telescopio','bolsa','metodo_cientifico','exercito_permanente','calculo','baioneta','rotacao_culturas','iluminismo','enciclopedia','para_raios','fiacao','balao','variolizacao','imprensa_jornal','microscopio','relogio_pendulo','banco_central_antigo','semeadeira','coque','motor_newcomen','termometro','cronometro','canais_navegaveis']},
+  cla:{n:'Ciência clássica e navegação', icon:'🧭', ids:['caravela','imprensa','polvora','astrolabio','bancos','navegacao_oceanica','cartografia','fortaleza_estrela','galeao','mosquete','companhias','telescopio','bolsa','metodo_cientifico','exercito_permanente','calculo','baioneta','rotacao_culturas','iluminismo','enciclopedia','para_raios','fiacao','balao','variolizacao','engenho_acucar','heliocentrismo','anatomia','logaritmos','circulacao_sangue','barometro','imprensa_jornal','microscopio','relogio_pendulo','banco_central_antigo','semeadeira','coque','motor_newcomen','termometro','cronometro','canais_navegaveis']},
   fut:{n:'Futuro', icon:'🚀', ids:['cidades_inteligentes','drones_autonomos','neurointerface','agua_atmosferica','energia_orbital','nanomedicina','escudo_laser','ia_geral','renda_basica','mineracao_asteroides','hyperloop','geoengenharia','colonia_marte','longevidade','elevador_espacial','antimateria','consciencia_digital','dyson']}
 };
 const TECH_CAT_OF = {};
@@ -33,12 +33,14 @@ const CAT_HELPERS = {
   comp:{b:{universidade:0.12, fabrica:0.03}, laws:{educacao:0.1}},
   tra:{b:{fabrica:0.06, mina:0.06}, laws:{subsidios:0.06}},
   agr:{b:{fazenda:0.15}, laws:{reforma_agraria:0.1}},
-  soc:{b:{universidade:0.08, monumento:0.05}, laws:{educacao:0.1, propaganda:0.05}}
+  soc:{b:{universidade:0.08, monumento:0.05}, laws:{educacao:0.1, propaganda:0.05}},
+  cla:{b:{universidade:0.12, porto:0.06}, laws:{educacao:0.1}},
+  fut:{b:{universidade:0.08, datacenter:0.12, lab_ia:0.15}, laws:{educacao:0.08}}
 };
 function techCat(id){ return TECH_CAT_OF[id] || 'ind'; }
 function researchBreakdown(id){
-  const p = G.p, cat = techCat(id), H = CAT_HELPERS[cat], parts = [];
-  for (const [bt, v] of Object.entries(H.b)){ const n = (p.buildings||[]).filter(b=>b.t===bt && Grid.owner[b.c]===1).length; if (n){ parts.push({label:`${BUILDINGS[bt].icon} ${n} ${BUILDINGS[bt].n.toLowerCase()}${n>1?'s':''}`, v: Math.min(0.45, v*Math.sqrt(n))}); } }
+  const p = G.p, cat = techCat(id), H = CAT_HELPERS[cat] || {b:{universidade:0.08}, laws:{}}, parts = [];
+  for (const [bt, v] of Object.entries(H.b)){ if (!BUILDINGS[bt]) continue; const n = (p.buildings||[]).filter(b=>b.t===bt && Grid.owner[b.c]===1).length; if (n){ parts.push({label:`${BUILDINGS[bt].icon} ${n} ${BUILDINGS[bt].n.toLowerCase()}${n>1?'s':''}`, v: Math.min(0.45, v*Math.sqrt(n))}); } }
   for (const [law, v] of Object.entries(H.laws)) if (p.policies[law]) parts.push({label:`📜 ${POLICY[law].n}`, v});
   const uniCity = Object.values(p.cityInfo||{}).filter(ci=>ci.voc==='universitaria').length; if (uniCity) parts.push({label:`🎓 ${uniCity} cidade(s) universitária(s)`, v:Math.min(0.15, uniCity*0.05)});
   if (p.stability < 30) parts.push({label:'🔥 Instabilidade política', v:-0.2});

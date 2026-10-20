@@ -395,11 +395,14 @@ function panelLeis(){
   ${ref}${consti}
   <div class="sub">Leis e políticas</div>
   <div class="muted" style="margin-bottom:6px">Leis têm efeitos permanentes enquanto ativas. Algumas custam uma fração do PIB por ano.</div>
-  ${POLICIES.map(P=>{
-    const cb = !p.policies[P.id] ? constBlocks(P.id) : null;
-    const blocked = (P.block && P.block.includes(p.gov)) || (P.req && !p.techs.includes(P.req)) || !!cb;
+  ${typeof lawProcess === 'function' ? `<div class="box">🏛️ <b>Como as leis são aprovadas no seu regime:</b> ${lawProcess(p.gov).n}</div>` : ''}
+  ${(p.bills||[]).length ? `<div class="box">🗳️ <b>Em votação:</b> ${p.bills.map(b=>`${POLICY[b.id].icon} ${POLICY[b.id].n} (${b.enact?'aprovar':'revogar'} · ${Math.round(b.chance*100)}% · ${Math.max(0,b.due-G.turn)} mês(es))`).join(' · ')}</div>` : ''}
+  ${POLICIES.slice().sort((a,b)=>(!!(typeof lawLock==='function'&&lawLock(a)) - !!(typeof lawLock==='function'&&lawLock(b))) || (a.from||0)-(b.from||0)).map(P=>{
+    const cb = !p.policies[P.id] ? constBlocks(P.id) : null, lk = !p.policies[P.id] && typeof lawLock === 'function' ? lawLock(P) : null;
+    const voting = (p.bills||[]).some(b=>b.id===P.id);
+    const blocked = (P.block && P.block.includes(p.gov)) || (P.req && !p.techs.includes(P.req)) || !!cb || !!lk;
     const fx = Object.entries(P.fx).map(([k,v])=>fxLabel(k,v)).join(', ');
-    return `<div class="policy"${tip(`${P.icon} ${P.n}`, P.d, fx + (P.cost?` · custa ${P.cost}% do PIB por ano`:''))}><span class="ic">${P.icon}</span><span class="nm"><b>${P.n}</b><small>${P.d}</small><small style="color:var(--ink2)">${fx}${P.cost?` · custo ${P.cost}% PIB/ano`:''}${blocked?` · 🔒 ${cb || (P.req && !p.techs.includes(P.req) ? 'requer '+TECH[P.req].n : 'proibido pelo regime')}`:''}</small></span>
+    return `<div class="policy"${tip(`${P.icon} ${P.n}`, P.d, fx + (P.cost?` · custa ${P.cost}% do PIB por ano`:''))}><span class="ic">${P.icon}</span><span class="nm"><b>${P.n}</b><small>${P.d}</small><small style="color:var(--ink2)">${fx}${P.cost?` · custo ${P.cost}% PIB/ano`:''}${P.from ? ` · desde ${P.from}` : ''}${P.lean && typeof LEAN_N !== 'undefined' ? ` · lei ${LEAN_N[P.lean]}` : ''}${voting ? ' · 🗳️ em votação' : ''}${blocked?` · 🔒 ${lk || cb || (P.req && !p.techs.includes(P.req) ? 'requer '+TECH[P.req].n : 'proibido pelo regime')}`:''}</small></span>
       <span class="switch ${p.policies[P.id]?'on':''} ${blocked?'dis':''}" data-pol="${P.id}"></span></div>`;
   }).join('')}`;
 }
@@ -734,7 +737,7 @@ function bindPanel(el){
     if (!t.req.every(r=>G.p.techs.includes(r))){ SFX.error(); toast('Requer: ' + t.req.map(r=>TECH[r].n).join(', '), 'bad'); return; }
     G.p.researching = t.id; SFX.click(); toast(`Pesquisando: ${t.icon} ${t.n}`); refreshAll();
   });
-  el.querySelectorAll('[data-pol]').forEach(b=> b.onclick = ()=>{ const r = togglePolicy(b.dataset.pol); if (r.ok) SFX.click(); else { SFX.error(); toast(r.why,'bad'); } refreshAll(); });
+  el.querySelectorAll('[data-pol]').forEach(b=> b.onclick = ()=>{ const r = togglePolicy(b.dataset.pol); if (r.ok){ SFX.click(); if (r.msg) toast(r.msg, 'dip'); } else { SFX.error(); toast(r.why,'bad'); } refreshAll(); });
   el.querySelectorAll('[data-voice]').forEach(b=> b.onclick = ()=>{ const v = UI._voices[+b.dataset.voice]; if (!v) return; v.fn(); SFX.coin(); toast('✔ Medida tomada: ' + v.label, 'good'); addLog(`🗣️ Ouvindo o povo: ${v.label}.`, 'info'); if (UI.tab==='militar') $$('#tabs button').forEach(x=>x.classList.toggle('active', x.dataset.tab==='militar')); refreshAll(); });
   el.querySelectorAll('[data-corps]').forEach(b=> b.onclick = ()=>{ const k = G.p.corps.find(x=>x.id===+b.dataset.corps); if (!k) return; UI.selCorps = k.id; MapView.selCorps = k.id; const [lo,la] = cellCenter(k.cell); MapView.flyTo(lo, la, 3.2); SFX.click(); toast(`🎖️ ${k.name} selecionado: clique no destino ou num alvo inimigo.`); renderPanel(); });
   el.querySelectorAll('[data-creinf]').forEach(b=> b.onclick = ()=>{ const k = G.p.corps.find(x=>x.id===+b.dataset.creinf); const r = reinforceCorps(k, 0.25); if (r.ok){ SFX.build(); toast(r.msg,'good'); } else { SFX.error(); toast(r.why,'bad'); } refreshAll(); });

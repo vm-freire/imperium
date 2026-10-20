@@ -147,6 +147,12 @@ const TECHS = [
   {id:'termometro', n:'Termômetro', icon:'🌡️', year:1714, req:['metodo_cientifico'], fx:{research:0.02, popGrowth:0.02}, d:'Medir a temperatura e a febre'},
   {id:'cronometro', n:'Cronômetro Marítimo', icon:'⏱️', year:1735, req:['relogio_pendulo'], fx:{navy:0.06, tradeMult:0.04}, d:'Saber a longitude no meio do oceano'},
   {id:'canais_navegaveis', n:'Canais Navegáveis', icon:'🛶', year:1761, req:['rotacao_culturas'], fx:{tradeMult:0.05, growth:0.1}, d:'Barcos levam carvão e grãos pelo interior'},
+  {id:'engenho_acucar', n:'Engenho de Açúcar', icon:'🍬', year:1520, req:[], fx:{gdpMult:0.03, tradeMult:0.03}, d:'Moendas movidas a água ou animais: o açúcar vira o ouro das colônias'},
+  {id:'heliocentrismo', n:'Heliocentrismo', icon:'☀️', year:1543, req:['imprensa'], fx:{research:0.04, stability:-1}, d:'Copérnico: a Terra gira em torno do Sol'},
+  {id:'anatomia', n:'Anatomia Moderna', icon:'🫀', year:1543, req:['imprensa'], fx:{popGrowth:0.03, research:0.02}, d:'Vesálio descreve o corpo humano por dissecação'},
+  {id:'logaritmos', n:'Logaritmos', icon:'🔢', year:1614, req:['imprensa'], fx:{research:0.04, navy:0.02}, d:'Napier simplifica os cálculos de navegação e astronomia'},
+  {id:'circulacao_sangue', n:'Circulação do Sangue', icon:'🩸', year:1628, req:['anatomia'], fx:{popGrowth:0.04}, d:'Harvey descobre que o coração bombeia o sangue'},
+  {id:'barometro', n:'Barômetro', icon:'🌡️', year:1643, req:['metodo_cientifico'], fx:{research:0.02, navy:0.02}, d:'Torricelli mede a pressão do ar e prevê o tempo'},
   {id:'variolizacao', n:'Vacina da Varíola', icon:'💉', year:1796, req:['iluminismo'], fx:{popGrowth:0.06, approval:1}, d:'A primeira vacina da história'},
   // Era I — Vapor
   {id:'maquina_vapor', n:'Máquina a Vapor', icon:'♨️', year:1800, req:[], fx:{gdpMult:0.04, growth:0.2}, d:'+4% PIB, base da industrialização'},
