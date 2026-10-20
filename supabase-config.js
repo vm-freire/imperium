@@ -8,6 +8,6 @@
 //  criadas pelo arquivo supabase/setup.sql.
 // ============================================================
 window.SUPABASE_CONFIG = {
-  url: "COLE_AQUI",       // ex.: https://abcdefghijk.supabase.co
-  anonKey: "COLE_AQUI"    // a chave "anon public" (começa com eyJ...)
+  url: "https://ekrjndvfybdaqufgewqr.supabase.co",
+  anonKey: "sb_publishable_AEIsdRIoFbYEcTUeRaIrAw_ze2qcven"   // chave pública (publishable/anon)
 };
