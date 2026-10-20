@@ -14,7 +14,7 @@ const ON = { room:null, players:{}, subs:[], timer:null, hbTimer:null, pending:[
 // ------------------------------------------------------------
 async function openOnline(){
   SFX.init(); await NET.init();
-  if (!NET.user) return openLogin();
+  if (!NET.user) return showLogin();
   openOnlineHub();
 }
 function openLogin(tab){
@@ -72,7 +72,7 @@ async function openOnlineHub(){
     <p>No online <b>não há pausa</b>: o mês avança sozinho no ritmo escolhido pelo anfitrião. Cada jogador toma suas decisões, pode se aliar, negociar ou guerrear com os outros. Regimes diferentes atrapalham os acordos (comércio rende menos entre regimes opostos).</p></section></div>`);
   $('#oh-new').onclick = ()=>{ SFX.page(); openCreateRoom(); };
   $('#oh-code').onclick = ()=>{ SFX.page(); openJoinRoom(); };
-  $('#oh-out').onclick = async ()=>{ await NET.be.signOut(); NET.user = null; SFX.click(); $('#scr-page').classList.add('hidden'); toast('Você saiu da conta.'); };
+  $('#oh-out').onclick = ()=>{ SFX.click(); logout(); };
   $$('[data-room]').forEach(c=> c.onclick = ()=>{ SFX.page(); openLobby(c.dataset.room); });
 }
 function openCreateRoom(){

@@ -82,7 +82,7 @@ function flagImg(n, w, h){
 // ------------------------------------------------------------
 //  Telas
 // ------------------------------------------------------------
-function hideAllScreens(){ ['#scr-menu','#scr-create','#scr-page','#place-banner'].forEach(s=>$(s).classList.add('hidden')); }
+function hideAllScreens(){ ['#scr-login','#scr-menu','#scr-create','#scr-page','#place-banner'].forEach(s=>$(s).classList.add('hidden')); }
 function showMenu(){
   stopAuto(); closeModal(); closePopover(); hideTip();
   hideAllScreens(); $('#scr-menu').classList.remove('hidden'); $('#hud').classList.add('hidden');
@@ -95,6 +95,8 @@ function showMenu(){
   $('#m-foot').textContent = h.length ? `${h.length} nação(ões) registrada(s) nas crônicas` : 'Nenhuma nação registrada ainda';
   const used = listSlots().filter(x=>x.meta).length;
   $('#m-continue').innerHTML = `📜 Continuar Jogo <small style="font-weight:400">(${used}/${MAX_SLOTS} partidas salvas)</small>`;
+  const acc = $('#m-account');
+  if (acc){ acc.innerHTML = NET.user ? `👤 <b>${esc(NET.user.name)}</b> · <a href="#" id="m-logout">Sair</a>` : ''; const lo = $('#m-logout'); if (lo) lo.onclick = e=>{ e.preventDefault(); SFX.click(); logout(); }; }
 }
 function showHUD(){
   hideAllScreens(); $('#hud').classList.remove('hidden');
@@ -1338,12 +1340,14 @@ function toggleFullscreen(){
 function updateFsButtons(){
   const on = isFullscreen();
   $('#btn-fs').textContent = on ? '🗗' : '⛶'; $('#btn-fs').title = on ? 'Sair da tela cheia (F)' : 'Tela cheia (F)';
-  $('#m-fs').textContent = on ? '🗗 Sair da tela cheia' : '⛶ Jogar em tela cheia';
+  const cf = $('#corner-fs'); cf.title = on ? 'Sair da tela cheia (F)' : 'Tela cheia (F)'; cf.classList.toggle('on', on);
+  cf.innerHTML = on ? FS_ICON_OFF : FS_ICON_ON;
   const ob = document.querySelector('#op-fs'); if (ob) ob.classList.toggle('on', on);
   setTimeout(()=>MapView.resize(), 80);
 }
 $('#btn-fs').onclick = toggleFullscreen;
-$('#m-fs').onclick = ()=>{ SFX.init(); toggleFullscreen(); };
+const FS_ICON_ON = $('#corner-fs').innerHTML, FS_ICON_OFF = FS_ICON_ON.replace(/<path d="[^"]*"/, '<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"');
+$('#corner-fs').onclick = ()=>{ SFX.init(); SFX.click(); toggleFullscreen(); };
 document.addEventListener('fullscreenchange', updateFsButtons);
 document.addEventListener('webkitfullscreenchange', updateFsButtons);
 document.addEventListener('keydown', e=>{ if ((e.key === 'f' || e.key === 'F') && !['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)) toggleFullscreen(); });

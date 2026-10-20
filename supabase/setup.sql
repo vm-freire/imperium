@@ -122,3 +122,15 @@ begin
 end $$;
 drop trigger if exists trg_limpar_eventos on public.room_events;
 create trigger trg_limpar_eventos after insert on public.room_events for each statement execute function public.limpar_eventos();
+
+-- ---------------- Salvamentos da conta (jogo solo, histórico e conquistas) ----------------
+create table if not exists public.user_saves (
+  uid uuid not null references auth.users(id) on delete cascade,
+  key text not null,
+  value text not null,
+  updated_at timestamptz not null default now(),
+  primary key (uid, key)
+);
+alter table public.user_saves enable row level security;
+drop policy if exists "saves da conta: dono" on public.user_saves;
+create policy "saves da conta: dono" on public.user_saves for all to authenticated using (uid = auth.uid()) with check (uid = auth.uid());

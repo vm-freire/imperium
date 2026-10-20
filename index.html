@@ -7,7 +7,7 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Cinzel+Decorative:wght@700;900&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=24">
+<link rel="stylesheet" href="css/style.css?v=25">
 </head>
 <body>
 <div id="app">
@@ -63,6 +63,13 @@
     </footer>
   </div>
 
+  <button id="corner-fs" class="corner-fs" title="Tela cheia (F)" aria-label="Tela cheia"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+
+  <!-- ===================== ENTRADA (LOGIN) ===================== -->
+  <div id="scr-login" class="screen login-screen">
+    <div class="lg-box" id="lg-box"></div>
+  </div>
+
   <!-- ===================== MENU PRINCIPAL ===================== -->
   <div id="scr-menu" class="screen menu-screen">
     <div class="menu-box">
@@ -76,9 +83,9 @@
       <button class="mbtn" id="m-trophies">🏅 Conquistas</button>
       <button class="mbtn" id="m-history">📚 Histórico de Nações</button>
       <button class="mbtn" id="m-help">🧭 Instruções</button>
-      <button class="mbtn" id="m-fs">⛶ Jogar em tela cheia</button>
       <button class="mbtn" id="m-options">⚙️ Opções</button>
       <div class="menu-foot" id="m-foot"></div>
+      <div class="menu-account" id="m-account"></div>
     </div>
   </div>
 
@@ -126,32 +133,33 @@
 
 <script src="supabase-config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.0/dist/umd/supabase.min.js"></script>
-<script src="js/worlddata.js?v=24"></script>
-<script src="js/profiles.js?v=24"></script>
-<script src="js/flag.js?v=24"></script>
-<script src="js/realflags.js?v=24"></script>
-<script src="js/eras.js?v=24"></script>
-<script src="js/audio.js?v=24"></script>
-<script src="js/map.js?v=24"></script>
-<script src="js/history.js?v=24"></script>
-<script src="js/game.js?v=24"></script>
-<script src="js/systems.js?v=24"></script>
-<script src="js/features.js?v=24"></script>
-<script src="js/evolution.js?v=24"></script>
-<script src="js/war.js?v=24"></script>
-<script src="js/objectives.js?v=24"></script>
-<script src="js/cities.js?v=24"></script>
-<script src="js/research.js?v=24"></script>
-<script src="js/geo.js?v=24"></script>
-<script src="js/achievements.js?v=24"></script>
-<script src="js/achievements2.js?v=24"></script>
-<script src="js/tips.js?v=24"></script>
-<script src="js/expansion.js?v=24"></script>
-<script src="js/events.js?v=24"></script>
-<script src="js/charts.js?v=24"></script>
-<script src="js/ui.js?v=24"></script>
-<script src="js/net.js?v=24"></script>
-<script src="js/online.js?v=24"></script>
-<script src="js/create.js?v=24"></script>
+<script src="js/worlddata.js?v=25"></script>
+<script src="js/profiles.js?v=25"></script>
+<script src="js/flag.js?v=25"></script>
+<script src="js/realflags.js?v=25"></script>
+<script src="js/eras.js?v=25"></script>
+<script src="js/audio.js?v=25"></script>
+<script src="js/map.js?v=25"></script>
+<script src="js/history.js?v=25"></script>
+<script src="js/game.js?v=25"></script>
+<script src="js/systems.js?v=25"></script>
+<script src="js/features.js?v=25"></script>
+<script src="js/evolution.js?v=25"></script>
+<script src="js/war.js?v=25"></script>
+<script src="js/objectives.js?v=25"></script>
+<script src="js/cities.js?v=25"></script>
+<script src="js/research.js?v=25"></script>
+<script src="js/geo.js?v=25"></script>
+<script src="js/achievements.js?v=25"></script>
+<script src="js/achievements2.js?v=25"></script>
+<script src="js/tips.js?v=25"></script>
+<script src="js/expansion.js?v=25"></script>
+<script src="js/events.js?v=25"></script>
+<script src="js/charts.js?v=25"></script>
+<script src="js/ui.js?v=25"></script>
+<script src="js/net.js?v=25"></script>
+<script src="js/online.js?v=25"></script>
+<script src="js/account.js?v=25"></script>
+<script src="js/create.js?v=25"></script>
 </body>
 </html>

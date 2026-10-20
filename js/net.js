@@ -53,6 +53,9 @@ class LocalBackend {
   watchWorld(code, cb){ return this._sub({key:'mp_world_' + code, cb:()=>{ const w = this._get('mp_world_' + code, null); if (w) cb(w); }}); }
   async setSave(code, uid, json){ try { localStorage.setItem('mp_save_' + code + '_' + uid, json); } catch(e){ console.warn('save', e); } }
   async getSave(code, uid){ return localStorage.getItem('mp_save_' + code + '_' + uid); }
+  async getUserData(uid){ return this._get('mp_ud_' + uid, {}); }
+  async setUserData(uid, key, value){ const k = 'mp_ud_' + uid, m = this._get(k, {}); m[key] = value; localStorage.setItem(k, JSON.stringify(m)); }
+  async delUserData(uid, key){ const k = 'mp_ud_' + uid, m = this._get(k, {}); delete m[key]; localStorage.setItem(k, JSON.stringify(m)); }
   async pushEvent(code, ev){ const k = 'mp_events_' + code, a = this._get(k, []); ev.id = Date.now().toString(36) + Math.random().toString(36).slice(2,7); ev.ts = Date.now(); a.push(ev); this._set(k, a.slice(-300)); }
   watchEvents(code, cb){ return this._sub({key:'mp_events_' + code, cb:()=>cb(this._get('mp_events_' + code, []))}); }
 }
@@ -141,6 +144,10 @@ class SupabaseBackend {
   watchWorld(code, cb){ return this._watch('room_world', `code=eq.${code}`, ()=>this.getWorld(code), w=>{ if (w) cb(w); }); }
   async setSave(code, uid, json){ await this.sb.from('room_saves').upsert({code, uid, json, saved_at:new Date().toISOString()}); }
   async getSave(code, uid){ const r = await this.sb.from('room_saves').select('json').eq('code', code).eq('uid', uid).maybeSingle(); return r.data ? r.data.json : null; }
+  // ---- dados da conta (salvamentos solo, histórico, conquistas) ----
+  async getUserData(uid){ const r = await this.sb.from('user_saves').select('key,value').eq('uid', uid); if (r.error) throw new Error(r.error.message); const m = {}; for (const x of r.data) m[x.key] = x.value; return m; }
+  async setUserData(uid, key, value){ this._chk(await this.sb.from('user_saves').upsert({uid, key, value, updated_at:new Date().toISOString()})); }
+  async delUserData(uid, key){ this._chk(await this.sb.from('user_saves').delete().eq('uid', uid).eq('key', key)); }
   async pushEvent(code, ev){ ev.ts = Date.now(); const r = await this.sb.from('room_events').insert({code, ts:ev.ts, from_uid:ev.from, data:ev}).select('id').single(); return r.data && r.data.id; }
   async _events(code){ const r = await this.sb.from('room_events').select('id,data').eq('code', code).gt('ts', Date.now() - 7*24*3600*1000).order('id'); return (r.data||[]).map(x=>Object.assign({}, x.data, {id:String(x.id)})); }
   watchEvents(code, cb){ return this._watch('room_events', `code=eq.${code}`, ()=>this._events(code), cb); }

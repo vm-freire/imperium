@@ -478,4 +478,5 @@ $('#m-options').onclick = ()=>{ SFX.init(); openOptions(); };
   Grid.buildLand([]);
   MapView.init($('#map'));
   showMenu();
+  startAccount();
 })();
