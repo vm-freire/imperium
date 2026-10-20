@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Imperium — Crônicas das Nações</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Cinzel+Decorative:wght@700;900&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css?v=23">
+</head>
+<body>
+<div id="app">
+  <div id="mapwrap"><canvas id="map"></canvas></div>
+
+  <!-- ===================== HUD DO JOGO ===================== -->
+  <div id="hud" class="hidden">
+    <header id="topbar">
+      <div class="tb-nation" id="tb-nation" title="Visão geral">
+        <canvas id="tb-flag" width="54" height="36"></canvas>
+        <div><div class="tb-name" id="tb-name"></div><div class="tb-sub" id="tb-sub"></div></div>
+      </div>
+      <div class="tb-date"><div id="tb-date"></div><div class="tb-sub" id="tb-year"></div></div>
+      <div class="tb-stats" id="tb-stats"></div>
+      <div class="tb-controls">
+        <div class="speed" id="speed">
+          <button data-s="0" title="Pausar (0)">⏸</button><button data-s="1" title="Normal (1)">▶</button><button data-s="2" title="Rápido (2)">⏩</button>
+        </div>
+        <button class="btn primary" id="btn-next" title="Espaço">Próximo mês ➜</button>
+        <span id="online-bar"></span>
+        <button class="icon-btn" id="btn-players" title="Jogadores">👥</button>
+        <button class="icon-btn" id="btn-fs" title="Tela cheia (F)">⛶</button>
+        <button class="icon-btn" id="btn-sound" title="Som">🔊</button>
+        <button class="icon-btn" id="btn-gamemenu" title="Menu">☰</button>
+      </div>
+    </header>
+    <aside id="sidebar">
+      <nav id="tabs">
+        <button data-tab="geral" class="active" title="Visão geral">🏛️<span>Nação</span></button>
+        <button data-tab="metas" title="Objetivos">🎯<span>Metas</span></button>
+        <button data-tab="povo" title="Voz do povo">🗣️<span>Povo</span></button>
+        <button data-tab="ranking" title="Ranking mundial">🏆<span>Ranking</span></button>
+        <button data-tab="obras" title="Obras e construções">🏗️<span>Obras</span></button>
+        <button data-tab="economia" title="Economia">💰<span>Economia</span></button>
+        <button data-tab="militar" title="Militar">⚔️<span>Militar</span></button>
+        <button data-tab="diplomacia" title="Diplomacia">🤝<span>Diplomacia</span></button>
+        <button data-tab="tecnologia" title="Tecnologia">🔬<span>Ciência</span></button>
+        <button data-tab="leis" title="Leis">📜<span>Leis</span></button>
+        <button data-tab="registro" title="Registro">📖<span>Crônica</span></button>
+      </nav>
+      <div id="panel"></div>
+    </aside>
+    <footer id="bottombar">
+      <div id="ticker"><span class="ticker-label">GAZETA MUNDIAL</span><div class="ticker-track"><div id="ticker-text"></div></div></div>
+      <div class="map-tools">
+        <button class="chip" id="btn-wars" title="Guerras no mundo">💥 Guerras</button>
+        <button class="chip" data-mode="politico" title="Mapa político: cada país com sua cor">🗺️ Mapa político</button>
+        <button class="chip" data-mode="relacoes" title="Mapa de relações: verde = amigos, vermelho = inimigos">🤝 Mapa de relações</button>
+        <button class="icon-btn sm" id="zoom-in" title="Aproximar">+</button>
+        <button class="icon-btn sm" id="zoom-out" title="Afastar">−</button>
+        <button class="icon-btn sm" id="zoom-home" title="Ir para a capital">🏠</button>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ===================== MENU PRINCIPAL ===================== -->
+  <div id="scr-menu" class="screen menu-screen">
+    <div class="menu-box">
+      <div class="menu-orn">✦ ✦ ✦</div>
+      <h1 class="title">IMPERIUM</h1>
+      <div class="subtitle">Crônicas das Nações</div>
+      <div class="menu-sep"></div>
+      <button class="mbtn" id="m-continue">📜 Continuar Jogo</button>
+      <button class="mbtn" id="m-new">🏰 Novo Jogo</button>
+      <button class="mbtn" id="m-online">🌐 Jogar Online</button>
+      <button class="mbtn" id="m-trophies">🏅 Conquistas</button>
+      <button class="mbtn" id="m-history">📚 Histórico de Nações</button>
+      <button class="mbtn" id="m-help">🧭 Instruções</button>
+      <button class="mbtn" id="m-fs">⛶ Jogar em tela cheia</button>
+      <button class="mbtn" id="m-options">⚙️ Opções</button>
+      <div class="menu-foot" id="m-foot"></div>
+    </div>
+  </div>
+
+  <!-- ===================== CRIAÇÃO ===================== -->
+  <div id="scr-create" class="screen hidden">
+    <div class="book">
+      <div class="book-head">
+        <h2>Fundação de uma Nação</h2>
+        <div class="steps" id="steps"></div>
+      </div>
+      <div class="book-body" id="create-body"></div>
+      <div class="book-foot">
+        <button class="btn" id="c-back">← Voltar</button>
+        <div class="c-hint" id="c-hint"></div>
+        <button class="btn primary" id="c-next">Avançar →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== POSICIONAMENTO ===================== -->
+  <div id="place-banner" class="hidden">
+    <div class="pb-flag"><canvas id="pb-flag" width="60" height="40"></canvas></div>
+    <div class="pb-text">
+      <b>Escolha onde fundar <span id="pb-name"></span></b><br>
+      <span id="pb-climate" style="font-weight:bold">Mova o mouse para ver o clima do local</span><br><span>Mova o mouse sobre o mapa · <kbd>R</kbd> ou <kbd>Shift</kbd>+roda gira · roda dá zoom · arraste para mover · clique para fundar</span>
+    </div>
+    <button class="btn" id="pb-back">← Editar país</button>
+  </div>
+
+  <!-- ===================== TELAS GENÉRICAS ===================== -->
+  <div id="scr-page" class="screen hidden">
+    <div class="book wide">
+      <div class="book-head"><h2 id="page-title"></h2><button class="btn" id="page-close">✕ Fechar</button></div>
+      <div class="book-body" id="page-body"></div>
+    </div>
+  </div>
+
+  <div id="modal-wrap" class="hidden"><div id="modal"></div></div>
+  <div id="popover" class="hidden"></div>
+  <div id="tooltip" class="hidden"></div>
+  <div id="helptip" class="hidden"></div>
+  <div id="toasts"></div>
+  <div id="curtain" class="hidden"></div>
+</div>
+
+<script src="supabase-config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="js/worlddata.js?v=23"></script>
+<script src="js/profiles.js?v=23"></script>
+<script src="js/flag.js?v=23"></script>
+<script src="js/realflags.js?v=23"></script>
+<script src="js/eras.js?v=23"></script>
+<script src="js/audio.js?v=23"></script>
+<script src="js/map.js?v=23"></script>
+<script src="js/history.js?v=23"></script>
+<script src="js/game.js?v=23"></script>
+<script src="js/systems.js?v=23"></script>
+<script src="js/features.js?v=23"></script>
+<script src="js/evolution.js?v=23"></script>
+<script src="js/war.js?v=23"></script>
+<script src="js/objectives.js?v=23"></script>
+<script src="js/cities.js?v=23"></script>
+<script src="js/research.js?v=23"></script>
+<script src="js/geo.js?v=23"></script>
+<script src="js/achievements.js?v=23"></script>
+<script src="js/achievements2.js?v=23"></script>
+<script src="js/tips.js?v=23"></script>
+<script src="js/expansion.js?v=23"></script>
+<script src="js/events.js?v=23"></script>
+<script src="js/charts.js?v=23"></script>
+<script src="js/ui.js?v=23"></script>
+<script src="js/net.js?v=23"></script>
+<script src="js/online.js?v=23"></script>
+<script src="js/create.js?v=23"></script>
+</body>
+</html>
