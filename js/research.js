@@ -14,7 +14,8 @@ const TECH_CATS = {
   comp:{n:'Computação', icon:'🖥️', ids:['computacao','transistor','microprocessador','laser','ia','quantica']},
   tra:{n:'Transportes', icon:'🚂', ids:['ferrovias','motor','trem_bala','metro']},
   soc:{n:'Sociedade', icon:'🏛️', ids:['previdencia','keynesianismo']},
-  agr:{n:'Agricultura', icon:'🌾', ids:['rev_verde']}
+  agr:{n:'Agricultura', icon:'🌾', ids:['rev_verde']},
+  fut:{n:'Futuro', icon:'🚀', ids:['cidades_inteligentes','drones_autonomos','neurointerface','agua_atmosferica','energia_orbital','nanomedicina','escudo_laser','ia_geral','renda_basica','mineracao_asteroides','hyperloop','geoengenharia','colonia_marte','longevidade','elevador_espacial','antimateria','consciencia_digital','dyson']}
 };
 const TECH_CAT_OF = {};
 for (const k in TECH_CATS) for (const id of TECH_CATS[k].ids) TECH_CAT_OF[id] = k;

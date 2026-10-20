@@ -203,7 +203,8 @@ function panelGeral(){
   <div class="row"><span class="k">🏛️ Eficiência administrativa</span><span class="v">${fmtPct(p.admin*100,0)}</span></div>${meter(p.admin,1.1)}
   <div class="row"><span class="k">💀 Corrupção</span><span class="v">${fmtPct(p.corruption*100,0)}</span></div>${meter(p.corruption,0.5,'#8b1a1a')}
   <div class="row"><span class="k">😩 Cansaço de guerra</span><span class="v">${fmtPct(p.warWeary,0)}</span></div>${meter(p.warWeary,100,'#8b1a1a')}
-  <div class="sub">Nação</div>
+  <div class="sub">Nação <button class="btn xs" id="btn-names" style="float:right">✏️ Editar nomes</button></div>
+  ${row(POWER_KINDS[powerKind(p.gov)].icon + ' ' + POWER_KINDS[powerKind(p.gov)].label, p.party && p.party.kind === powerKind(p.gov) ? partyLabel(p.party) : '<a href="#" id="lnk-party">escolher</a>')}
   ${row('População', fmtPop(p.pop))}${row('Crescimento populacional', fmtPct(p.popGrowth)+'/ano')}
   ${row('Área', fmtArea(p.area))}${row('Densidade', fmtNum(p.pop*1e6/Math.max(1,p.area),1)+' hab/km²')}
   ${row('Estados', p.states + ` <small class="muted">(ideal ≈ ${Math.round(clamp(p.area/150000,2,80))})</small>`)}${row('Cidades', p.cities)}${row('Urbanização', fmtPct(p.urb*100,0))}

@@ -38,9 +38,11 @@ const REAL_LEADERS = {
   'Paquistão':[[1850,null],[1947,'Muhammad Ali Jinnah','Governador-geral',1876],[1948,null],[1971,'Zulfikar Ali Bhutto','Presidente',1928],[1977,null],[1988,'Benazir Bhutto','Primeira-ministra',1953],[1990,'Nawaz Sharif','Primeiro-ministro',1949],[1993,'Benazir Bhutto','Primeira-ministra',1953],[1997,'Nawaz Sharif','Primeiro-ministro',1949],[1999,null],[2008,'Asif Ali Zardari','Presidente',1955],[2013,'Nawaz Sharif','Primeiro-ministro',1949],[2018,'Imran Khan','Primeiro-ministro',1952],[2022,'Shehbaz Sharif','Primeiro-ministro',1951]]
 };
 
+// Depois deste ano o futuro é inventado: sem líderes reais
+const REAL_LEADERS_UNTIL = 2030;
 // Líder real de uma nação num ano (ou null)
 function realLeaderAt(key, year){
-  const L = REAL_LEADERS[key]; if (!L) return null;
+  const L = REAL_LEADERS[key]; if (!L || year > REAL_LEADERS_UNTIL) return null;
   let cur = null;
   for (const e of L){ if (e[0] <= year) cur = e; else break; }
   return cur && cur[1] ? {name:cur[1], title:cur[2], born:cur[3]} : null;

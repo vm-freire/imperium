@@ -4,6 +4,13 @@
 'use strict';
 
 const BUILD_TIPS = {
+  datacenter:'Guarda e processa os dados do país. Acelera a pesquisa e a economia digital. Pode evoluir para nuvem nacional, ciberdefesa ou supercomputador.',
+  lab_ia:'Pesquisa de inteligência artificial. Escolha a especialidade: medicina, uso militar ou economia.',
+  fazenda_vertical:'Hortas em prédios, sem depender do clima. Mais comida perto das cidades.',
+  distrito_inteligente:'Bairro conectado onde energia, trânsito e serviços se ajustam sozinhos. Melhora a economia e a administração.',
+  escudo:'Torres de laser que derrubam mísseis e aviões. Defende muito bem as regiões próximas.',
+  espacoporto:'Base de lançamentos espaciais. Traz pesquisa e comércio; pode virar polo de turismo espacial ou estaleiro orbital.',
+  usina_fusao:'Energia limpa e quase sem fim. Um dos maiores impulsos econômicos do jogo.',
   cidade:'Funda uma nova cidade exatamente onde você clicar. Você escolhe o nome e a vocação dela. Mais cidades aumentam a urbanização, que eleva o PIB e acelera a pesquisa.',
   fazenda:'Uma fazenda modelo produz mais alimentos: a população cresce mais rápido e o povo fica mais estável. Pode evoluir para grãos mecanizados ou pecuária.',
   mina:'Extrai minérios do subsolo e aumenta o PIB. Pode evoluir para mineração subterrânea (carvão, metais preciosos) ou a céu aberto (ferro, terras raras).',

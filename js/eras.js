@@ -79,7 +79,12 @@ const ERA_OPS = {
         {name:'Coreia do Norte', key:'Coreia do Norte', seeds:[[126.8,40]], w:0.28, gov:'comunismo', rel:'ateu', capital:'Pyongyang', bloc:'ori', hist:[11,1100,0.9], flag:F_('faixa_central','#024fa2','#ed1c27',null,'estrela','#ed1c27','mastro',0.5)}]
     }
   },
-  2000:{}
+  2000:{},
+  2050:{
+    rename:{
+      'Escandinávia':{name:'União Nórdica'}, 'África Oriental':{name:'Federação da África Oriental'}, 'Coreia':{name:'Coreia Unificada'}
+    }
+  }
 };
 function presetFlagSafe(n){ return (typeof FLAG_PRESETS !== 'undefined' && FLAG_PRESETS[n]) ? Object.assign({layout:'solido', c1:'#888', c2:'#fff', c3:'#000', emblem:'nenhum', ec:'#fff', epos:'centro', esize:0.6, stars:8}, FLAG_PRESETS[n]) : null; }
 
@@ -101,6 +106,8 @@ function eraNations(era){
     const base = list[i];
     list.splice(i, 1, ...parts.map(pp=>Object.assign({}, base, pp, {key: pp.key || base.key, seeds: pp.seeds.map(s=>[s[0], s[1], pp.w || base.w])})));
   }
+  // 2050 (fictício): países em desenvolvimento crescem mais em população e renda
+  if (+era === 2050) for (const d of list){ const rich = (d.pc||0) > 30; d.pop = +((d.pop||10) * (rich ? 0.88 : 1.15)).toFixed(1); d.pc = +((d.pc||10) * (rich ? 0.95 : 1.4)).toFixed(1); }
   for (const add of (ops.add||[])) list.push(Object.assign({key:add.key || add.name, pc:15, pop:10}, add, {seeds: add.seeds.map(s=>[s[0], s[1], add.w])}));
   return list.filter(x=>!x.removed);
 }

@@ -15,7 +15,8 @@ const ERAS = {
   1850:{name:'Era Industrial', year:1850, popF:0.22, pcF:0.08, desc:'Vapor, ferrovias e canhões. Quase tudo está por ser inventado.'},
   1914:{name:'Era das Grandes Guerras', year:1914, popF:0.35, pcF:0.16, desc:'Motores, encouraçados e impérios em tensão.'},
   1960:{name:'Era Atômica', year:1960, popF:0.55, pcF:0.35, desc:'Guerra Fria, corrida espacial e a sombra da bomba.'},
-  2000:{name:'Era da Informação', year:2000, popF:0.85, pcF:0.7, desc:'Internet, globalização e novas potências.'}
+  2000:{name:'Era da Informação', year:2000, popF:0.85, pcF:0.7, desc:'Internet, globalização e novas potências.'},
+  2050:{name:'Era Futurista', year:2050, popF:1.0, pcF:1.15, desc:'Época fictícia: inteligência artificial, colônias espaciais e megacidades. O futuro ainda não escrito.', fictional:true}
 };
 
 const GOVS = {
@@ -215,9 +216,28 @@ const TECHS = [
   {id:'exoesqueleto', n:'Exoesqueletos', icon:'🦾', year:2030, req:['robotica'], fx:{military:0.08}, d:'Super-soldados'},
   {id:'base_lunar', n:'Base Lunar', icon:'🌕', year:2045, req:['satelites','ia'], fx:{research:0.1, approval:3}, d:'A humanidade além da Terra'},
   // Era VII — Futuro
-  {id:'fusao', n:'Fusão Nuclear', icon:'🌟', year:2050, req:['renovaveis','quantica','usinas_nucleares'], fx:{gdpMult:0.25, growth:1}, d:'Energia ilimitada — VITÓRIA CIENTÍFICA'}
+  {id:'fusao', n:'Fusão Nuclear', icon:'🌟', year:2050, req:['renovaveis','quantica','usinas_nucleares'], fx:{gdpMult:0.25, growth:1}, d:'Energia ilimitada — VITÓRIA CIENTÍFICA'},
+  // Era VIII — Futurista (fictícia)
+  {id:'cidades_inteligentes', n:'Cidades Inteligentes', icon:'🌆', year:2052, req:['ia','redes_5g'], fx:{gdpMult:0.04, approval:1}, d:'Trânsito, energia e serviços guiados por dados'},
+  {id:'drones_autonomos', n:'Enxames de Drones', icon:'🛸', year:2054, req:['ia','drones'], fx:{military:0.12}, d:'Milhares de drones coordenados por IA'},
+  {id:'neurointerface', n:'Interface Cérebro-Máquina', icon:'🧠', year:2056, req:['ia','edicao_genetica'], fx:{research:0.12}, d:'Pensar direto no computador'},
+  {id:'agua_atmosferica', n:'Água do Ar', icon:'💧', year:2058, req:['renovaveis','nanotecnologia'], fx:{popGrowth:0.05, stability:1}, d:'Captura de água da atmosfera: fim das secas'},
+  {id:'energia_orbital', n:'Energia Solar Orbital', icon:'🛰️', year:2060, req:['satelites','supercondutores'], fx:{gdpMult:0.08}, d:'Usinas solares em órbita enviam energia por micro-ondas'},
+  {id:'nanomedicina', n:'Nanomedicina', icon:'🩺', year:2060, req:['edicao_genetica','nanotecnologia'], fx:{popGrowth:0.1, approval:2}, d:'Nanorrobôs curam doenças por dentro do corpo'},
+  {id:'escudo_laser', n:'Escudo de Lasers', icon:'🔆', year:2062, req:['supercondutores','defesa_missil'], fx:{defense:0.1}, d:'Lasers derrubam mísseis e aviões'},
+  {id:'ia_geral', n:'Inteligência Artificial Geral', icon:'🤖', year:2065, req:['quantica','neurointerface'], fx:{research:0.3, gdpMult:0.1, unemployment:2}, d:'Máquinas tão inteligentes quanto pessoas — e o emprego muda para sempre'},
+  {id:'renda_basica', n:'Renda Básica Algorítmica', icon:'💳', year:2066, req:['ia_geral','blockchain'], fx:{approval:4, unemployment:-3, taxEff:-0.03}, d:'Os ganhos da automação divididos com todos'},
+  {id:'mineracao_asteroides', n:'Mineração de Asteroides', icon:'☄️', year:2068, req:['base_lunar','robotica'], fx:{gdpMult:0.08, tradeMult:0.05}, d:'Metais raros vindos do espaço'},
+  {id:'hyperloop', n:'Hyperloop Continental', icon:'🚄', year:2070, req:['supercondutores','trem_bala'], fx:{tradeMult:0.08, growth:0.3}, d:'Cápsulas a 1.000 km/h ligam o continente'},
+  {id:'geoengenharia', n:'Geoengenharia Climática', icon:'🌍', year:2072, req:['energia_orbital'], fx:{stability:2, popGrowth:0.05}, d:'Controle do clima e do aquecimento global'},
+  {id:'colonia_marte', n:'Colônia em Marte', icon:'🔴', year:2075, req:['base_lunar','fusao'], fx:{research:0.1, approval:4}, d:'A primeira cidade em outro planeta'},
+  {id:'longevidade', n:'Longevidade Radical', icon:'⏳', year:2080, req:['nanomedicina'], fx:{popGrowth:0.1, approval:3}, d:'Viver com saúde até os 150 anos'},
+  {id:'elevador_espacial', n:'Elevador Espacial', icon:'🗼', year:2085, req:['grafeno','mineracao_asteroides'], fx:{tradeMult:0.1, gdpMult:0.06}, d:'Um cabo de grafeno até a órbita'},
+  {id:'antimateria', n:'Propulsão de Antimatéria', icon:'⚛️', year:2090, req:['fusao','colonia_marte'], fx:{military:0.1, navy:0.1}, d:'Naves e armas de energia extrema'},
+  {id:'consciencia_digital', n:'Consciência Digital', icon:'💠', year:2100, req:['ia_geral','longevidade'], fx:{research:0.2, approval:2}, d:'Mentes humanas preservadas em computadores'},
+  {id:'dyson', n:'Enxame de Dyson', icon:'☀️', year:2120, req:['energia_orbital','antimateria'], fx:{gdpMult:0.3}, d:'Captar a energia do próprio Sol — o auge da civilização'}
 ];
-TECHS.forEach(t=>{ t.cost = Math.round(250 + (t.year-1800)*5); t.tier = t.year<1870?0:t.year<1910?1:t.year<1945?2:t.year<1975?3:t.year<2005?4:t.year<2040?5:6; });
+TECHS.forEach(t=>{ t.cost = Math.round(250 + (t.year-1800)*5); t.tier = t.year<1870?0:t.year<1910?1:t.year<1945?2:t.year<1975?3:t.year<2005?4:t.year<2040?5:t.year<2051?6:7; });
 for (const k in ERAS) ERAS[k].techs = TECHS.filter(t=>t.year <= ERAS[k].year - 5).map(t=>t.id);
 const TECH = Object.fromEntries(TECHS.map(t=>[t.id,t]));
 
@@ -439,6 +459,7 @@ function newGameInner(cfg){
     inflation:3, unemployment:7, approval:58, stability:62, corruption:0.08, warWeary:0, morale:1, occupied:0,
     rp:0, researching:null, techs:era.techs.slice(), units:{}, manpower:0, policies:{},
     states:cfg.states, cities:cfg.cities, defaults:0, nextElection: -1, revolt:0, collapse:0,
+    party: cfg.party && cfg.party.kind === powerKind(cfg.gov) ? Object.assign({}, cfg.party) : null,
     constitution: hasConstitution(cfg.gov) ? Object.assign(defaultConstitution(), cfg.constitution||{}) : (cfg.constitution||null), terms:1,
     bloc: exN ? exN.bloc : null, buildings:[], randomPick: !!cfg.randomPick, isIsland: !!cfg.isIsland, existing: cfg.existing || null, customTitle: cfg.title !== GOVS[cfg.gov].title, reform:null, amend:null,
     temp:[], printBoost:0, tributes:[], lastBudget:null, growth:2, rpRate:0, campaign:0,
@@ -450,6 +471,7 @@ function newGameInner(cfg){
   p.units = {inf:Math.max(4,baseInf), cav: cfg.era==1850?Math.round(baseInf*0.25):Math.round(baseInf*0.08), art: cfg.era>=1914?Math.round(baseInf*0.15):0, frag: Math.max(1,Math.round(baseInf*0.08))};
   if (cfg.era>=1960){ p.units.tanque = Math.round(baseInf*0.08); p.units.aviao = Math.round(baseInf*0.06); }
   if (cfg.era>=2000){ p.units.missil = Math.round(baseInf*0.03); p.units.encour = Math.round(baseInf*0.03); }
+  if (cfg.era>=2050){ p.units.missil = Math.round(baseInf*0.06); p.units.aviao = Math.round(baseInf*0.1); }
   if (cfg.terrain==='arquipelago' || cfg.terrain==='costeiro') p.units.frag += 2;
   if (GOVS[p.gov].elections) p.nextElection = electionInterval();
   if (exN){ const pw = aiPowerTarget(Object.assign({}, exN, {pop:p.pop, atWar:false})); const k = pw / Math.max(1, Object.entries(p.units).reduce((s,[u,c])=>s+c*UNIT[u].atk,0)); if (k > 1) for (const u in p.units) p.units[u] = Math.round(p.units[u]*Math.min(k, 3)); }
@@ -565,7 +587,7 @@ function calcMods(){
   }
   for (const t of p.techs) if (TECH[t]) addMods(m, TECH[t].fx);
   for (const t of p.temp) addMods(m, t.fx);
-  dealsMods(m); constitutionMods(m); buildingsMods(m); cityMods(m); cityProjectMods(m); synergyMods(m);
+  dealsMods(m); constitutionMods(m); if (typeof partyMods === 'function') partyMods(m); buildingsMods(m); cityMods(m); cityProjectMods(m); synergyMods(m);
   if (p.religion==='laico' || p.religion==='ateu') m.research += 0.05;
   if (p.gov==='teocracia' && p.religion!=='laico' && p.religion!=='ateu') m.stability += 4;
   return m;

@@ -64,6 +64,12 @@ function resourceModeMods(m){
 // ------------------------------------------------------------
 const N_ = (id, n, icon, fx, extra, ch) => Object.assign({id, n, icon, fx, ch: ch || []}, extra || {});
 const BTREE = {
+  datacenter:[N_('nuvem','Nuvem Nacional','☁️',{gdpMult:0.02, tradeMult:0.02},null,[N_('ciberdefesa','Centro de Ciberdefesa','🛡️',{defense:0.03, research:0.02}), N_('supercomputador','Supercomputador','🖥️',{research:0.06},{tech:'quantica'})]),
+    N_('verde','Data Center Verde','🌱',{approval:0.5, gdpMult:0.01},null,[N_('submarino_dados','Data Center Submarino','🌊',{gdpMult:0.02, research:0.02})])],
+  lab_ia:[N_('ia_medica','IA Médica','⚕️',{popGrowth:0.06, approval:1},null,[N_('cura_digital','Diagnóstico Universal','🩻',{popGrowth:0.06},{tech:'nanomedicina'})]),
+    N_('ia_militar','IA Militar','🎯',{military:0.06},null,[N_('comando_autonomo','Comando Autônomo','🛸',{military:0.08},{tech:'drones_autonomos'})]),
+    N_('ia_economica','IA Econômica','📈',{gdpMult:0.03},null,[N_('planejamento_total','Planejamento Algorítmico','🧮',{gdpMult:0.04, corruption:-0.02},{tech:'ia_geral'})])],
+  espacoporto:[N_('turismo_espacial','Turismo Espacial','🧑‍🚀',{tradeMult:0.04, approval:1}), N_('estaleiro_orbital','Estaleiro Orbital','🛰️',{research:0.05, navy:0.05},{tech:'mineracao_asteroides'})],
   fabrica:[
     N_('pesada','Indústria Pesada','⚙️',{gdpMult:0.015, unitCost:-0.03},null,[
       N_('siderurgica','Siderúrgica','🔥',{gdpMult:0.02, unitCost:-0.04},null,[N_('armamentos','Complexo de Armamentos','💣',{unitCost:-0.06, military:0.04},{tech:'producao_massa'}), N_('estaleiro','Estaleiro Naval','🚢',{navy:0.12, tradeMult:0.04})]),

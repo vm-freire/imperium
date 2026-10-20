@@ -126,6 +126,13 @@ function applyExisting(name){
     terrain:'planicie', resources:(pr.res||[]).slice(0,3), focus:d.pc>30?'comercio':d.ag>0.6?'militar':'industria',
     flag:f, color:flagMapColor(f), colorAuto:true, constitution:defaultConstitution(), statesAuto:true});
   C.titleEdited = false;
+  { const g = realGroups(d.key, e.year, c.gov); c.party = g.length ? Object.assign({}, g[0]) : null; }
+}
+// inicia a partida uma única vez (evita duas partidas com clique duplo)
+function launchGame(cfg){
+  if (C.launching) return; C.launching = true;
+  $('#curtain').classList.remove('hidden'); setTimeout(()=>$('#curtain').classList.add('hidden'), 1700);
+  setTimeout(()=>{ C.launching = false; startNewGame(cfg); }, 500);
 }
 function startExisting(){
   const c = C.cfg;
@@ -133,8 +140,7 @@ function startExisting(){
   c.official = c.official.trim() || (GOVS[c.gov].prefix + ' ' + c.name.trim());
   c.name = c.name.trim();
   const cfg = Object.assign({}, c, {homePoly:null, center:[0,0], flag:Object.assign({}, c.flag)});
-  $('#curtain').classList.remove('hidden'); setTimeout(()=>$('#curtain').classList.add('hidden'), 1700);
-  setTimeout(()=>startNewGame(cfg), 500);
+  launchGame(cfg);
 }
 
 // ---------------- passo: constituição ----------------
@@ -148,6 +154,8 @@ function bindConst(b){ b.querySelectorAll('[data-art]').forEach(x=>x.onclick=()=
 
 const cards = (obj, sel, key, extra) => `<div class="cards">${Object.entries(obj).map(([k,v])=>`<div class="card ${k===sel?'sel':''}" data-${key}="${k}"><b>${v.name}</b><span>${v.desc||''}</span>${extra?extra(k,v):''}</div>`).join('')}</div>`;
 
+// chave histórica do país escolhido (para partidos reais)
+function createKey(){ const c = C.cfg; if (!c.existing) return null; const d = eraNations(c.era).find(x=>x.name===c.existing); return d ? d.key : null; }
 // ---------------- passo 1: identidade ----------------
 function stepIdent(){
   const c = C.cfg;
@@ -171,6 +179,7 @@ function stepIdent(){
    </div>
    <div>
     <div class="section-title">Regime político</div>${cards(GOVS, c.gov, 'gov')}
+    <div id="pg-root">${partyPickerHTML(c, createKey(), ERAS[c.era].year, c.gov)}</div>
     <div class="section-title">Sistema econômico</div>${cards(ECONS, c.econ, 'econ')}
     <div class="section-title">Perfil do líder</div>${cards(TRAITS, c.trait, 'trait')}
    </div></div>`;
@@ -184,6 +193,7 @@ function bindIdent(b){
   b.querySelector('#f-religion').onchange = e=>{ c.religion = e.target.value; };
   b.querySelectorAll('[data-gov]').forEach(x=>x.onclick=()=>{ SFX.click(); c.gov = x.dataset.gov; if (!C.titleEdited) c.title = GOVS[c.gov].title; renderStep(); });
   b.querySelectorAll('[data-econ]').forEach(x=>x.onclick=()=>{ SFX.click(); c.econ = x.dataset.econ; renderStep(); });
+  const pg = b.querySelector('#pg-root'); if (pg) bindPartyPicker(pg, c, createKey(), ERAS[c.era].year, c.gov, ()=>renderStep());
   b.querySelectorAll('[data-trait]').forEach(x=>x.onclick=()=>{ SFX.click(); c.trait = x.dataset.trait; renderStep(); });
 }
 
@@ -387,7 +397,8 @@ function stepSummary(){
       <div class="muted">“${esc(c.motto)}”</div>
       <div class="kv" style="margin-top:10px">
         <div>Líder</div><div>${esc(c.title)} ${esc(c.leader)}, ${c.age} anos (${TRAITS[c.trait].name})</div>
-        <div>Regime</div><div>${GOVS[c.gov].name}</div><div>Economia</div><div>${ECONS[c.econ].name}</div>
+        <div>Regime</div><div>${GOVS[c.gov].name}</div>
+        <div>${POWER_KINDS[powerKind(c.gov)].label}</div><div>${c.party && c.party.kind === powerKind(c.gov) ? partyLabel(c.party) : '<span class="muted">Nenhum escolhido</span>'}</div><div>Economia</div><div>${ECONS[c.econ].name}</div>
         <div>Religião</div><div>${RELIGIONS[c.religion]}</div><div>Capital</div><div>${esc(c.capital)}</div>
         <div>Moeda · Idioma</div><div>${esc(c.currency)} (${esc(c.currencySym)}) · ${esc(c.language)}</div>
         <div>Época</div><div>${e.year} — ${e.name}</div>
@@ -456,8 +467,7 @@ function placementClick(lon, lat){
     const cfg = Object.assign({}, c, {isIsland: pct < 10, homePoly: poly.map(p=>[+p[0].toFixed(3), +p[1].toFixed(3)]), center:[lon, lat], flag:Object.assign({}, c.flag)});
     MapView.placement = null;
     if (C.onlineRoom){ saveOnlineCfg(cfg); return; }
-    $('#curtain').classList.remove('hidden'); setTimeout(()=>$('#curtain').classList.add('hidden'), 1700);
-    setTimeout(()=>startNewGame(cfg), 500);
+    launchGame(cfg);
   });
 }
 

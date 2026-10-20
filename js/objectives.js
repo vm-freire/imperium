@@ -39,7 +39,7 @@ function initObjectives(mode){
   G.objBase = {pop:G.p.pop, techs:G.p.techs.length, area:G.p.area, idh:socialIndex(1).idh};
   G.objDone = []; G.objStreak = 0; G.finalStreak = 0;
   const multi = G.online && (G.online.humans||[]).length > 1;
-  const opts = Object.keys(FINAL_OBJ).filter(k=>(!FINAL_OBJ[k].minEra || G.era >= FINAL_OBJ[k].minEra) && (!FINAL_OBJ[k].online || multi));
+  const opts = Object.keys(FINAL_OBJ).filter(k=>(!FINAL_OBJ[k].minEra || G.era >= FINAL_OBJ[k].minEra) && (!FINAL_OBJ[k].maxEra || G.era <= FINAL_OBJ[k].maxEra) && (!FINAL_OBJ[k].online || multi));
   G.finalObj = opts[Math.floor(Math.random()*opts.length)];
 }
 // objetivos finais: difíceis de propósito
@@ -56,7 +56,9 @@ const FINAL_OBJ = {
   ultimo_de_pe:{icon:'⚔️', online:true, n:'Último de pé', d:'Ser o único jogador humano ainda vivo e ter a maior economia do mundo — por 1 ano.', months:12,
     met:()=>!G.nations.some(n=>n&&n.human&&!n.empty&&n.alive) && rankings().gdp === 1,
     prog:()=>{ const hs = G.nations.filter(n=>n&&n.human&&!n.empty); return hs.length ? hs.filter(n=>!n.alive).length/hs.length*0.8 + (rankings().gdp===1?0.2:0) : 0; }},
-  abundancia:{icon:'🌟', n:'Era da Abundância', d:'Dominar a Fusão Nuclear e a Computação Quântica sendo a economia nº 1 do mundo — por 2 anos seguidos.', months:24, minEra:1914,
+  singularidade:{icon:'☀️', n:'Civilização Estelar', d:'Construir o Enxame de Dyson e a Consciência Digital sendo a economia nº 1 do mundo — por 2 anos seguidos.', months:24, minEra:2050,
+    met:()=>G.p.techs.includes('dyson') && G.p.techs.includes('consciencia_digital') && rankings().gdp === 1, prog:()=>(G.p.techs.includes('consciencia_digital')?0.4:0) + (G.p.techs.includes('dyson')?0.4:0) + (rankings().gdp===1?0.2:0)},
+  abundancia:{icon:'🌟', n:'Era da Abundância', d:'Dominar a Fusão Nuclear e a Computação Quântica sendo a economia nº 1 do mundo — por 2 anos seguidos.', months:24, minEra:1914, maxEra:2000,
     met:()=>G.p.techs.includes('fusao') && G.p.techs.includes('quantica') && rankings().gdp === 1, prog:()=>(G.p.techs.includes('quantica')?0.4:0) + (G.p.techs.includes('fusao')?0.4:0) + (rankings().gdp===1?0.2:0)}
 };
 function activeObjectives(){

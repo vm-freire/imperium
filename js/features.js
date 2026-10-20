@@ -65,7 +65,14 @@ const BUILDINGS = {
   base:{n:'Base Militar', icon:'🎖️', cost:300, fx:{manpower:0.1, defense:0.03}, local:{r:4, def:1.25}, d:'+reservas, +25% de defesa num raio de 4 regiões'},
   fortaleza:{n:'Fortaleza', icon:'🏰', cost:350, fx:{defense:0.02}, local:{r:3, def:1.6}, d:'+60% de defesa num raio de 3 regiões'},
   aeroporto:{n:'Base Aérea', icon:'🛫', cost:400, req:'aviacao', fx:{military:0.03}, d:'+alcance de ataque, aviões partem daqui'},
-  monumento:{n:'Monumento Nacional', icon:'🗿', cost:300, fx:{approval:1.5, stability:1}, d:'+apoio e orgulho nacional'}
+  monumento:{n:'Monumento Nacional', icon:'🗿', cost:300, fx:{approval:1.5, stability:1}, d:'+apoio e orgulho nacional'},
+  datacenter:{n:'Centro de Dados', icon:'🗄️', cost:500, req:'internet', fx:{research:0.05, gdpMult:0.02}, d:'+5% pesquisa, +2% PIB'},
+  lab_ia:{n:'Laboratório de IA', icon:'🧠', cost:650, req:'ia', fx:{research:0.08, gdpMult:0.015}, d:'+8% pesquisa'},
+  fazenda_vertical:{n:'Fazenda Vertical', icon:'🥬', cost:400, req:'biotec', fx:{popGrowth:0.08, stability:0.6}, d:'Comida em prédios: +crescimento e estabilidade'},
+  distrito_inteligente:{n:'Distrito Inteligente', icon:'🌆', cost:700, req:'cidades_inteligentes', fx:{gdpMult:0.03, approval:1, admin:0.02}, d:'+3% PIB, +apoio e administração'},
+  escudo:{n:'Escudo de Lasers', icon:'🔆', cost:800, req:'escudo_laser', fx:{defense:0.04}, local:{r:5, def:1.8}, d:'+80% de defesa num raio de 5 regiões'},
+  espacoporto:{n:'Espaçoporto', icon:'🚀', cost:1200, req:'base_lunar', fx:{research:0.06, tradeMult:0.05}, d:'Lançamentos espaciais: +pesquisa e +comércio'},
+  usina_fusao:{n:'Usina de Fusão', icon:'🌟', cost:1500, req:'fusao', fx:{gdpMult:0.06, stability:0.5}, d:'+6% PIB com energia quase ilimitada'}
 };
 function buildCount(t){ return (G.p.buildings||[]).filter(b=>b.t===t).length; }
 function buildCost(t){
