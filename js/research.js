@@ -15,6 +15,7 @@ const TECH_CATS = {
   tra:{n:'Transportes', icon:'🚂', ids:['ferrovias','motor','trem_bala','metro']},
   soc:{n:'Sociedade', icon:'🏛️', ids:['previdencia','keynesianismo']},
   agr:{n:'Agricultura', icon:'🌾', ids:['rev_verde']},
+  cla:{n:'Ciência clássica e navegação', icon:'🧭', ids:['caravela','imprensa','polvora','astrolabio','bancos','navegacao_oceanica','cartografia','fortaleza_estrela','galeao','mosquete','companhias','telescopio','bolsa','metodo_cientifico','exercito_permanente','calculo','baioneta','rotacao_culturas','iluminismo','enciclopedia','para_raios','fiacao','balao','variolizacao','imprensa_jornal','microscopio','relogio_pendulo','banco_central_antigo','semeadeira','coque','motor_newcomen','termometro','cronometro','canais_navegaveis']},
   fut:{n:'Futuro', icon:'🚀', ids:['cidades_inteligentes','drones_autonomos','neurointerface','agua_atmosferica','energia_orbital','nanomedicina','escudo_laser','ia_geral','renda_basica','mineracao_asteroides','hyperloop','geoengenharia','colonia_marte','longevidade','elevador_espacial','antimateria','consciencia_digital','dyson']}
 };
 const TECH_CAT_OF = {};

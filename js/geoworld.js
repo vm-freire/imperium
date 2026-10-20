@@ -23,7 +23,7 @@ Grid.buildLand = function(extraPolys){
 };
 
 // ---------------- Nomes em português do Brasil ----------------
-const GEO_NAME = {IRN:'Irã', VNM:'Vietnã', CZE:'Tchéquia', NLD:'Holanda', IRL:'Irlanda', SWZ:'Essuatíni', COD:'RD Congo', COG:'Congo-Brazzaville', BIH:'Bósnia', ARE:'Emirados Árabes',
+const GEO_NAME = {YEM:'Iêmen', MUS:'Maurício', IRN:'Irã', VNM:'Vietnã', CZE:'Tchéquia', NLD:'Holanda', IRL:'Irlanda', SWZ:'Essuatíni', COD:'RD Congo', COG:'Congo-Brazzaville', BIH:'Bósnia', ARE:'Emirados Árabes',
   CAF:'República Centro-Africana', DOM:'República Dominicana', KEN:'Quênia', SWE:'Suécia', KOR:'Coreia do Sul', MDG:'Madagascar', TWN:'Taiwan', SDS:'Sudão do Sul', MKD:'Macedônia do Norte', GNQ:'Guiné Equatorial',
   ZWE:'Zimbábue', SLB:'Ilhas Salomão', PNG:'Papua-Nova Guiné', LVA:'Letônia', EST:'Estônia', ARM:'Armênia', CMR:'Camarões', BEN:'Benin', KGZ:'Quirguistão', TKM:'Turcomenistão', UZB:'Uzbequistão', TJK:'Tajiquistão'};
 // países que já tinham dados no jogo (líderes, partidos, bandeiras, história)
@@ -69,7 +69,7 @@ const PT_CITY = {'Moscow':'Moscou', 'Beijing':'Pequim', 'Tokyo':'Tóquio', 'Lond
   "N'Djamena":'Jamena', 'Djibouti':'Djibuti', 'Niamey':'Niamei', 'Muscat':'Mascate', 'Chișinău':'Chisinau', 'Abu Dhabi':'Abu Dabi', 'Port-of-Spain':'Porto de Espanha', 'Dili':'Díli', 'Luxembourg':'Luxemburgo',
   'Thimphu':'Timbu', 'Monaco':'Mônaco', 'Vatican City':'Vaticano', 'Bandar Seri Begawan':'Bandar Seri Begawan', 'Ouagadougou':'Uagadugu', 'Hargeisa':'Hargeisa', 'Pristina':'Pristina', 'Sucre':'Sucre'};
 // [nome atual, até o ano, nome antigo] — nomes da época
-const CITY_OLD = [['Istambul',1930,'Constantinopla'],['São Petersburgo',1915,'São Petersburgo'],['São Petersburgo',1924,'Petrogrado'],['São Petersburgo',1991,'Leningrado'],['Volgograd',1925,'Tsaritsyn'],['Volgograd',1961,'Stalingrado'],
+const CITY_OLD = [['Cidade do México',1521,'Tenochtitlán'],['Nova York',1664,'Nova Amsterdã'],['Jacarta',1619,'Jayakarta'],['Istambul',1930,'Constantinopla'],['São Petersburgo',1915,'São Petersburgo'],['São Petersburgo',1924,'Petrogrado'],['São Petersburgo',1991,'Leningrado'],['Volgograd',1925,'Tsaritsyn'],['Volgograd',1961,'Stalingrado'],
   ['Cidade de Ho Chi Minh',1976,'Saigon'],['Mumbai',1995,'Bombaim'],['Chennai',1996,'Madras'],['Kinshasa',1966,'Léopoldville'],['Harare',1982,'Salisbury'],['Jacarta',1942,'Batávia'],['Oslo',1877,'Christiania'],['Oslo',1925,'Kristiania'],
   ['Ulan Bator',1924,'Urga'],['Almaty',1921,'Verny'],['Gdańsk',1945,'Danzig'],['Wrocław',1945,'Breslau'],['Kaliningrad',1946,'Königsberg'],['Lviv',1918,'Lemberg'],['Bratislava',1919,'Pressburg'],['Liubliana',1918,'Laibach'],
   ['Tóquio',1868,'Edo'],['Maputo',1976,'Lourenço Marques'],['Lubumbashi',1966,'Elisabethville'],['Nizhny Novgorod',1932,'Nizhny Novgorod'],['Nizhny Novgorod',1990,'Gorki'],['Yekaterinburg',1924,'Ekaterimburgo'],['Yekaterinburg',1991,'Sverdlovsk'],
@@ -79,14 +79,33 @@ const CITY_OLD = [['Istambul',1930,'Constantinopla'],['São Petersburgo',1915,'S
 const CITY_FOUNDED = {'Brasília':1960.3, 'Belo Horizonte':1897, 'Goiânia':1933, 'Palmas':1989, 'Islamabad':1961, 'Abuja':1976, 'Camberra':1913, 'Tel Aviv-Yafo':1909, 'Tel Aviv':1909, 'Johannesburg':1886, 'Nairóbi':1899,
   'Kinshasa':1881, 'Harare':1890, 'Lusaka':1905, 'Windhoek':1890, 'Gaborone':1964, 'Lilongwe':1947, 'Las Vegas':1905, 'Miami':1896, 'Seattle':1851, 'Vancouver':1886, 'Calgary':1875, 'Winnipeg':1873, 'Denver':1858,
   'Phoenix':1868, 'Shenzhen':1979, 'Chandigarh':1952, 'Naypyidaw':2005, 'Putrajaya':1995, 'Novosibirsk':1893, 'Dodoma':1907, 'Yamoussoukro':1983, 'Campo Grande':1899, 'Boa Vista':1890, 'Londrina':1934, 'Maringá':1947,
-  'Anchorage':1914, 'Oklahoma City':1889, 'Tulsa':1898, 'Dubai':1900, 'Abu Dhabi':1900, 'Doha':1900, 'Haifa':1900, 'Port Harcourt':1912, 'Kaduna':1913, 'Lubumbashi':1910, 'Kisangani':1883, 'Bulawayo':1894};
+  'Anchorage':1914, 'Oklahoma City':1889, 'Tulsa':1898, 'Dubai':1900, 'Abu Dhabi':1900, 'Doha':1900, 'Haifa':1900, 'Port Harcourt':1912, 'Kaduna':1913, 'Lubumbashi':1910, 'Kisangani':1883, 'Bulawayo':1894,
+  'São Petersburgo':1703, 'Rio de Janeiro':1565, 'São Paulo':1554, 'Salvador':1549, 'Recife':1537, 'Olinda':1535, 'Belém':1616, 'São Luís':1612, 'Fortaleza':1726, 'Natal':1599, 'João Pessoa':1585, 'Vitória':1551, 'Porto Alegre':1772, 'Curitiba':1693, 'Florianópolis':1673,
+  'Manaus':1669, 'Cuiabá':1719, 'Goiás':1727, 'Ouro Preto':1711, 'Campinas':1774, 'Santos':1546, 'Buenos Aires':1580, 'Lima':1535, 'Bogotá':1538, 'Santiago':1541, 'Caracas':1567, 'Quito':1534, 'Montevidéu':1724, 'Assunção':1537, 'La Paz':1548,
+  'Havana':1519, 'Cidade do Panamá':1519, 'Cartagena':1533, 'Córdoba':1573, 'Rosario':1793, 'Valparaíso':1544, 'Guayaquil':1538, 'Medellín':1616, 'Cali':1536, 'Santo Domingo':1496, 'San Juan':1521, 'Cidade da Guatemala':1776,
+  'Nova York':1625, 'Boston':1630, 'Filadélfia':1682, 'Charleston':1670, 'Baltimore':1729, 'Nova Orleans':1718, 'Washington':1790, 'Los Angeles':1781, 'San Francisco':1776, 'San Diego':1769, 'Chicago':1833, 'Detroit':1701, 'Pittsburgh':1758,
+  'Houston':1836, 'Dallas':1841, 'Atlanta':1837, 'Toronto':1793, 'Montreal':1642, 'Quebec':1608, 'Halifax':1749, 'Ottawa':1826, 'Sydney':1788, 'Melbourne':1835, 'Brisbane':1825, 'Perth':1829, 'Adelaide':1836, 'Auckland':1840, 'Wellington':1840,
+  'Cidade do Cabo':1652, 'Luanda':1576, 'Maputo':1781, 'Durban':1835, 'Pretória':1855, 'Singapura':1819, 'Hong Kong':1841, 'Calcutá':1690, 'Kolkata':1690, 'Chennai':1639, 'Mumbai':1507, 'Jacarta':1527, 'Manila':1571, 'Macau':1557, 'Yokohama':1859};
+// regiões colonizadas mais tarde (as cidades surgem aos poucos)
+const NEW_WORLD = new Set(['North America','South America','Oceania']);
 function cityNameAt(name, year){
   name = String(name).replace(/\s+/g, ' ');
   let n = PT_CITY[name] || name;
   for (const [cur, until, old] of CITY_OLD) if (cur === n && year < until){ n = old; break; }
   return n;
 }
-const cityExists = (name, year) => { const f = CITY_FOUNDED[PT_CITY[name] || name]; return !f || year >= f; };
+// a cidade existia neste ano? (data de fundação conhecida, senão regra por região e tamanho atual)
+const CITY_NATIVE = new Set(['Cidade do México', 'Cusco', 'Quito', 'Cajamarca', 'Tenochtitlán']);
+function cityExists(name, year, a3, popK, lon, loose){
+  const nm = PT_CITY[String(name).replace(/\s+/g, ' ')] || name, f = CITY_FOUNDED[nm];
+  if (f) return year >= f;
+  if (year >= 1960 || a3 === undefined) return true;
+  const c = GEO.countries[GEO_IDX[a3]] || {}, isNew = NEW_WORLD.has(c.cont) || (a3 === 'RUS' && lon > 60) || (c.cont === 'Africa' && !/Northern Africa/.test(c.sub||''));
+  if (year < 1600 && isNew) return CITY_NATIVE.has(nm) || (c.cont === 'Africa' && popK >= 1500);
+  if (loose) return !isNew || year >= 1800 || popK >= 300;
+  const min = isNew ? (year < 1800 ? 2500 : year < 1900 ? 300 : 60) : (year < 1600 ? 300 : year < 1800 ? 150 : year < 1900 ? 40 : 0);
+  return popK >= min;
+}
 
 // ---------------- Nações-base (todos os países reais) ----------------
 function geoBaseNations(){
@@ -116,7 +135,7 @@ function geoBaseNations(){
 // groups: nações que não existem mais; boxes: parte de um país que pertencia a outro
 const ERA_GEO = {
   1850:{
-    into:{UKR:'RUS', BLR:'RUS', EST:'RUS', LVA:'RUS', LTU:'RUS', FIN:'RUS', MDA:'RUS', GEO:'RUS', ARM:'RUS', AZE:'RUS', KAZ:'RUS', POL:'RUS',
+    into:{TTO:'GBR', MUS:'GBR', UKR:'RUS', BLR:'RUS', EST:'RUS', LVA:'RUS', LTU:'RUS', FIN:'RUS', MDA:'RUS', GEO:'RUS', ARM:'RUS', AZE:'RUS', KAZ:'RUS', POL:'RUS',
       UZB:'G:asia_central', TJK:'G:asia_central', TKM:'G:asia_central', KGZ:'G:asia_central',
       HUN:'AUT', CZE:'AUT', SVK:'AUT', SVN:'AUT', HRV:'AUT',
       SYR:'TUR', IRQ:'TUR', LBN:'TUR', ISR:'TUR', JOR:'TUR', CYP:'TUR', CYN:'TUR', BGR:'TUR', MKD:'TUR', ALB:'TUR', BIH:'TUR', SRB:'TUR', MNE:'TUR', KOS:'TUR', ROU:'TUR', LBY:'TUR', TUN:'TUR', SAU:'TUR', YEM:'TUR', KWT:'TUR',
@@ -135,7 +154,7 @@ const ERA_GEO = {
       'Etiópia':{name:'Império Etíope', gov:'monarquia_abs'}, 'Sudão':{name:'Sudão Egípcio'}, 'Angola':{name:'Angola Portuguesa', flag:presetFlagSafe('Portugal')}, 'Argélia':{name:'Argélia Francesa', flag:F_('tricolor_v','#0055a4','#ffffff','#ef4135')}}
   },
   1914:{
-    into:{UKR:'RUS', BLR:'RUS', EST:'RUS', LVA:'RUS', LTU:'RUS', FIN:'RUS', MDA:'RUS', GEO:'RUS', ARM:'RUS', AZE:'RUS', KAZ:'RUS', UZB:'RUS', TKM:'RUS', KGZ:'RUS', TJK:'RUS', POL:'RUS',
+    into:{TTO:'GBR', MUS:'GBR', UKR:'RUS', BLR:'RUS', EST:'RUS', LVA:'RUS', LTU:'RUS', FIN:'RUS', MDA:'RUS', GEO:'RUS', ARM:'RUS', AZE:'RUS', KAZ:'RUS', UZB:'RUS', TKM:'RUS', KGZ:'RUS', TJK:'RUS', POL:'RUS',
       HUN:'AUT', CZE:'AUT', SVK:'AUT', SVN:'AUT', HRV:'AUT', BIH:'AUT',
       SYR:'TUR', IRQ:'TUR', LBN:'TUR', ISR:'TUR', JOR:'TUR', SAU:'TUR', YEM:'TUR',
       KWT:'OMN', QAT:'OMN', ARE:'OMN', CYP:'GBR', CYN:'GBR', IRL:'GBR', GUY:'GBR', FJI:'GBR', SLB:'GBR', VUT:'GBR',
@@ -297,7 +316,7 @@ function assignGeoTerritories(N, cfg){
     const a3 = cellA3(i); Grid.owner[i] = a3 ? (byA3[a3] || 0) : 0;
   }
   for (const b of (era._boxes||[])){
-    const to = N.findIndex(n => n && n.a3 === b.to); if (to < 2) continue;
+    const to = b.to === 'ABSENT' ? 0 : N.findIndex(n => n && n.a3 === b.to); if (b.to !== 'ABSENT' && to < 2) continue;
     for (let i = 0; i < NCELLS; i++){ if (!Grid.land[i] || cellA3(i) !== b.from) continue; const [lo, la] = cellCenter(i); if (lo >= b.box[0] && la >= b.box[1] && lo <= b.box[2] && la <= b.box[3]) Grid.owner[i] = to; }
   }
   // países que ficaram de fora pela configuração: terras para os vizinhos (ou livres)
@@ -323,7 +342,7 @@ function realStatesFor(isos){
 // cidades reais de um país (as maiores primeiro), com nomes da época
 function realCitiesFor(isos, year, max){
   const set = new Set(isos), out = [];
-  for (const c of GEO.cities){ if (!set.has(c[4]) || !cityExists(c[0], year)) continue; out.push({name:cityNameAt(c[0], year), lon:c[1], lat:c[2], pop:c[3], cap:c[5]}); if (out.length >= (max||40)) break; }
+  for (const c of GEO.cities){ if (!set.has(c[4]) || !cityExists(c[0], year, c[4], c[3], c[1], true)) continue; out.push({name:cityNameAt(c[0], year), lon:c[1], lat:c[2], pop:c[3], cap:c[5]}); if (out.length >= (max||40)) break; }
   return out;
 }
 
@@ -351,47 +370,54 @@ function geoStatesReady(){
 function geoCitiesFor(year){
   if (GEO_LAYER.cityYear === year) return GEO_LAYER.cities;
   GEO_LAYER.cityYear = year;
-  GEO_LAYER.cities = GEO.cities.filter(c => cityExists(c[0], year)).map(c => { const [x, y] = proj(c[1], c[2]); return {name:cityNameAt(c[0], year), x, y, pop:c[3], cap:c[5], cell:cellOf(c[1], c[2])}; });
+  GEO_LAYER.cities = GEO.cities.filter(c => cityExists(c[0], year, c[4], c[3], c[1])).map(c => { const [x, y] = proj(c[1], c[2]); return {name:cityNameAt(c[0], year), x, y, pop:c[3], cap:c[5], cell:cellOf(c[1], c[2])}; });
   return GEO_LAYER.cities;
 }
+// divisas dos estados (antes de tudo) — os nomes entram depois, junto com as cidades
+MapView.drawGeoStates = function(ctx, z){
+  this._visStates = [];
+  if (this.menuMode || !G || !G.p || z < 2) return;
+  const S = geoStatesReady(); if (!S) return;
+  const vx0 = this.cam.x, vy0 = this.cam.y, vx1 = vx0 + this.cw / z, vy1 = vy0 + this.ch / z;
+  ctx.save(); ctx.setLineDash([4/z, 3/z]); ctx.strokeStyle = 'rgba(70,45,20,0.45)'; ctx.lineWidth = Math.max(0.2, 1/z);
+  for (const s of S){ const b = s.box; if (b[2] < vx0 || b[0] > vx1 || b[3] < vy0 || b[1] > vy1) continue; ctx.stroke(s.path); this._visStates.push(s); }
+  ctx.restore();
+};
+const labelFits = (boxes, bx) => !boxes.some(b => bx[0] < b[2] && bx[2] > b[0] && bx[1] < b[3] && bx[3] > b[1]);
 MapView.drawGeoLayers = function(ctx, z){
   if (this.menuMode || !G || !G.p) return;
+  const boxes = this._boxes || (this._boxes = []);
   const vx0 = this.cam.x, vy0 = this.cam.y, vx1 = vx0 + this.cw / z, vy1 = vy0 + this.ch / z;
   const inView = (x, y, m) => x > vx0 - m && x < vx1 + m && y > vy0 - m && y < vy1 + m;
-  // estados
-  if (z >= 2){
-    const S = geoStatesReady();
-    if (S){
-      ctx.save(); ctx.setLineDash([2/z*2, 2/z*1.5]); ctx.strokeStyle = 'rgba(70,45,20,0.42)'; ctx.lineWidth = Math.max(0.25, 0.9/z);
-      const vis = [];
-      for (const s of S){ const b = s.box; if (b[2] < vx0 || b[0] > vx1 || b[3] < vy0 || b[1] > vy1) continue; ctx.stroke(s.path); vis.push(s); }
-      ctx.restore();
-      if (z >= 3.2){
-        ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `italic ${11/z}px Georgia, serif`; ctx.fillStyle = 'rgba(60,38,15,0.72)';
-        for (const s of vis){ const wpx = (s.box[2] - s.box[0]) * z; if (wpx < 34 || !s.name) continue; ctx.fillText(s.name, s.lx, s.ly); }
-        ctx.restore();
-      }
+  // cidades do mundo (as maiores primeiro, para terem prioridade no espaço)
+  if (z >= 1.2){
+    const year = curYear(), list = geoCitiesFor(year);
+    const minPop = z >= 14 ? 0 : z >= 9 ? 20 : z >= 6 ? 60 : z >= 4 ? 150 : z >= 2.8 ? 400 : z >= 1.8 ? 1500 : 1e9;
+    const own = new Set(G.p.cityCells || []); own.add(G.p.capCell);
+    const fs = 11 / z, r = 2.4 / z;
+    ctx.save(); ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.font = `${fs}px Georgia, serif`;
+    for (const c of list){
+      if (!inView(c.x, c.y, 20)) continue;
+      const isCap = c.cap & 1, isAdm = c.cap & 2;
+      if (!(isCap || c.pop >= minPop || (isAdm && z >= 3.2))) continue;
+      if (own.has(c.cell) && G.p.cityNames.includes(c.name)) continue;
+      const w = ctx.measureText(c.name).width, bx = [c.x - r, c.y - fs*0.6, c.x + r*2 + w + 2/z, c.y + fs*0.6];
+      ctx.fillStyle = isCap ? '#7a1b14' : '#3d2812';
+      ctx.beginPath(); if (isCap) ctx.rect(c.x - r, c.y - r, r*2, r*2); else ctx.arc(c.x, c.y, r*0.75, 0, Math.PI*2); ctx.fill();
+      if (!labelFits(boxes, bx)) continue;                 // o ponto aparece; o nome só se couber
+      boxes.push(bx);
+      ctx.lineWidth = 3/z; ctx.strokeStyle = 'rgba(244,232,200,0.85)'; ctx.strokeText(c.name, c.x + r*1.7, c.y); ctx.fillText(c.name, c.x + r*1.7, c.y);
     }
+    ctx.restore();
   }
-  // cidades
-  if (z < 1.2) return;
-  const year = curYear(), list = geoCitiesFor(year);
-  const minPop = z >= 5 ? 0 : z >= 3.5 ? 250 : z >= 2.5 ? 700 : z >= 1.6 ? 2000 : 1e9;
-  const own = new Set(G.p.cityCells || []); own.add(G.p.capCell);
-  const boxes = [], fs = 11 / z, r = 2.2 / z;
-  ctx.save(); ctx.textBaseline = 'middle'; ctx.font = `${fs}px Georgia, serif`;
-  for (const c of list){
-    if (!inView(c.x, c.y, 20)) continue;
-    const isCap = c.cap & 1, isAdm = c.cap & 2;
-    if (!(isCap || c.pop >= minPop || (isAdm && z >= 3.5) )) continue;
-    if (own.has(c.cell)) continue;
-    const w = ctx.measureText(c.name).width, bx = [c.x - r, c.y - fs/2, c.x + r*2 + w + 2/z, c.y + fs/2];
-    if (boxes.some(b => bx[0] < b[2] && bx[2] > b[0] && bx[1] < b[3] && bx[3] > b[1])) continue;
-    boxes.push(bx);
-    ctx.fillStyle = isCap ? '#7a1b14' : '#3d2812';
-    ctx.beginPath(); if (isCap){ ctx.rect(c.x - r, c.y - r, r*2, r*2); } else ctx.arc(c.x, c.y, r*0.8, 0, Math.PI*2); ctx.fill();
-    ctx.lineWidth = 3/z; ctx.strokeStyle = 'rgba(244,232,200,0.85)'; ctx.strokeText(c.name, c.x + r*1.8, c.y);
-    ctx.fillText(c.name, c.x + r*1.8, c.y);
+  // nomes dos estados (por último: só onde sobra espaço)
+  if (z >= 3.2 && this._visStates){
+    ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `italic ${11/z}px Georgia, serif`; ctx.fillStyle = 'rgba(60,38,15,0.7)';
+    for (const s of this._visStates){
+      const wpx = (s.box[2] - s.box[0]) * z; if (wpx < 34 || !s.name) continue;
+      const w = ctx.measureText(s.name).width, bx = [s.lx - w/2, s.ly - 7/z, s.lx + w/2, s.ly + 7/z];
+      if (!labelFits(boxes, bx)) continue; boxes.push(bx); ctx.fillText(s.name, s.lx, s.ly);
+    }
+    ctx.restore();
   }
-  ctx.restore();
 };

@@ -407,7 +407,7 @@ function openReformModal(kind){
   const p = G.p, list = kind === 'gov' ? GOVS : ECONS, cur = kind === 'gov' ? p.gov : p.econ;
   const m = openModal(`<div class="m-icon">🏛️</div><div class="m-title">${kind==='gov'?'Mudança de regime':'Reforma econômica'}</div>
     <div class="m-text">${kind==='gov'?'A transição leva de 8 a 14 meses, custa 2% do PIB e derruba a estabilidade (−10). Regimes democráticos recebem uma Constituição.':'A reforma leva de 4 a 8 meses e custa 1% do PIB.'}</div>
-    <div class="cards">${Object.entries(list).map(([k,v])=>`<div class="card ${k===cur?'sel':''}" data-to="${k}"><b>${v.name}</b><span>${v.desc||''}</span></div>`).join('')}</div>
+    <div class="cards">${Object.entries(list).filter(([k])=>typeof govOk !== 'function' || (kind === 'gov' ? govOk(k, curYear()) : econOk(k, curYear()))).map(([k,v])=>`<div class="card ${k===cur?'sel':''}" data-to="${k}"><b>${v.name}</b><span>${v.desc||''}</span></div>`).join('')}</div>
     <div class="m-actions"><button class="btn" id="rf-close">Cancelar</button></div>`, {wide:true});
   m.querySelector('#rf-close').onclick = ()=>{ SFX.click(); closeModal(); };
   m.querySelectorAll('[data-to]').forEach(c=>c.onclick = ()=>{ const r = startReform(kind, c.dataset.to); closeModal(); if (r.ok){ SFX.bell(); toast(r.msg,'good'); } else { SFX.error(); toast(r.why,'bad'); } refreshAll(); });
@@ -822,6 +822,7 @@ function openNation(id){
         ${n.pact ? '' : act('pact', `📜 Pacto de não-agressão${pending('pact')?' (negociando)':''}`, n.rel<5 || pending('pact'), 'Requer relações ≥ 5 · 2–4 meses')}
         ${n.alliance ? act('breakAlliance','💔 Romper aliança') : act('alliance', `🤝 Propor aliança${pending('alliance')?' (negociando)':''}`, n.rel<45 || pending('alliance'), 'Requer relações ≥ 45 · 4–8 meses')}
         ${act('spy', `🕵️ Espionagem (${fmtMoney(DIPLO.spyCost())})`, pending('spy'), 'Missão de 2–4 meses')}
+        ${(n.sites||[]).some(s=>s.known) ? act('ops', `🎯 Operações secretas (${(n.sites||[]).filter(s=>s.known).length} alvos)`) : ''}
         ${act('tribute', '👑 Exigir tributo', pending('tribute'), 'Precisa de exército 1,5x mais forte')}
         ${act('embargo', '🚫 Embargo econômico')}
         ${act('insult', '😤 Insultar publicamente')}
@@ -839,6 +840,7 @@ function openNation(id){
     if (k==='war'){ closeModal(); confirmModal('⚔️', `Guerra contra ${esc(n.name)}?`, `${n.pact?'<b>Quebraremos um pacto de não-agressão!</b> ':''}${n.truce>G.turn?'<b>Quebraremos uma trégua!</b> ':''}${dealCount(n)?`Perderemos ${dealCount(n)} acordo(s) comercial(is). `:''}${GOVS[p.gov].family==='dem' && n.rel>-40 && !n.claim ? 'O povo não verá motivo para esta guerra (−8 apoio). ':''}Aliados de ${esc(n.name)} podem entrar no conflito. Exército deles: ${fmtNum(n.power,0)} · nosso: ${fmtNum(p.atk,0)}.`, 'Declarar guerra', ()=>{
         declareWar(id, false); SFX.warDeclared(); MapView.doShake(10, 700); bigBanner('GUERRA!', `${esc(p.name)} × ${esc(n.name)}`); refreshAll(); saveGame(); }, true); return; }
     if (k === 'peace_table'){ SFX.page(); closeModal(); openPeaceTable(id); return; }
+    if (k==='ops'){ closeModal(); openOpsList(id); return; }
     if (k.startsWith('peace_')){
       const t = k.slice(6);
       if (t === 'render'){ makePeace(id, 'render'); SFX.bell(); closeModal(); refreshAll(); return; }
@@ -944,7 +946,7 @@ function onMapClick(c, x, y){
   const site = (n.sites||[]).find(s=>s.known && s.c===c);
   if (!n.atWar){
     const pop = showPopover(`<h4>${flagImg(n,24,16)} ${esc(n.name)}</h4><div>${relLabel(n.rel)} (${n.rel>0?'+':''}${n.rel})</div>
-      ${site ? `<div>${SITES[site.t].icon} <b>${site.capital?'Capital e quartel-general':SITES[site.t].n}</b></div>` : ''}
+      ${site ? `<div>${SITES[site.t].icon} <b>${site.capital?'Capital e quartel-general':SITES[site.t].n}</b>${site.down > G.turn ? ' <span class="down">(fora do ar)</span>' : ''}</div><button class="btn sm danger" style="width:100%;margin:4px 0" data-sabsite="${o}:${c}">🎯 Operação secreta contra este alvo</button>` : ''}
       <div class="muted">${GOVS[n.gov]?GOVS[n.gov].name:''} · ⚔ ${fmtNum(n.power,0)} · 👥 ${fmtPop(n.pop)}</div>
       <button class="btn sm" style="width:100%;margin-top:6px" id="pop-dip">🤝 Diplomacia</button>`, x, y);
     pop.querySelector('#pop-dip').onclick = ()=>{ closePopover(); openNation(o); };
@@ -978,24 +980,41 @@ function showCorpsPopover(k, x, y){
 
 function renderAttackPopover(c, x, y, corpsId){
   const p = G.p, o = Grid.owner[c], n = G.nations[o];
-  const plan = planAttack(c, UI.commit, corpsId || UI.atkCorps);
+  UI.atkOpts = Object.assign({tactic:'frontal', air:true, missiles:0, art:true}, UI.atkOpts || {});
+  const plan = planAttack(c, UI.commit, corpsId || UI.atkCorps), O = UI.atkOpts;
   const site = (n.sites||[]).find(s=>s.known && cellDist(s.c, c) <= 1);
+  const hasAir = ((p.units.aviao||0) + (p.units.drone||0)) > 0, hasMis = (p.units.missil||0) > 0;
+  const pc = v => Math.round(v*100);
+  const bar = plan.ok ? `<div class="outbar">${[['decisiva','#2d6a2d','Vitória decisiva'],['parcial','#7fa83a','Vitória parcial'],['empate','#c9a13b','Empate'],['derrota','#b3261e','Derrota']].map(([k,col,lab])=>plan.outcomes[k] > 0.005 ? `<i style="width:${plan.outcomes[k]*100}%;background:${col}" title="${lab}: ${pc(plan.outcomes[k])}%"></i>` : '').join('')}</div>
+    <div class="outlegend"><span><b style="color:#2d6a2d">■</b> Decisiva ${pc(plan.outcomes.decisiva)}%</span><span><b style="color:#7fa83a">■</b> Parcial ${pc(plan.outcomes.parcial)}%</span><span><b style="color:#c9a13b">■</b> Empate ${pc(plan.outcomes.empate)}%</span><span><b style="color:#b3261e">■</b> Derrota ${pc(plan.outcomes.derrota)}%</span></div>` : '';
   const pop = showPopover(`<h4>${flagImg(n,24,16)} Ofensiva contra ${esc(n.name)}</h4>
     ${plan.ok ? `<div class="muted">${plan.naval?'⚓ Invasão anfíbia (penalidade)':'🗡️ Ataque terrestre'}${plan.isCap?' · ⭐ CAPITAL (defesa +60%)':''}${plan.site?' · 🏭 instalação estratégica (defesa +35%)':''}</div>
     <div class="lbl" style="margin-top:6px">Exército</div>
     <div class="seg">${plan.cands.map(k=>`<button data-k="${k.id}" class="${plan.corps.id===k.id?'active':''}">${esc(k.name)}</button>`).join('')}</div>
     <div class="lbl">Tropas empenhadas</div>
     <div class="seg">${[0.25,0.5,0.75,1].map(f=>`<button data-c="${f}" class="${UI.commit===f?'active':''}">${f*100}%</button>`).join('')}</div>
+    <div class="lbl">Tática</div>
+    <div class="seg"><button data-t="frontal" class="${O.tactic==='frontal'?'active':''}" title="Equilibrada">⚔️ Frontal</button><button data-t="cerco" class="${O.tactic==='cerco'?'active':''}" title="−15% de força, 40% menos perdas, avanço de até 2 regiões">🛡️ Cerco</button>${plan.canBlitz ? `<button data-t="relampago" class="${O.tactic==='relampago'?'active':''}" title="+20% de força e avanço maior, mas mais arriscado">⚡ Relâmpago</button>` : ''}</div>
+    <div class="atk-opts">
+      ${hasAir ? `<label><input type="checkbox" data-o="air" ${O.air?'checked':''}> ✈️ Apoio aéreo ${plan.airUsed ? `(+${fmtNum(plan.airPower*UI.commit,0)})` : '(fora de alcance)'}</label>` : ''}
+      ${(plan.corps.units.art||0) > 0 ? `<label><input type="checkbox" data-o="art" ${O.art?'checked':''}> 💥 Barragem de artilharia (defesa −10%)</label>` : ''}
+      ${hasMis ? `<div>🚀 Mísseis (${p.units.missil} em estoque, −6% de defesa cada): <span class="seg" style="display:inline-flex">${[0,1,3,5].filter(v=>v<=p.units.missil).map(v=>`<button data-m="${v}" class="${Math.min(O.missiles,p.units.missil)===v?'active':''}">${v}</button>`).join('')}</span></div>` : ''}
+    </div>
     <div class="row"><span class="k">Nossa força</span><span class="v">${fmtNum(plan.force,0)}</span></div>
     <div class="row"><span class="k">Defesa inimiga</span><span class="v">${fmtNum(plan.def,0)}</span></div>
-    <div class="row"><span class="k">Chance de vitória</span><span class="v">${Math.round(plan.odds*100)}%</span></div>
-    <div class="odds"><i style="width:${plan.odds*100}%"></i></div>
-    <div class="muted">Se vencer: perdas de ~${Math.round(UI.commit*8)}–${Math.round(UI.commit*25)}% do exército e avanço de 1–6 regiões.<br>Se perder: <b style="color:var(--red2)">perde ~${Math.round(UI.commit*35)}–${Math.round(UI.commit*65)}% do exército</b>.</div>
+    ${plan.city ? `<div class="row"><span class="k">🏙️ Cidade: ${esc(plan.city.name)}${(plan.city.cap & 1) ? ' (capital)' : ''}</span><span class="v down">defesa +${Math.round((plan.cityMult-1)*100)}%</span></div>` : ''}
+    ${plan.state ? `<div class="row"><span class="k">🗺️ Estado</span><span class="v">${esc(plan.state)}</span></div>` : ''}
+    <div class="lbl" style="margin-top:4px">Resultados possíveis</div>${bar}
+    <div class="muted" style="font-size:12.5px">Decisiva: toma 2–7 regiões · Parcial: 1–2 · Empate: ninguém avança, os dois lados perdem tropas · Derrota: perde ~${Math.round(UI.commit*35)}–${Math.round(UI.commit*60)}% das tropas${plan.ratio < 0.4 ? ' e o inimigo pode contra-atacar' : ''}.</div>
     <button class="btn primary" style="width:100%;margin-top:6px" id="pop-atk">⚔️ ATACAR!</button>` : `<div class="muted">${plan.why}</div>`}
-    ${site ? `<div class="muted">${SITES[site.t].icon} Alvo próximo: ${SITES[site.t].n} — se capturado: ${SITES[site.t].d}</div>` : ''}
-    ${p.units.nuke ? `<button class="btn dark" style="width:100%;margin-top:6px" id="pop-nuke">☢️ Ataque nuclear (${p.units.nuke})</button>` : ''}`, x, y);
-  pop.querySelectorAll('[data-c]').forEach(b=> b.onclick = ()=>{ UI.commit = +b.dataset.c; SFX.click(); renderAttackPopover(c, x, y, corpsId); });
+    ${site ? `<div class="muted">${SITES[site.t].icon} Alvo próximo: ${SITES[site.t].n} — se capturado: ${SITES[site.t].d}</div><button class="btn sm" style="width:100%;margin-top:4px" data-sabsite="${o}:${site.c}">🎯 Sabotar ${SITES[site.t].n} sem invadir</button>` : ''}
+    ${p.units.nuke ? `<button class="btn dark" style="width:100%;margin-top:6px" id="pop-nuke">☢️ Ataque nuclear (${p.units.nuke}) — só se você quiser</button>` : ''}`, x, y);
+  const re = () => renderAttackPopover(c, x, y, corpsId);
+  pop.querySelectorAll('[data-c]').forEach(b=> b.onclick = ()=>{ UI.commit = +b.dataset.c; SFX.click(); re(); });
   pop.querySelectorAll('[data-k]').forEach(b=> b.onclick = ()=>{ UI.atkCorps = +b.dataset.k; SFX.click(); renderAttackPopover(c, x, y, +b.dataset.k); });
+  pop.querySelectorAll('[data-t]').forEach(b=> b.onclick = ()=>{ UI.atkOpts.tactic = b.dataset.t; SFX.click(); re(); });
+  pop.querySelectorAll('[data-m]').forEach(b=> b.onclick = ()=>{ UI.atkOpts.missiles = +b.dataset.m; SFX.click(); re(); });
+  pop.querySelectorAll('[data-o]').forEach(b=> b.onchange = ()=>{ UI.atkOpts[b.dataset.o] = b.checked; SFX.click(); re(); });
   const ab = pop.querySelector('#pop-atk'); if (ab) ab.onclick = ()=>{ closePopover(); launchAttack(c, plan.corps.id); };
   const nb = pop.querySelector('#pop-nuke'); if (nb) nb.onclick = ()=>{ closePopover(); confirmModal('☢️', 'Usar arma nuclear?', `Isto devastará ${esc(n.name)}, mas o mundo inteiro se voltará contra nós. ${n.tech>=techCountAt(1946)?'<b>Eles podem ter armas nucleares e retaliar!</b>':''}`, 'Lançar ogiva', ()=>launchNuke(c), true); };
 }
@@ -1006,20 +1025,54 @@ function launchAttack(c, corpsId){
   let from = cellXY(plan.corps.cell);
   UI.busy = true;
   SFX.march(); MapView.arrow(from, [tx, ty], plan.naval ? '#2c4f73' : '#8b1a1a');
-  const air = (p.units.aviao||0) + (p.units.drone||0);
-  if (air > 0 && airSupport(c) > 0){ const ab = nearestAirbase(c); const o = ab >= 0 ? cellXY(ab) : cellXY(p.capCell); for (let k=0;k<Math.min(4, 1+Math.floor(air/5));k++) setTimeout(()=>MapView.addAnim({type:'plane', from:[o[0]+rand(-6,6), o[1]+rand(-6,6)], to:[tx+rand(-4,4), ty+rand(-4,4)], dur:2000, color:'#2c3e50', sound:k===0}), k*220); }
-  if ((p.units.missil||0) > 0) setTimeout(()=>MapView.addAnim({type:'missile', from:cellXY(p.capCell), to:[tx,ty], dur:1300, sound:true}), 300);
+  // fase 1: preparação (só o que o jogador escolheu)
+  if (plan.airUsed){ const air = (p.units.aviao||0) + (p.units.drone||0), ab = nearestAirbase(c); const o = ab >= 0 ? cellXY(ab) : cellXY(p.capCell);
+    for (let k=0;k<Math.min(4, 1+Math.floor(air/5));k++) setTimeout(()=>MapView.addAnim({type:'plane', from:[o[0]+rand(-6,6), o[1]+rand(-6,6)], to:[tx+rand(-6,6), ty+rand(-6,6)], dur:1400}), k*160); }
+  for (let k=0;k<Math.min(5, plan.missilesUsed);k++) setTimeout(()=>MapView.addAnim({type:'missile', from:cellXY(p.capCell), to:[tx+rand(-4,4),ty+rand(-4,4)], dur:1300, sound:k===0}), 250 + k*150);
+  if (plan.artUsed) setTimeout(()=>{ SFX.cannon(0); SFX.cannon(0.2); }, 500);
+  // fase 2: assalto
   setTimeout(()=>{ SFX.cannon(0); SFX.cannon(0.25); SFX.cannon(0.5); for (let k=0;k<4;k++) setTimeout(()=>MapView.boom(tx+rand(-8,8), ty+rand(-8,8)), k*180); }, 900);
+  // fase 3: resultado
   setTimeout(()=>{
     const r = playerAttack(c, UI.commit, corpsId);
     UI.busy = false;
     if (!r.ok){ toast(r.why,'bad'); return; }
-    const nm = plan.corps.name;
-    if (r.win){ SFX.fanfare(); MapView.flashCells(r.captured, '#ffd34d'); MapView.floatText(tx, ty, `VITÓRIA! +${r.captured.length}`, '#2d5a19'); toast(`🗡️ ${esc(nm)} venceu! +${r.captured.length} regiões (perdeu ${r.lost} divisões, ${Math.round(r.lossFrac*100)}%)`, 'good'); }
-    else { SFX.defeat(); MapView.floatText(tx, ty, 'DERROTA', '#8b1a1a'); MapView.doShake(6, 400); toast(`💀 ${esc(nm)} foi derrotado e perdeu ${r.lost} divisões (${Math.round(r.lossFrac*100)}%).${r.corpsDead?' O exército foi aniquilado!':''}`, 'bad'); }
+    const OUT = {decisiva:['VITÓRIA DECISIVA', '#2d5a19'], parcial:['VITÓRIA PARCIAL', '#4f7a1f'], empate:['IMPASSE', '#8a6a1c'], derrota:['DERROTA', '#8b1a1a']}[r.outcome];
+    if (r.win){ SFX.fanfare(); MapView.flashCells(r.captured, '#ffd34d'); }
+    else if (r.outcome === 'empate') SFX.bell(); else { SFX.defeat(); MapView.doShake(6, 400); }
+    if (r.lostCells.length) MapView.flashCells(r.lostCells, '#c0392b');
+    MapView.floatText(tx, ty, OUT[0] + (r.captured.length ? ` +${r.captured.length}` : ''), OUT[1]);
     UI.selCorps = null; MapView.selCorps = null;
     refreshAll(); saveGame(); checkGameOver();
+    if (!UI.noBattleReport) showBattleReport(r, c);
+    else toast(`${OUT[0]}: ${r.captured.length ? '+' + r.captured.length + ' regiões · ' : ''}perdemos ${r.lost} divisões`, r.win ? 'good' : r.outcome === 'empate' ? undefined : 'bad');
   }, 1900);
+}
+
+// relatório de batalha em três fases
+function showBattleReport(r, cell){
+  const p = G.p, n = G.nations[r.plan.e], pl = r.plan, O = pl.opts || {};
+  const OUT = {decisiva:['🏆','Vitória decisiva','As linhas inimigas se romperam.'], parcial:['🗡️','Vitória parcial','Avançamos, mas o inimigo recuou em ordem.'],
+    empate:['⚖️','Impasse','As duas linhas resistiram. Ninguém avançou.'], derrota:['💀','Derrota','Nosso ataque foi repelido.']}[r.outcome];
+  const taken = r.captured.map(k => (typeof cityAt === 'function' && cityAt(k)) ? cityAt(k).name : null).filter(Boolean);
+  const prep = [pl.artUsed ? '💥 Barragem de artilharia: defesa inimiga −10%' : null, pl.missilesUsed ? `🚀 ${pl.missilesUsed} míssil(eis) lançado(s): defesa −${Math.round(Math.min(0.4, pl.missilesUsed*0.06)*100)}%` : null,
+    pl.airUsed ? `✈️ Apoio aéreo: +${fmtNum(pl.airPower*UI.commit,0)} de força${r.planesLost ? ` · ${r.planesLost} avião(ões) abatido(s)` : ''}` : null].filter(Boolean);
+  const m = openModal(`<div class="m-icon">${OUT[0]}</div><div class="m-title">${OUT[1]}</div><div class="m-date">${esc(pl.corps.name)} × ${esc(n.name)}${pl.city ? ' · ' + esc(pl.city.name) : ''}${pl.state ? ' (' + esc(pl.state) + ')' : ''}</div>
+    <div class="box"><div class="lbl">1. Preparação · tática ${({frontal:'frontal', cerco:'de cerco', relampago:'relâmpago'})[O.tactic] || 'frontal'}</div>${prep.length ? prep.map(t=>`<div>${t}</div>`).join('') : '<div class="muted">Sem bombardeio prévio.</div>'}</div>
+    <div class="box"><div class="lbl">2. Assalto</div>
+      <div class="row"><span class="k">Nossa força</span><span class="v">${fmtNum(pl.force,0)}</span></div>
+      <div class="row"><span class="k">Defesa inimiga</span><span class="v">${fmtNum(pl.def,0)}</span></div>
+      <div class="row"><span class="k">Relação de forças no combate</span><span class="v">${Math.round(r.re*100)}%</span></div></div>
+    <div class="box"><div class="lbl">3. Resultado</div><div>${OUT[2]}</div>
+      ${r.captured.length ? `<div class="row"><span class="k">Regiões tomadas</span><span class="v up">+${r.captured.length}</span></div>` : ''}
+      ${taken.length ? `<div class="row"><span class="k">Cidades tomadas</span><span class="v up">${taken.map(esc).join(', ')}</span></div>` : ''}
+      ${r.lostCells.length ? `<div class="row"><span class="k">Contra-ataque inimigo</span><span class="v down">−${r.lostCells.length} região</span></div>` : ''}
+      <div class="row"><span class="k">Nossas perdas</span><span class="v down">${r.lost} de ${r.before} divisões (${Math.round(r.lossFrac*100)}%)</span></div>
+      <div class="row"><span class="k">Perdas do inimigo</span><span class="v up">${Math.round(r.enemyLoss*100)}% do poder militar</span></div>
+      ${r.corpsDead ? '<div class="down">O exército foi aniquilado.</div>' : ''}</div>
+    <label class="av-check" style="font-size:13px"><input type="checkbox" id="br-off"> Não mostrar mais o relatório (só um aviso rápido)</label>
+    <div class="m-actions"><button class="btn green" id="br-ok">Continuar</button></div>`);
+  m.querySelector('#br-ok').onclick = ()=>{ if (m.querySelector('#br-off').checked) UI.noBattleReport = true; SFX.click(); closeModal(); };
 }
 
 function launchNuke(c){

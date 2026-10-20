@@ -12,6 +12,8 @@ const MONTHS_S = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','n
 //  Definições
 // ------------------------------------------------------------
 const ERAS = {
+  1500:{name:'Era dos Descobrimentos', year:1500, popF:0.07, pcF:0.04, desc:'Caravelas, impérios nativos e reinos feudais. O Novo Mundo ainda não foi dividido.'},
+  1700:{name:'Era das Monarquias', year:1700, popF:0.1, pcF:0.05, desc:'Reis absolutos, impérios coloniais e o começo do Iluminismo.'},
   1850:{name:'Era Industrial', year:1850, popF:0.22, pcF:0.08, desc:'Vapor, ferrovias e canhões. Quase tudo está por ser inventado.'},
   1914:{name:'Era das Grandes Guerras', year:1914, popF:0.35, pcF:0.16, desc:'Motores, encouraçados e impérios em tensão.'},
   1960:{name:'Era Atômica', year:1960, popF:0.55, pcF:0.35, desc:'Guerra Fria, corrida espacial e a sombra da bomba.'},
@@ -111,6 +113,41 @@ const RESOURCES = {
 };
 
 const TECHS = [
+  // Era 0 — Descobrimentos e Iluminismo
+  {id:'caravela', n:'Caravela', icon:'⛵', year:1440, req:[], fx:{navy:0.05, tradeMult:0.03}, d:'Navios leves que enfrentam o oceano'},
+  {id:'imprensa', n:'Imprensa de Tipos Móveis', icon:'📜', year:1450, req:[], fx:{research:0.04, approval:1}, d:'Livros baratos espalham o conhecimento'},
+  {id:'polvora', n:'Arcabuz e Pólvora', icon:'💥', year:1450, req:[], fx:{military:0.05}, d:'As primeiras armas de fogo portáteis'},
+  {id:'astrolabio', n:'Astrolábio Náutico', icon:'🧭', year:1480, req:['caravela'], fx:{navy:0.04, tradeMult:0.03}, d:'Navegar pelas estrelas em alto-mar'},
+  {id:'bancos', n:'Bancos e Letras de Câmbio', icon:'🏦', year:1490, req:[], fx:{gdpMult:0.03, taxEff:0.02}, d:'Crédito e comércio à distância'},
+  {id:'navegacao_oceanica', n:'Navegação Oceânica', icon:'🌊', year:1495, req:['astrolabio'], fx:{tradeMult:0.06, navy:0.05}, d:'Rotas pelo Atlântico e pelo Índico'},
+  {id:'cartografia', n:'Cartografia Moderna', icon:'🗺️', year:1507, req:['navegacao_oceanica'], fx:{research:0.03, tradeMult:0.02}, d:'Mapas do mundo inteiro'},
+  {id:'fortaleza_estrela', n:'Fortificação Abaluartada', icon:'🏰', year:1530, req:['polvora'], fx:{defense:0.08}, d:'Fortalezas em forma de estrela resistem aos canhões'},
+  {id:'galeao', n:'Galeão', icon:'🚢', year:1550, req:['navegacao_oceanica'], fx:{navy:0.08, tradeMult:0.03}, d:'Grandes navios de carga e de guerra'},
+  {id:'mosquete', n:'Mosquete', icon:'🔫', year:1560, req:['polvora'], fx:{military:0.06}, d:'Infantaria armada com mosquetes'},
+  {id:'companhias', n:'Companhias de Comércio', icon:'⚖️', year:1602, req:['bancos','galeao'], fx:{tradeMult:0.07, gdpMult:0.02}, d:'Empresas com ações financiam as viagens'},
+  {id:'telescopio', n:'Telescópio', icon:'🔭', year:1608, req:['imprensa'], fx:{research:0.04, navy:0.02}, d:'Ver longe, no céu e no mar'},
+  {id:'bolsa', n:'Bolsa de Valores', icon:'📈', year:1610, req:['companhias'], fx:{gdpMult:0.03}, d:'O mercado de ações'},
+  {id:'metodo_cientifico', n:'Método Científico', icon:'⚗️', year:1630, req:['telescopio'], fx:{research:0.08}, d:'Experimentos guiam o conhecimento'},
+  {id:'exercito_permanente', n:'Exército Permanente', icon:'🎖️', year:1650, req:['mosquete'], fx:{military:0.06, manpower:0.05}, d:'Soldados profissionais o ano inteiro'},
+  {id:'calculo', n:'Cálculo e Física Newtoniana', icon:'📐', year:1687, req:['metodo_cientifico'], fx:{research:0.07}, d:'As leis do movimento'},
+  {id:'baioneta', n:'Baioneta', icon:'🗡️', year:1690, req:['exercito_permanente'], fx:{military:0.05, defense:0.03}, d:'O mosquete vira lança'},
+  {id:'rotacao_culturas', n:'Rotação de Culturas', icon:'🌱', year:1730, req:[], fx:{popGrowth:0.08, growth:0.1}, d:'Mais comida na mesma terra'},
+  {id:'iluminismo', n:'Iluminismo', icon:'💡', year:1740, req:['calculo','imprensa'], fx:{research:0.05, approval:2}, d:'Razão, liberdade e ciência'},
+  {id:'enciclopedia', n:'Enciclopédia', icon:'📚', year:1751, req:['iluminismo'], fx:{research:0.05}, d:'Todo o saber num só livro'},
+  {id:'para_raios', n:'Para-raios', icon:'⚡', year:1752, req:['metodo_cientifico'], fx:{stability:1}, d:'Proteção contra os raios'},
+  {id:'fiacao', n:'Máquina de Fiar', icon:'🧶', year:1765, req:['rotacao_culturas'], fx:{gdpMult:0.03, unemployment:-0.3}, d:'O começo das fábricas'},
+  {id:'balao', n:'Balão de Ar Quente', icon:'🎈', year:1783, req:['iluminismo'], fx:{research:0.02, approval:1}, d:'O primeiro voo humano'},
+  {id:'imprensa_jornal', n:'Jornais', icon:'📰', year:1605, req:['imprensa'], fx:{approval:1, research:0.02}, d:'Notícias impressas toda semana'},
+  {id:'microscopio', n:'Microscópio', icon:'🔬', year:1590, req:['imprensa'], fx:{research:0.03, popGrowth:0.02}, d:'O mundo invisível dos micróbios'},
+  {id:'relogio_pendulo', n:'Relógio de Pêndulo', icon:'🕰️', year:1656, req:['metodo_cientifico'], fx:{research:0.03, gdpMult:0.01}, d:'Medir o tempo com precisão'},
+  {id:'banco_central_antigo', n:'Banco Nacional e Dívida Pública', icon:'🏛️', year:1694, req:['bolsa'], fx:{taxEff:0.04, gdpMult:0.02}, d:'O Estado toma empréstimos com juros baixos'},
+  {id:'semeadeira', n:'Semeadeira Mecânica', icon:'🌾', year:1701, req:[], fx:{popGrowth:0.05, growth:0.08}, d:'Plantio em linhas, colheitas maiores'},
+  {id:'coque', n:'Fundição com Coque', icon:'🔥', year:1709, req:[], fx:{gdpMult:0.02, military:0.02}, d:'Ferro barato e em grande quantidade'},
+  {id:'motor_newcomen', n:'Bomba a Vapor de Newcomen', icon:'⚙️', year:1712, req:['coque'], fx:{gdpMult:0.02}, d:'O vapor tira a água das minas'},
+  {id:'termometro', n:'Termômetro', icon:'🌡️', year:1714, req:['metodo_cientifico'], fx:{research:0.02, popGrowth:0.02}, d:'Medir a temperatura e a febre'},
+  {id:'cronometro', n:'Cronômetro Marítimo', icon:'⏱️', year:1735, req:['relogio_pendulo'], fx:{navy:0.06, tradeMult:0.04}, d:'Saber a longitude no meio do oceano'},
+  {id:'canais_navegaveis', n:'Canais Navegáveis', icon:'🛶', year:1761, req:['rotacao_culturas'], fx:{tradeMult:0.05, growth:0.1}, d:'Barcos levam carvão e grãos pelo interior'},
+  {id:'variolizacao', n:'Vacina da Varíola', icon:'💉', year:1796, req:['iluminismo'], fx:{popGrowth:0.06, approval:1}, d:'A primeira vacina da história'},
   // Era I — Vapor
   {id:'maquina_vapor', n:'Máquina a Vapor', icon:'♨️', year:1800, req:[], fx:{gdpMult:0.04, growth:0.2}, d:'+4% PIB, base da industrialização'},
   {id:'ferrovias', n:'Ferrovias', icon:'🚂', year:1830, req:['maquina_vapor'], fx:{gdpMult:0.05, growth:0.2}, d:'+5% PIB, +alcance de ataque terrestre'},
@@ -237,7 +274,7 @@ const TECHS = [
   {id:'consciencia_digital', n:'Consciência Digital', icon:'💠', year:2100, req:['ia_geral','longevidade'], fx:{research:0.2, approval:2}, d:'Mentes humanas preservadas em computadores'},
   {id:'dyson', n:'Enxame de Dyson', icon:'☀️', year:2120, req:['energia_orbital','antimateria'], fx:{gdpMult:0.3}, d:'Captar a energia do próprio Sol — o auge da civilização'}
 ];
-TECHS.forEach(t=>{ t.cost = Math.round(250 + (t.year-1800)*5); t.tier = t.year<1870?0:t.year<1910?1:t.year<1945?2:t.year<1975?3:t.year<2005?4:t.year<2040?5:t.year<2051?6:7; });
+TECHS.forEach(t=>{ t.cost = t.year < 1800 ? Math.round(90 + (t.year-1440)*0.45) : Math.round(250 + (t.year-1800)*5); t.tier = t.year<1870?0:t.year<1910?1:t.year<1945?2:t.year<1975?3:t.year<2005?4:t.year<2040?5:t.year<2051?6:7; });
 for (const k in ERAS) ERAS[k].techs = TECHS.filter(t=>t.year <= ERAS[k].year - 5).map(t=>t.id);
 const TECH = Object.fromEntries(TECHS.map(t=>[t.id,t]));
 
@@ -470,7 +507,7 @@ function newGameInner(cfg){
   };
   // forças iniciais
   const baseInf = Math.round(Math.pow(p.pop, 0.55) * 7 * (cfg.focus==='militar'?1.5:1));
-  p.units = {inf:Math.max(4,baseInf), cav: cfg.era==1850?Math.round(baseInf*0.25):Math.round(baseInf*0.08), art: cfg.era>=1914?Math.round(baseInf*0.15):0, frag: Math.max(1,Math.round(baseInf*0.08))};
+  p.units = {inf:Math.max(4,baseInf), cav: cfg.era<=1850?Math.round(baseInf*0.25):Math.round(baseInf*0.08), art: cfg.era>=1914?Math.round(baseInf*0.15):0, frag: Math.max(1,Math.round(baseInf*0.08))};
   if (cfg.era>=1960){ p.units.tanque = Math.round(baseInf*0.08); p.units.aviao = Math.round(baseInf*0.06); }
   if (cfg.era>=2000){ p.units.missil = Math.round(baseInf*0.03); p.units.encour = Math.round(baseInf*0.03); }
   if (cfg.era>=2050){ p.units.missil = Math.round(baseInf*0.06); p.units.aviao = Math.round(baseInf*0.1); }
@@ -526,11 +563,12 @@ function afterGeoSetup(cfg){
 function placeCities(){
   const p = G.p; const rnd = makeRng(p.cities*31 + p.homeCells.length);
   const n = Math.min(p.cities, Math.max(3, p.homeCells.length*2), 40);
-  p.cityCells = []; p.cityNames = [];
+  p.cityCells = []; p.cityNames = []; p.cityPos = {};
   // país real: usa as cidades reais (com o nome da época)
   const ex = G.nations.find(x=>x && x.playerOrigin && x.isos);
-  if (ex && typeof realCitiesFor === 'function') for (const c of realCitiesFor(ex.isos, G.startYear, 80)){ if (p.cityCells.length >= n) break; const cell = cellOf(c.lon, c.lat); if (cell >= 0 && Grid.owner[cell] === 1 && cell !== p.capCell && !p.cityCells.includes(cell) && c.name !== p.capital){ p.cityCells.push(cell); p.cityNames.push(c.name); } }
-  for (let k=p.cityCells.length;k<n;k++){ p.cityCells.push(p.homeCells[Math.floor(rnd()*p.homeCells.length)]); p.cityNames.push(genPlaceName(rnd)); }
+  if (ex && typeof realCitiesFor === 'function') for (const c of realCitiesFor(ex.isos, G.startYear, 80)){ if (p.cityCells.length >= n) break; const cell = cellOf(c.lon, c.lat); if (cell >= 0 && Grid.owner[cell] === 1 && cell !== p.capCell && !p.cityCells.includes(cell) && c.name !== p.capital){ p.cityCells.push(cell); p.cityNames.push(c.name); p.cityPos[cell] = [c.lon, c.lat]; } }
+  const realN = p.cityCells.length;
+  for (let k=p.cityCells.length;k<(ex && realN >= 3 ? realN : n);k++){ p.cityCells.push(p.homeCells[Math.floor(rnd()*p.homeCells.length)]); p.cityNames.push(genPlaceName(rnd)); }
 }
 
 function aiPowerTarget(n){

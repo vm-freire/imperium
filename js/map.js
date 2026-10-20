@@ -63,7 +63,7 @@ const Grid = {
 // ------------------------------------------------------------
 const MapView = {
   canvas:null, ctx:null, dpr:1, cw:0, ch:0,
-  cam:{x:0, y:0, z:1}, minZ:0.5, maxZ:9,
+  cam:{x:0, y:0, z:1}, minZ:0.5, maxZ:30,
   base:null, cellCanvas:null, landPath:null, lakePath:null, borderPath:null, playerBorder:null, hoverPath:null,
   dirty:true, anims:[], mode:'politico', hoverCell:-1, hoverOwner:-1, selCell:-1,
   placement:null, shake:null, ships:[], t:0, rails:[], selCorps:null, moveStart:0, worldFx:true, fronts:[], buildMode:null, _lastAmb:0,
@@ -77,7 +77,9 @@ const MapView = {
     this.bindEvents();
     window.addEventListener('resize', ()=>this.resize());
     this.resize(); this.fit();
-    const loop = (ts)=>{ this.t = ts/1000; this.frame(); requestAnimationFrame(loop); };
+    // o relógio das animações de fundo para quando o jogo está pausado
+    let last = 0; this.t = 0;
+    const loop = (ts)=>{ const dt = last ? Math.min(0.1, (ts - last)/1000) : 0; last = ts; this.paused = this.isPaused(); if (!this.paused) this.t += dt; this.frame(); requestAnimationFrame(loop); };
     requestAnimationFrame(loop);
   },
 
@@ -429,7 +431,8 @@ const MapView = {
         if (this.warBorder){ const pulse = 0.5+0.5*Math.sin(this.t*5); ctx.strokeStyle = `rgba(200,20,10,${0.4+pulse*0.5})`; ctx.lineWidth = Math.max(1.5, 3.2/z); ctx.stroke(this.warBorder); }
       }
       if (this.hoverPath && !this.placement){ ctx.strokeStyle = 'rgba(255,250,220,0.9)'; ctx.lineWidth = Math.max(1, 2.5/z); ctx.stroke(this.hoverPath); ctx.strokeStyle='rgba(60,30,10,0.9)'; ctx.lineWidth=Math.max(0.5,1/z); ctx.stroke(this.hoverPath); }
-      if (this.drawGeoLayers) this.drawGeoLayers(ctx, z);
+      this._boxes = [];
+      if (this.drawGeoStates) this.drawGeoStates(ctx, z);
       this.drawShips(ctx, z);
       this.drawLabels(ctx, z);
       this.drawRails(ctx, z);
@@ -437,9 +440,10 @@ const MapView = {
       this.drawSites(ctx, z);
       this.drawBuildings(ctx, z);
       this.drawCities(ctx, z);
+      if (this.drawGeoLayers) this.drawGeoLayers(ctx, z);
       this.drawCorps(ctx, z);
       this.drawExpeditions(ctx, z);
-      if (this.worldFx && !this.menuMode) this.ambientWar(now);
+      if (this.worldFx && !this.menuMode && !this.paused) this.ambientWar(now);
     } else this.drawShips(ctx, z);
 
     if (this.selCell >= 0){ const [x,y]=cellXY(this.selCell); const r = 5 + Math.sin(this.t*6)*1.5; ctx.strokeStyle='#8b1a1a'; ctx.lineWidth=1.5/z+0.3; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x-r-3,y); ctx.lineTo(x-r+2,y); ctx.moveTo(x+r-2,y); ctx.lineTo(x+r+3,y); ctx.moveTo(x,y-r-3); ctx.lineTo(x,y-r+2); ctx.moveTo(x,y+r-2); ctx.lineTo(x,y+r+3); ctx.stroke(); }
@@ -448,9 +452,10 @@ const MapView = {
     this.drawAnims(ctx, z, now);
   },
 
+  isPaused(){ return !!(typeof G !== 'undefined' && G && !G.over && !G.online && !this.menuMode && typeof UI !== 'undefined' && UI.speed === 0 && !UI.busy); },
   drawShips(ctx, z){
     for (const s of this.ships){
-      s.p += s.speed/60*s.dir; if (s.p>1) s.p-=1; if (s.p<0) s.p+=1;
+      if (!this.paused){ s.p += s.speed/60*s.dir; if (s.p>1) s.p-=1; if (s.p<0) s.p+=1; }
       const r = s.route, seg = (r.length-1)*s.p, k = Math.floor(seg), f = seg-k;
       const a = r[k], b = r[Math.min(k+1,r.length-1)];
       const lo = a[0]+(b[0]-a[0])*f, la = a[1]+(b[1]-a[1])*f; const [x,y]=proj(lo,la);
@@ -501,13 +506,23 @@ const MapView = {
     }
     ctx.letterSpacing='0px';
     if (z > 1.6 && p.cityCells){
-      ctx.font = `italic ${Math.max(3, 8/z)}px "IM Fell English", Georgia, serif`;
+      // nossas cidades: na posição real (quando é cidade real) e com nomes que não se sobrepõem
+      const fs = 12/z, boxes = this._boxes || (this._boxes = []);
+      ctx.font = `italic 600 ${fs}px "IM Fell English", Georgia, serif`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
       p.cityCells.forEach((c, k)=>{
-        if (Grid.owner[c] !== 1) return;
-        const [x,y] = cellXY(c); const ox = ((k*37)%5-2)*0.6, oy = ((k*53)%5-2)*0.6;
-        ctx.fillStyle='#3d2812'; ctx.beginPath(); ctx.arc(x+ox,y+oy,Math.max(0.8,1.6/z),0,Math.PI*2); ctx.fill();
-        if (z > 3) ctx.fillText(p.cityNames[k] || '', x+ox, y+oy - 3/z - 2);
+        if (Grid.owner[c] !== 1 || c === p.capCell) return;
+        const pos = p.cityPos && p.cityPos[c]; let x, y;
+        if (pos) [x, y] = proj(pos[0], pos[1]); else { [x, y] = cellXY(c); x += ((k*37)%5-2)*0.6; y += ((k*53)%5-2)*0.6; }
+        const r = Math.max(0.7, 2.6/z);
+        ctx.fillStyle='#3d2812'; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+        if (z > 2.6){
+          const nm = p.cityNames[k] || '', w = ctx.measureText(nm).width, bx = [x - r, y - fs*0.6, x + r*2 + w, y + fs*0.6];
+          if (boxes.some(b => bx[0] < b[2] && bx[2] > b[0] && bx[1] < b[3] && bx[3] > b[1])) return;
+          boxes.push(bx);
+          ctx.lineWidth = 3/z; ctx.strokeStyle = 'rgba(244,232,200,0.9)'; ctx.strokeText(nm, x + r*1.6, y); ctx.fillText(nm, x + r*1.6, y);
+        }
       });
+      ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
     }
     // capital + bandeira tremulando
     if (n1.cap >= 0){
@@ -579,6 +594,7 @@ const MapView = {
         ctx.fillStyle = 'rgba(255,240,215,0.85)'; ctx.strokeStyle = n.atWar ? '#b3261e' : '#5a3d1e'; ctx.lineWidth = Math.max(0.4, 1.2/z);
         ctx.beginPath(); ctx.rect(x - s*0.55, y - s*0.55, s*1.1, s*1.1); ctx.fill(); ctx.stroke();
         ctx.font = `${s*0.75}px serif`; ctx.fillText(SITES[st.t].icon, x, y + s*0.05);
+        if (st.down > G.turn){ ctx.strokeStyle = '#c0392b'; ctx.lineWidth = Math.max(0.6, 2/z); ctx.beginPath(); ctx.moveTo(x - s*0.6, y - s*0.6); ctx.lineTo(x + s*0.6, y + s*0.6); ctx.moveTo(x + s*0.6, y - s*0.6); ctx.lineTo(x - s*0.6, y + s*0.6); ctx.stroke(); }
       }
     }
     ctx.restore();

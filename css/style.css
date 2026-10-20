@@ -499,3 +499,16 @@ body:has(#scr-page:not(.hidden)) .corner-fs, body:has(#scr-create:not(.hidden)) 
 
 .hist-card{position:relative}
 .hist-card .h-del{position:absolute;top:8px;right:8px}
+
+/* chances de cada resultado do ataque */
+.outbar{display:flex;height:12px;border-radius:6px;overflow:hidden;border:1px solid rgba(0,0,0,.25);margin:4px 0}
+.outbar i{display:block;height:100%}
+.outlegend{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12.5px;margin-bottom:4px}
+.atk-opts{display:flex;flex-direction:column;gap:4px;margin:6px 0;font-size:13.5px}
+.atk-opts label{display:flex;gap:6px;align-items:center;cursor:pointer}
+
+.sab-list{display:flex;flex-direction:column;gap:8px;max-height:58vh;overflow:auto}
+.sab{display:flex;gap:10px;align-items:center;padding:8px 10px;border:1px solid rgba(90,55,20,.3);border-radius:8px;background:rgba(255,250,235,.6)}
+.sab.off{opacity:.55}
+.sab .si{font-size:26px}
+.sab small{display:block;font-size:12.5px;color:var(--ink2);margin-top:2px}

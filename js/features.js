@@ -106,7 +106,8 @@ function buildingsMods(m){
     if (Grid.owner[b.c] !== 1) continue;
     const B = BUILDINGS[b.t];
     const k = cnt[b.t] = (cnt[b.t]||0) + 1;
-    if (B.fx) addMods(m, B.fx, 1/(1 + 0.25*(k-1)));   // retornos decrescentes
+    const cm = typeof cityBuildMult === 'function' ? cityBuildMult(b.c) : 1;   // obras em cidades grandes rendem mais
+    if (B.fx) addMods(m, B.fx, cm/(1 + 0.25*(k-1)));   // retornos decrescentes
     let list = BTREE[b.t] || [];
     for (const id of (b.path||[])){ const nd = list.find(x=>x.id===id); if (!nd) break; addMods(m, nd.fx, 1/(1 + 0.15*(k-1))); list = nd.ch; }
   }

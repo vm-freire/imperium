@@ -166,7 +166,7 @@ function autoOfficial(gov, name){ name = String(name||'').trim(); return /^(Imp�
 function createKey(){ const c = C.cfg; if (!c.existing) return null; const d = eraNations(c.era).find(x=>x.name===c.existing); return d ? d.key : null; }
 // ---------------- passo 1: identidade ----------------
 function stepIdent(){
-  const c = C.cfg;
+  const c = C.cfg; if (typeof fixCfgForEra === 'function') fixCfgForEra(c);
   return `<div class="grid2">
    <div>
     <div class="field"><label>Nome do país</label><input type="text" id="f-name" maxlength="28" value="${esc(c.name)}" placeholder="Ex.: Valdória"></div>
@@ -185,12 +185,12 @@ function stepIdent(){
       <div class="field"><label>Símbolo</label><input type="text" id="f-sym" maxlength="4" value="${esc(c.currencySym)}"></div>
     </div>
     <div class="field"><label>Lema nacional</label><input type="text" id="f-motto" maxlength="50" value="${esc(c.motto)}"></div>
-    <div class="field"><label>Religião oficial</label><select id="f-religion">${Object.entries(RELIGIONS).map(([k,v])=>`<option value="${k}" ${k===c.religion?'selected':''}>${v}</option>`).join('')}</select><span class="help">Nações da mesma fé tendem a ser amigáveis.</span></div>
+    <div class="field"><label>Religião oficial</label><select id="f-religion">${Object.entries(RELIGIONS).filter(([k])=>typeof relOk !== 'function' || relOk(k, ERAS[c.era].year)).map(([k,v])=>`<option value="${k}" ${k===c.religion?'selected':''}>${v}</option>`).join('')}</select><span class="help">Nações da mesma fé tendem a ser amigáveis.</span></div>
    </div>
    <div>
-    <div class="section-title">Regime político</div>${cards(GOVS, c.gov, 'gov')}
+    <div class="section-title">Regime político</div>${cards(typeof filterByYear === 'function' ? filterByYear(GOVS, govOk, ERAS[c.era].year) : GOVS, c.gov, 'gov')}
     <div id="pg-root">${partyPickerHTML(c, createKey(), ERAS[c.era].year, c.gov)}</div>
-    <div class="section-title">Sistema econômico</div>${cards(ECONS, c.econ, 'econ')}
+    <div class="section-title">Sistema econômico</div>${cards(typeof filterByYear === 'function' ? filterByYear(ECONS, econOk, ERAS[c.era].year) : ECONS, c.econ, 'econ')}
     <div class="section-title">Perfil do líder</div>${cards(TRAITS, c.trait, 'trait')}
    </div></div>`;
 }

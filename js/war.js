@@ -84,7 +84,7 @@ function lossesToCorps(c, frac){
 }
 function airSupport(cell){
   const p = G.p, m = p.mods || calcMods(); let s = 0;
-  for (const u of AIR_UNITS) s += (p.units[u]||0) * UNIT[u].atk;
+  for (const u of AIR_UNITS) if (u !== 'missil') s += (p.units[u]||0) * UNIT[u].atk;   // mísseis só quando o jogador escolhe
   if (!s) return 0;
   const base = nearestAirbase(cell), d = base >= 0 ? cellDist(base, cell) : cellDist(p.capCell, cell);
   const range = 10 + (p.techs.includes('jato')?8:0) + (base>=0?6:0);
@@ -106,50 +106,87 @@ function planAttack(cell, commit, corpsId){
   if (!cands.length) return {ok:false, why:`Nenhum exército ao alcance (até ${corpsReach()} regiões, ou pelo litoral com navios). Clique num exército seu e depois no destino para movê-lo para perto da frente.`, noCorps:true};
   const c = cands.find(x=>x.id===corpsId) || cands.sort((a,b)=>cellDist(a.cell,cell)-cellDist(b.cell,cell))[0];
   const naval = cellDist(c.cell, cell) > corpsReach() + 0.5;
-  let force = corpsPower(c, 'atk') * commit + airSupport(cell) * commit;
+  const O = Object.assign({tactic:'frontal', air:true, missiles:0, art:true}, (typeof UI !== 'undefined' && UI.atkOpts) || {});
+  const canBlitz = (c.units.tanque||0) > 0 || p.techs.includes('blindados'); if (O.tactic === 'relampago' && !canBlitz) O.tactic = 'frontal';
+  const air = O.air ? airSupport(cell) : 0;
+  let force = corpsPower(c, 'atk') * commit + air * commit;
+  force *= {frontal:1, cerco:0.85, relampago:1.2}[O.tactic] || 1;
   if (naval) force *= clamp(0.35 + (p.navy/Math.max(1,n.navy))*0.35 + (p.techs.includes('submarino')?0.1:0), 0.35, 0.95);
   const capD = n.cap >= 0 ? cellDist(cell, n.cap) : 20;
   const isCap = cell === n.cap, site = (n.sites||[]).find(s=>cellDist(s.c, cell) <= 1);
   let share = 0.14 + 0.28/(1 + capD/8);
   let def = n.power * share * (isCap ? 1.6 : 1) * (site ? 1.35 : 1) * (1 + Math.max(0, n.tech - p.techs.length)*0.02);
-  return {ok:true, corps:c, cands, naval, force, def, odds:battleOdds(force, def), isCap, site, e};
+  const missilesUsed = Math.min(O.missiles||0, p.units.missil||0); def *= 1 - Math.min(0.4, missilesUsed*0.06);
+  const artUsed = O.art && (c.units.art||0) > 0; if (artUsed) def *= 0.9;
+  const plan = {ok:true, corps:c, cands, naval, force, def, isCap, site, e, opts:O, canBlitz, airUsed: air > 0, airPower: air, missilesUsed, artUsed, spread: O.tactic === 'relampago' ? 0.22 : 0.15};
+  planOutcomes(plan);
+  return plan;
+}
+// chances de cada resultado: a relação de forças varia ±spread na hora da batalha
+const OUTCOME_CUT = {decisiva:0.6, parcial:0.5, empate:0.42};
+function outcomeProbs(r, spread){
+  const P = t => clamp(((1 + spread) - t / Math.max(1e-6, r)) / (2*spread), 0, 1);
+  const a = P(OUTCOME_CUT.decisiva), b = P(OUTCOME_CUT.parcial), c = P(OUTCOME_CUT.empate);
+  return {decisiva:a, parcial:b - a, empate:c - b, derrota:1 - c};
+}
+function planOutcomes(plan){ plan.ratio = battleOdds(plan.force, plan.def); plan.outcomes = outcomeProbs(plan.ratio, plan.spread || 0.15); plan.odds = plan.outcomes.decisiva + plan.outcomes.parcial; return plan;
 }
 function playerAttack(cell, commit, corpsId){
   const plan = planAttack(cell, commit, corpsId); if (!plan.ok) return plan;
-  const p = G.p, n = G.nations[plan.e], w = getWar(plan.e), c = plan.corps;
+  const p = G.p, n = G.nations[plan.e], w = getWar(plan.e), c = plan.corps, O = plan.opts || {};
   c.lastAttack = G.turn;
-  const win = Math.random() < plan.odds;
-  const ratio = plan.force/(plan.force+plan.def);
+  if (plan.missilesUsed) p.units.missil = Math.max(0, (p.units.missil||0) - plan.missilesUsed);
+  // a relação de forças muda um pouco no calor da batalha
+  const re = plan.ratio * rand(1 - plan.spread, 1 + plan.spread);
+  const outcome = re >= OUTCOME_CUT.decisiva ? 'decisiva' : re >= OUTCOME_CUT.parcial ? 'parcial' : re >= OUTCOME_CUT.empate ? 'empate' : 'derrota';
+  const win = outcome === 'decisiva' || outcome === 'parcial';
   const med = p.techs.includes('antibioticos') ? 0.85 : 1;
-  // perdas: só as tropas empenhadas estão em risco — e uma derrota é cara
-  const lossFrac = commit * (win ? rand(0.08, 0.22)*(1.3-ratio) : rand(0.35, 0.65)) * med;
+  const tacticLoss = {frontal:1, cerco:0.6, relampago:1.15}[O.tactic] || 1;
+  const LR = {decisiva:[0.05,0.15], parcial:[0.12,0.25], empate:[0.18,0.32], derrota:[0.35,0.6]}[outcome];
+  const lossFrac = commit * rand(LR[0], LR[1]) * med * tacticLoss * (plan.artUsed ? 0.9 : 1);
+  const before = corpsUnitsCount(c);
   const lost = lossesToCorps(c, lossFrac);
-  c.morale = clamp((c.morale||1) + (win ? 0.05 : -0.15), 0.4, 1.2);
-  c.xp = (c.xp||0) + (win ? 0.3 : 0.1);
-  n.power *= 1 - (win ? rand(0.07, 0.14) : rand(0.02, 0.05)) * commit;
+  let planesLost = 0;
+  if (plan.airUsed && (p.units.aviao||0) > 0 && chance(outcome === 'derrota' ? 0.5 : outcome === 'empate' ? 0.3 : 0.15)){ planesLost = Math.max(1, Math.round(p.units.aviao * rand(0.02, 0.06))); p.units.aviao -= planesLost; }
+  c.morale = clamp((c.morale||1) + {decisiva:0.08, parcial:0.03, empate:-0.05, derrota:-0.15}[outcome], 0.4, 1.2);
+  c.xp = (c.xp||0) + (win ? 0.3 : 0.15);
+  const EL = {decisiva:[0.1,0.16], parcial:[0.06,0.1], empate:[0.04,0.07], derrota:[0.01,0.03]}[outcome];
+  const enemyLoss = rand(EL[0], EL[1]) * commit; n.power *= 1 - enemyLoss;
   p.warWeary += 1 + lossFrac*25;
-  let captured = [];
+  let captured = [], lostCells = [];
   if (win){
-    const nCap = clamp(Math.round(1 + 4*ratio*commit + rand(0, 1.2)) - (plan.naval?1:0), 1, 6);
+    let nCap = outcome === 'decisiva' ? clamp(Math.round(2 + 4*commit + (re - 0.6)*15), 2, 7) : 1 + (commit >= 0.75 && re > 0.56 ? 1 : 0);
+    if (O.tactic === 'relampago' && outcome === 'decisiva') nCap += 2;
+    if (O.tactic === 'cerco') nCap = Math.min(nCap, 2);
+    if (plan.naval) nCap = Math.max(1, nCap - 1);
     captured = bfsCells(cell, plan.e, nCap);
     p.occ = p.occ || {};
     for (const x of captured) p.occ[x] = {t:G.turn, from:plan.e};
     transferCells(captured, plan.e, 1);
     if (Grid.owner[cell] === 1){ c.prev = c.cell; c.cell = cell; c.path = []; }
     revealSitesNear(cell, 4, plan.e);
-    w.score += captured.length + (plan.isCap?15:0); w.won++; w.taken += captured.length;
+    w.score += captured.length + (plan.isCap?15:0) + (outcome === 'decisiva' ? 2 : 0); w.won++; w.taken += captured.length;
     G.stats.battlesWon++; G.stats.cellsConquered += captured.length;
     unlock('primeira_vitoria');
-    addLog(`🗡️ ${c.name} venceu em ${n.name}: +${captured.length} regiões (perdemos ${lost} divisões).`, 'good');
-    p.approval += GOVS[p.gov].family==='dem' ? 0.5 : 1.5;
+    addLog(`🗡️ ${c.name}: vitória ${outcome === 'decisiva' ? 'decisiva' : 'parcial'} em ${n.name} — +${captured.length} região(ões), perdemos ${lost} divisões.`, 'good');
+    p.approval += (GOVS[p.gov].family==='dem' ? 0.5 : 1.5) * (outcome === 'decisiva' ? 1 : 0.5);
+  } else if (outcome === 'empate'){
+    w.score -= 1; G.stats.battlesDraw = (G.stats.battlesDraw||0) + 1;
+    addLog(`⚖️ ${c.name}: impasse em ${n.name}. Ninguém avançou; perdemos ${lost} divisões e o inimigo ${Math.round(enemyLoss*100)}% do poder.`, 'info');
   } else {
     w.score -= 3; w.lost++; G.stats.battlesLost++;
     addLog(`💀 ${c.name} foi derrotado em ${n.name}! Perdemos ${lost} divisões (${Math.round(lossFrac*100)}% das tropas).`, 'bad');
     p.approval -= 2;
+    // derrota feia: o inimigo contra-ataca e toma uma região nossa vizinha
+    if (re < 0.3){
+      const adj = neighbors4(cell).find(k => Grid.owner[k] === 1 && k !== p.capCell);
+      if (adj !== undefined){ lostCells = [adj]; transferCells(lostCells, 1, plan.e); w.lostCells = (w.lostCells||0) + 1; G.stats.cellsLost = (G.stats.cellsLost||0) + 1;
+        addLog(`🔥 ${n.name} contra-atacou e tomou uma região nossa.`, 'bad'); }
+    }
   }
   p.corps = p.corps.filter(x=>corpsUnitsCount(x) > 0);
   derive();
-  return {ok:true, win, captured, lost, plan, lossFrac, corpsDead: !p.corps.includes(c)};
+  return {ok:true, win, outcome, re, captured, lostCells, lost, before, planesLost, enemyLoss, plan, lossFrac, corpsDead: !p.corps.includes(c)};
 }
 
 // defesa de uma região do jogador (usada quando a IA ataca)
