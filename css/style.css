@@ -535,3 +535,11 @@ body.ingame.sb-collapsed #sidebar{width:66px}
 body.ingame.sb-collapsed #panel{display:none}
 body.ingame.sb-collapsed #mapwrap{left:66px}
 body.ingame.sb-collapsed #tabs button.active{background:none;color:#e8d3a3;border-left-color:var(--red)}
+
+/* coluna de abas: cabe na altura da tela, sem barra de rolagem, nomes inteiros */
+#tabs{width:90px;flex:none;overflow:hidden;padding:4px 0}
+#tabs button{flex:1 1 0;min-height:0;justify-content:center;padding:2px 4px;gap:1px}
+#tabs button{font-size:clamp(15px, 2.6vh, 21px)}
+#tabs button span{font-size:clamp(9.5px, 1.45vh, 11.5px);line-height:1.15;white-space:nowrap;max-width:100%}
+body.ingame.sb-collapsed #sidebar{width:90px}
+body.ingame.sb-collapsed #mapwrap{left:90px}
