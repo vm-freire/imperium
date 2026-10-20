@@ -127,6 +127,7 @@ function applyExisting(name){
     flag:f, color:flagMapColor(f), colorAuto:true, constitution:defaultConstitution(), statesAuto:true});
   C.titleEdited = false;
   { const g = realGroups(d.key, e.year, c.gov); c.party = g.length ? Object.assign({}, g[0]) : null; }
+  c.cult = pr.cult; c.avatar = randomAvatar(guessSex(c.leader), null, c.gov);
 }
 // inicia a partida uma única vez (evita duas partidas com clique duplo)
 function launchGame(cfg){
@@ -154,6 +155,7 @@ function bindConst(b){ b.querySelectorAll('[data-art]').forEach(x=>x.onclick=()=
 
 const cards = (obj, sel, key, extra) => `<div class="cards">${Object.entries(obj).map(([k,v])=>`<div class="card ${k===sel?'sel':''}" data-${key}="${k}"><b>${v.name}</b><span>${v.desc||''}</span>${extra?extra(k,v):''}</div>`).join('')}</div>`;
 
+function ensureCfgAvatar(){ const c = C.cfg; if (!c.avatar) c.avatar = randomAvatar(guessSex(c.leader), null, c.gov); return c.avatar; }
 // chave histórica do país escolhido (para partidos reais)
 function createKey(){ const c = C.cfg; if (!c.existing) return null; const d = eraNations(c.era).find(x=>x.name===c.existing); return d ? d.key : null; }
 // ---------------- passo 1: identidade ----------------
@@ -167,6 +169,8 @@ function stepIdent(){
       <div class="field"><label>Nome do líder</label><input type="text" id="f-leader" maxlength="22" value="${esc(c.leader)}"></div>
       <div class="field"><label>Título</label><input type="text" id="f-title" maxlength="24" value="${esc(c.title)}"></div>
     </div>
+    <div class="av-mini"><div class="av-mini-img">${avatarSVG(ensureCfgAvatar(), c.party && (c.avatar.extras||[]).includes('broche') ? emblemOf(c.party) : null, 92)}</div>
+      <div><b>Avatar do líder</b><div class="help">Rosto, cabelo, barba, roupa, altura, acessórios e o escudo do partido.</div><button class="btn sm" id="f-avatar">🎨 Personalizar avatar</button> <button class="btn sm" id="f-avrand">🎲 Aleatório</button></div></div>
     <div class="field"><label>Idade do líder: <span class="valbox" id="v-age">${c.age} anos</span></label><input type="range" id="f-age" min="25" max="80" value="${c.age}"><span class="help">Líderes idosos podem morrer, gerando crises de sucessão.</span></div>
     <div class="grid2" style="gap:10px">
       <div class="field"><label>Capital</label><input type="text" id="f-capital" maxlength="28" value="${esc(c.capital)}" placeholder="Ex.: Porto Real"></div>
@@ -189,6 +193,9 @@ function bindIdent(b){
   const map = {name:'f-name', official:'f-official', leader:'f-leader', capital:'f-capital', language:'f-language', currency:'f-currency', currencySym:'f-sym', motto:'f-motto'};
   for (const k in map) b.querySelector('#'+map[k]).oninput = e=>{ c[k] = e.target.value; if (k==='name') b.querySelector('#f-official').placeholder = GOVS[c.gov].prefix+' '+(c.name||'...'); };
   b.querySelector('#f-title').oninput = e=>{ c.title = e.target.value; C.titleEdited = true; };
+  b.querySelector('#f-avatar').onclick = ()=>{ SFX.page(); openAvatarEditor({avatar:ensureCfgAvatar(), name:c.leader, party:c.party, gov:c.gov, cult:c.cult,
+    onSave:(av, name, party)=>{ c.avatar = av; if (name) c.leader = name; if (party && c.party) c.party.emblem = party.emblem; renderStep(); }}); };
+  b.querySelector('#f-avrand').onclick = ()=>{ SFX.bell(); c.avatar = randomAvatar(guessSex(c.leader), null, c.gov); renderStep(); };
   b.querySelector('#f-age').oninput = e=>{ c.age = +e.target.value; b.querySelector('#v-age').textContent = c.age+' anos'; };
   b.querySelector('#f-religion').onchange = e=>{ c.religion = e.target.value; };
   b.querySelectorAll('[data-gov]').forEach(x=>x.onclick=()=>{ SFX.click(); c.gov = x.dataset.gov; if (!C.titleEdited) c.title = GOVS[c.gov].title; renderStep(); });
@@ -396,7 +403,7 @@ function stepSummary(){
       <div class="m-title" style="text-align:left">${esc(official)}</div>
       <div class="muted">“${esc(c.motto)}”</div>
       <div class="kv" style="margin-top:10px">
-        <div>Líder</div><div>${esc(c.title)} ${esc(c.leader)}, ${c.age} anos (${TRAITS[c.trait].name})</div>
+        <div>Líder</div><div style="display:flex;gap:8px;align-items:center">${avatarSVG(ensureCfgAvatar(), c.party && (c.avatar.extras||[]).includes('broche') ? emblemOf(c.party) : null, 46)}<span>${esc(c.title)} ${esc(c.leader)}, ${c.age} anos (${TRAITS[c.trait].name}) · ${c.avatar.height} cm</span></div>
         <div>Regime</div><div>${GOVS[c.gov].name}</div>
         <div>${POWER_KINDS[powerKind(c.gov)].label}</div><div>${c.party && c.party.kind === powerKind(c.gov) ? partyLabel(c.party) : '<span class="muted">Nenhum escolhido</span>'}</div><div>Economia</div><div>${ECONS[c.econ].name}</div>
         <div>Religião</div><div>${RELIGIONS[c.religion]}</div><div>Capital</div><div>${esc(c.capital)}</div>

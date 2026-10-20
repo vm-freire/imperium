@@ -185,6 +185,9 @@ function panelGeral(){
   <div style="text-align:center"><canvas id="pg-flag" width="180" height="120" style="border:2px solid var(--ink2);box-shadow:3px 4px 10px rgba(0,0,0,.3)"></canvas></div>
   <div class="ph" style="justify-content:center;text-align:center;margin-top:8px">${esc(p.official)}</div>
   <div class="muted" style="text-align:center">“${esc(p.motto||'')}”</div>
+  <div class="box leader-card"><div class="lc-img">${avatarSVG(playerAvatar(), p.party && (p.avatar.extras||[]).includes('broche') ? emblemOf(p.party) : null, 84)}</div>
+    <div><div class="lc-name">${esc(p.title)} ${esc(p.leader)}</div><div class="muted">${p.age} anos · ${p.avatar.height} cm${p.party ? ' · ' + esc(p.party.abbr || p.party.name) : ''}</div>
+    <button class="btn xs" id="btn-avatar">🎨 Visual do líder</button></div>${p.party ? `<div class="lc-emb" title="${esc(p.party.name)}">${emblemSVG(emblemOf(p.party), 40)}</div>` : ''}</div>
   <div class="box">
     ${row('Chefe de Estado', `${esc(p.title)} ${esc(p.leader)}`)}
     ${row('Idade · Perfil', `${p.age} anos · ${TRAITS[p.trait].name}`)}
@@ -773,7 +776,7 @@ function openNation(id){
     return `<div class="deal-opt"${tip(`${D.icon} ${D.n}`, D.d, fxList(D.fx))}><div><b>${D.icon} ${D.n}</b><small>${D.d}</small><small class="muted">Negociação: ${D.months[0]}–${D.months[1]} meses · validade ${D.years} anos${bl?'':` · chance ${Math.round(dealChance(n,t)*100)}%`}</small>${bl?`<small style="color:var(--red2)">🔒 ${bl}</small>`:''}</div><button class="btn xs" data-deal="${t}" ${bl?'disabled':''}>Propor</button></div>`; }).join('');
   const pending = (k)=>negs.some(x=>x.kind===k);
   const html = `
-    <div class="flex" style="gap:14px">${flagImg(n,96,64)}<div style="flex:1"><div class="m-title" style="text-align:left;margin:0">${esc(n.name)}</div>
+    <div class="flex" style="gap:14px"><div style="display:flex;flex-direction:column;gap:6px;align-items:center">${flagImg(n,96,64)}${n.human ? '' : `<div class="ai-av">${avatarSVG(aiAvatar(n), null, 64)}</div>`}</div><div style="flex:1"><div class="m-title" style="text-align:left;margin:0">${esc(n.name)}</div>
       <div class="muted">${GOVS[n.gov]?GOVS[n.gov].name:''} · ${RELIGIONS[n.relig]||''} · Capital: ${esc(n.capital)}</div>
       <div>👤 <b>${esc(n.leaderTitle||(GOVS[n.gov]||{}).title||'Líder')} ${esc(n.leader||'')}</b>${n.realLeader?' <small class="badge" title="Personagem histórico real">histórico</small>':''} <small class="muted">(${n.leaderAge||'?'} anos)</small>${n.bloc?` · 🏳️ ${BLOC_NAMES[n.bloc]}`:''}</div>
       <div>${nationTags(n)}${n.claim?'<span class="tag war">REIVINDICA NOSSAS TERRAS</span>':''}</div></div>

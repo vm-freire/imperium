@@ -450,6 +450,7 @@ function newGameInner(cfg){
   if (exN) basePc = exN.pc / ((1 + m0.gdpMult) * (0.65 + clamp(cfg.cities*0.15/cfg.pop,0.06,0.92)*0.8) * 1.0);
   const rnd = makeRng(Date.now() & 0xffff);
   const p = G.p = {
+    avatar: cfg.avatar ? JSON.parse(JSON.stringify(cfg.avatar)) : null, cult: cfg.cult || 'luso',
     name:cfg.name, official:cfg.official, leader:cfg.leader, title:cfg.title, age:cfg.age, trait:cfg.trait, gov:cfg.gov, econ:cfg.econ,
     religion:cfg.religion, capital:cfg.capital, currency:cfg.currency, currencySym:cfg.currencySym||'$', language:cfg.language, motto:cfg.motto,
     flag:cfg.flag, color:cfg.color, climate:cfg.climate, terrain:cfg.terrain, focus:cfg.focus, resources:cfg.resources.slice(),

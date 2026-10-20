@@ -443,3 +443,27 @@ body:has(#scr-page:not(.hidden)) .corner-fs, body:has(#scr-create:not(.hidden)) 
 
 .names-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;max-height:46vh;overflow:auto;padding:2px}
 .names-grid input{width:100%;box-sizing:border-box}
+
+/* Avatar do líder */
+.av-editor{display:grid;grid-template-columns:220px 1fr;gap:16px;align-items:start}
+.av-left{display:flex;flex-direction:column;align-items:stretch;gap:4px}
+.av-prev{display:flex;justify-content:center;border-radius:16px;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+.av-left input[type=text]{margin-top:8px;padding:8px;font-size:16px;text-align:center;border:1px solid rgba(90,55,20,.4);border-radius:6px;background:#fffaf0}
+.av-party{display:flex;align-items:center;gap:8px;justify-content:center;margin-top:6px}
+.av-tabs{display:flex;flex-wrap:wrap;margin-bottom:8px}
+.av-body{max-height:52vh;overflow:auto;padding-right:4px}
+.av-group{margin-bottom:10px}
+.av-opts{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+.av-op{padding:5px 9px;border:1px solid rgba(90,55,20,.35);border-radius:14px;background:#fbf3df;font-size:14px;cursor:pointer;color:var(--ink)}
+.av-op.on{background:#7a1b14;color:#fbeed0;border-color:#7a1b14}
+.av-sw{width:30px;height:30px;border-radius:50%;border:2px solid rgba(0,0,0,.25);cursor:pointer}
+.av-sw.on{outline:3px solid #7a1b14;outline-offset:2px}
+.av-check{display:flex;gap:8px;align-items:center;margin-top:8px;font-size:15px}
+.av-mini{display:flex;gap:12px;align-items:center;margin:4px 0 12px;padding:8px;border:1px dashed rgba(90,55,20,.4);border-radius:10px}
+.av-mini-img{border-radius:12px;overflow:hidden;flex:none}
+.leader-card{display:flex;gap:12px;align-items:center}
+.leader-card .lc-img{border-radius:12px;overflow:hidden;flex:none;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+.leader-card .lc-name{font-family:var(--title);font-weight:700;font-size:17px}
+.leader-card .lc-emb{margin-left:auto}
+.ai-av{border-radius:10px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+@media (max-width:700px){ .av-editor{grid-template-columns:1fr} }

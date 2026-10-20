@@ -326,7 +326,9 @@ const EVENTS = {
     prep:d=>{ d.c = [0,1,2].map(()=>({name:genPersonName(), trait:pick(Object.keys(TRAITS)), age:Math.round(rand(32,58))})); return d; },
     text:d=> d.party ? `O mandato de ${G.p.title} ${G.p.leader} chegou ao fim. O partido do governo precisa indicar quem assumirá o cargo.` : `${G.p.title} ${G.p.leader} faleceu aos ${G.p.age} anos. A nação está de luto. ${GOVS[G.p.gov].succession?'Quem herdará o trono?':'Quem assumirá o governo?'}`,
     choices:d=> d.c.map(c=>({t:`${c.name} (${c.age} anos)`, h:`${TRAITS[c.trait].name}: ${TRAITS[c.trait].desc}`, f:()=>{
-      addLog(d.party ? `${G.p.leader} deixa o cargo. ${c.name} assume o governo.` : `${G.p.title} ${G.p.leader} morreu. ${c.name} assume o poder.`,'info'); G.p.leader=c.name; G.p.trait=c.trait; G.p.age=c.age; stab(d.party?0:(GOVS[G.p.gov].succession?-5:-8));}}))
+      addLog(d.party ? `${G.p.leader} deixa o cargo. ${c.name} assume o governo.` : `${G.p.title} ${G.p.leader} morreu. ${c.name} assume o poder.`,'info'); G.p.leader=c.name; G.p.trait=c.trait; G.p.age=c.age; stab(d.party?0:(GOVS[G.p.gov].succession?-5:-8)); presentNewLeader(c.name);}})).concat([{t:'Escolher outra pessoa', h:'Crie o nome e o visual do novo líder', f:()=>{
+      const sex = Math.random()<0.5?'m':'f', nm = genNameBySex(G.p.cult||'luso', sex); addLog(d.party ? `${G.p.leader} deixa o cargo. ${nm} assume o governo.` : `${G.p.title} ${G.p.leader} morreu. ${nm} assume o poder.`,'info');
+      G.p.leader = nm; G.p.age = Math.round(rand(35,60)); G.p.avatar = randomAvatar(sex, null, G.p.gov); stab(d.party?0:(GOVS[G.p.gov].succession?-5:-8)); setTimeout(()=>openLeaderEditor(), 350); }}])
   },
   golpe:{icon:'🪖', title:'Tentativa de Golpe!', special:true,
     text:()=>`Generais descontentes cercaram o palácio em ${G.p.capital}! Tanques nas ruas. Estabilidade: ${Math.round(G.p.stability)}.`,
