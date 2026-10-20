@@ -56,13 +56,15 @@ function chooseGameMode(){
       <div class="mode-card" id="gm-obj"><div class="ic">🎯</div><b>Com objetivos</b><span>Uma campanha em 4 capítulos (Fundação, Ascensão, Potência e Legado), com metas a atingir e recompensas. Cumprir todas é uma vitória.</span></div>
       <div class="mode-card" id="gm-free"><div class="ic">🕊️</div><b>Modo livre</b><span>Sem metas definidas. Construa a história que quiser.</span></div>
     </div><div class="m-actions"><button class="btn" id="gm-x">Voltar</button></div>`, {wide:true});
-  m.querySelector('#gm-obj').onclick = ()=>{ SFX.page(); closeModal(); C.gameMode = 'objetivos'; openCreate(false); };
-  m.querySelector('#gm-free').onclick = ()=>{ SFX.page(); closeModal(); C.gameMode = 'livre'; openCreate(false); };
+  const go = mode => { SFX.page(); closeModal(); C.gameMode = mode; openWorldConfig(()=>openCreate(false), chooseGameMode); };
+  m.querySelector('#gm-obj').onclick = ()=>go('objetivos');
+  m.querySelector('#gm-free').onclick = ()=>go('livre');
   m.querySelector('#gm-x').onclick = ()=>{ SFX.click(); closeModal(); chooseMode(); };
 }
 function openCreate(keep){
   if (!keep || !C.cfg){ C.cfg = defaultCfg(); C.shapePts = []; C.step = 0; C.titleEdited = false; if (C.mode === 'existing'){ C.cfg.existing = null; } }
   C.cfg.gameMode = C.gameMode || 'livre';
+  C.cfg.world = Object.assign({}, C.world || (typeof defaultWorld === 'function' ? defaultWorld() : {}));
   hideAllScreens(); $('#scr-create').classList.remove('hidden');
   MapView.placement = null; MapView.menuMode = true; MapView.onClick = null;
   renderStep();
@@ -103,6 +105,7 @@ function stepNation(){
     <div class="cards" ${C.onlineRoom?'style="display:none"':''}>${Object.entries(ERAS).map(([k,x])=>`<div class="card ${+k===+c.era?'sel':''}" data-era2="${k}"><b>${x.year} — ${x.name}</b><span>${x.desc}</span></div>`).join('')}</div>
     <div class="section-title">Escolha a nação que você vai governar <button class="btn sm" id="pick-rand" style="margin-left:10px">🎲 Sortear uma nação</button></div>
     <div class="muted">Depois você pode mudar nome, líder, regime, bandeira, religião e o que mais quiser.</div>
+    <input type="text" id="pick-search" class="pick-search" placeholder="🔎 Buscar país (ex.: Portugal, Japão, Quênia...)" autocomplete="off">
     <div class="nation-pick">${eraNations(c.era).filter(d=>!C.onlineRoom || !takenNations().includes(d.name)).map(d=>{ const H = d.hist || (HIST[d.key] && HIST[d.key][c.era]); return `<div class="npick ${c.existing===d.name?'sel':''}" data-pick="${esc(d.name)}"><canvas width="42" height="28" data-pf="${esc(d.name)}"></canvas>
       <div><b>${esc(d.name)}</b><small>${fmtPop(H ? H[0] : d.pop*e.popF)} hab. · ${GOVS[d.gov].name}</small><small>${RELIGIONS[d.rel]||''}</small></div></div>`; }).join('')}</div>`;
 }
@@ -111,6 +114,7 @@ function bindNation(b){
   b.querySelectorAll('[data-pf]').forEach(cv=>{ const d = L.find(x=>x.name===cv.dataset.pf); drawFlag(cv.getContext('2d'), (d && eraNationFlag(d)) || randomFlag(makeRng(cv.dataset.pf.length*977)), 0, 0, 42, 28); });
   b.querySelectorAll('[data-era2]').forEach(x=>x.onclick=()=>{ SFX.click(); C.cfg.era = +x.dataset.era2; if (C.cfg.existing && !eraNations(C.cfg.era).some(d=>d.name===C.cfg.existing)) C.cfg.existing = null; if (C.cfg.existing) applyExisting(C.cfg.existing); renderStep(); });
   b.querySelectorAll('[data-pick]').forEach(x=>x.onclick=()=>{ SFX.click(); applyExisting(x.dataset.pick); C.cfg.randomPick = false; renderStep(); });
+  const ps = b.querySelector('#pick-search'); if (ps){ const norm = t => t.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase(); ps.oninput = ()=>{ const q = norm(ps.value.trim()); b.querySelectorAll('.nation-pick .npick').forEach(el=>{ el.style.display = !q || norm(el.textContent).includes(q) ? '' : 'none'; }); }; }
   b.querySelector('#pick-rand').onclick = ()=>{ SFX.bell(); const L = eraNations(C.cfg.era); applyExisting(pick(L).name); C.cfg.randomPick = true; renderStep(); };
 }
 function applyExisting(name){
@@ -137,8 +141,8 @@ function launchGame(cfg){
 }
 function startExisting(){
   const c = C.cfg;
-  if (C.onlineRoom){ c.official = c.official.trim() || (GOVS[c.gov].prefix + ' ' + c.name.trim()); c.name = c.name.trim(); saveOnlineCfg(Object.assign({}, c, {homePoly:null, center:[0,0]})); return; }
-  c.official = c.official.trim() || (GOVS[c.gov].prefix + ' ' + c.name.trim());
+  if (C.onlineRoom){ c.official = c.official.trim() || autoOfficial(c.gov, c.name); c.name = c.name.trim(); saveOnlineCfg(Object.assign({}, c, {homePoly:null, center:[0,0]})); return; }
+  c.official = c.official.trim() || autoOfficial(c.gov, c.name);
   c.name = c.name.trim();
   const cfg = Object.assign({}, c, {homePoly:null, center:[0,0], flag:Object.assign({}, c.flag)});
   launchGame(cfg);
@@ -156,6 +160,8 @@ function bindConst(b){ b.querySelectorAll('[data-art]').forEach(x=>x.onclick=()=
 const cards = (obj, sel, key, extra) => `<div class="cards">${Object.entries(obj).map(([k,v])=>`<div class="card ${k===sel?'sel':''}" data-${key}="${k}"><b>${v.name}</b><span>${v.desc||''}</span>${extra?extra(k,v):''}</div>`).join('')}</div>`;
 
 function ensureCfgAvatar(){ const c = C.cfg; if (!c.avatar) c.avatar = randomAvatar(guessSex(c.leader), null, c.gov); return c.avatar; }
+// nome oficial automático: "Império do Brasil" já é um nome oficial (não vira "Reino de Império do Brasil")
+function autoOfficial(gov, name){ name = String(name||'').trim(); return /^(Império|Reino|República|Sultanato|Emirado|Confederação|Canato|Califado|Xogunato|União|Federação|Colônia|Colônias|Comunidade|Principado|Grão|Estado|Domínio|África|Índia|Índias|Indochina|Rodésia|Malásia|Congo Belga|Angola Portuguesa|Argélia Francesa|Filipinas)/i.test(name) ? name : GOVS[gov].prefix + ' ' + name; }
 // chave histórica do país escolhido (para partidos reais)
 function createKey(){ const c = C.cfg; if (!c.existing) return null; const d = eraNations(c.era).find(x=>x.name===c.existing); return d ? d.key : null; }
 // ---------------- passo 1: identidade ----------------
@@ -164,7 +170,7 @@ function stepIdent(){
   return `<div class="grid2">
    <div>
     <div class="field"><label>Nome do país</label><input type="text" id="f-name" maxlength="28" value="${esc(c.name)}" placeholder="Ex.: Valdória"></div>
-    <div class="field"><label>Nome oficial</label><input type="text" id="f-official" maxlength="60" value="${esc(c.official)}" placeholder="${esc(GOVS[c.gov].prefix+' '+(c.name||'...'))}"><span class="help">Deixe vazio para gerar automaticamente pelo regime.</span></div>
+    <div class="field"><label>Nome oficial</label><input type="text" id="f-official" maxlength="60" value="${esc(c.official)}" placeholder="${esc(autoOfficial(c.gov, c.name||'...'))}"><span class="help">Deixe vazio para gerar automaticamente pelo regime.</span></div>
     <div class="grid2" style="gap:10px">
       <div class="field"><label>Nome do líder</label><input type="text" id="f-leader" maxlength="22" value="${esc(c.leader)}"></div>
       <div class="field"><label>Título</label><input type="text" id="f-title" maxlength="24" value="${esc(c.title)}"></div>
@@ -191,7 +197,7 @@ function stepIdent(){
 function bindIdent(b){
   const c = C.cfg;
   const map = {name:'f-name', official:'f-official', leader:'f-leader', capital:'f-capital', language:'f-language', currency:'f-currency', currencySym:'f-sym', motto:'f-motto'};
-  for (const k in map) b.querySelector('#'+map[k]).oninput = e=>{ c[k] = e.target.value; if (k==='name') b.querySelector('#f-official').placeholder = GOVS[c.gov].prefix+' '+(c.name||'...'); };
+  for (const k in map) b.querySelector('#'+map[k]).oninput = e=>{ c[k] = e.target.value; if (k==='name') b.querySelector('#f-official').placeholder = autoOfficial(c.gov, c.name||'...'); };
   b.querySelector('#f-title').oninput = e=>{ c.title = e.target.value; C.titleEdited = true; };
   b.querySelector('#f-avatar').onclick = ()=>{ SFX.page(); openAvatarEditor({avatar:ensureCfgAvatar(), name:c.leader, party:c.party, gov:c.gov, cult:c.cult,
     onSave:(av, name, party)=>{ c.avatar = av; if (name) c.leader = name; if (party && c.party) c.party.emblem = party.emblem; renderStep(); }}); };
@@ -394,7 +400,7 @@ function stepSummary(){
   const pc = 10000*e.pcF*(1+m.gdpMult)*(0.65+urb*0.8)*(0.85+0.62*0.25);
   const gdp = c.pop*pc;
   const inf = Math.max(4, Math.round(Math.pow(c.pop,0.55)*6*(c.focus==='militar'?1.5:1)));
-  const official = c.official.trim() || (GOVS[c.gov].prefix + ' ' + c.name);
+  const official = c.official.trim() || autoOfficial(c.gov, c.name);
   const fx = Object.entries(m).filter(([k,v])=>Math.abs(v)>0.001).map(([k,v])=>fxLabel(k, +v.toFixed(2)));
   return `<div class="summary">
     <div style="text-align:center"><canvas id="sum-flag" width="300" height="200" style="border:2px solid var(--ink2);box-shadow:4px 6px 14px rgba(0,0,0,.35)"></canvas>
@@ -440,7 +446,7 @@ function bindSummary(b){
 // ---------------- posicionamento no mapa ----------------
 function enterPlacement(){
   const c = C.cfg;
-  c.official = c.official.trim() || (GOVS[c.gov].prefix + ' ' + c.name.trim());
+  c.official = c.official.trim() || autoOfficial(c.gov, c.name);
   c.name = c.name.trim();
   c.shape = normalizeShape(C.shapePts);
   hideAllScreens();

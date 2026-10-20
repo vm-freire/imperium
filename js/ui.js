@@ -109,7 +109,7 @@ function showMenu(){
   const used = listSlots().filter(x=>x.meta).length;
   $('#m-continue').innerHTML = `📜 Continuar Jogo <small style="font-weight:400">(${used}/${MAX_SLOTS} partidas salvas)</small>`;
   const acc = $('#m-account');
-  if (acc){ acc.innerHTML = NET.user ? `👤 <b>${esc(NET.user.name)}</b> · <a href="#" id="m-logout">Sair</a>` : ''; const lo = $('#m-logout'); if (lo) lo.onclick = e=>{ e.preventDefault(); SFX.click(); logout(); }; }
+  if (acc){ acc.innerHTML = NET.user ? `👤 <b>${esc(NET.user.name)}</b> · <a href="#" id="m-logout">Sair</a>${typeof CLOUD !== 'undefined' && CLOUD.ok === false && !NET.isLocal() ? '<div class="cloud-warn">⚠️ A nuvem não respondeu: seus jogos estão salvos só neste aparelho. (No Supabase, rode de novo o arquivo supabase/setup.sql.)</div>' : ''}` : ''; const lo = $('#m-logout'); if (lo) lo.onclick = e=>{ e.preventDefault(); SFX.click(); logout(); }; }
 }
 function showHUD(){
   hideAllScreens(); $('#hud').classList.remove('hidden');

@@ -18,7 +18,9 @@ const CLOUD = {
     try { rows = await NET.be.getUserData(uid); }
     catch(e){ console.warn('cloud pull', e); this.warn(); rows = null; }
     const owner = localStorage.getItem(OWNER_KEY);
-    if (owner && owner !== uid) this.wipeLocal();
+    if (owner && owner !== uid){ this.stash(owner); this.wipeLocal(); }
+    this.unstash(uid);
+    this.ok = !!rows;
     if (!rows){ localStorage.setItem(OWNER_KEY, uid); return; }
     const get = k => localStorage.getItem(k), set = (k, v) => { try { localStorage.setItem(k, v); } catch(e){ console.warn(e); } };
     const parse = v => { try { return JSON.parse(v); } catch(e){ return null; } };
@@ -34,6 +36,9 @@ const CLOUD = {
     localStorage.setItem(OWNER_KEY, uid);
     await this.sync();
   },
+  // guarda os jogos do usuário neste aparelho (nunca se perdem ao sair da conta)
+  stash(uid){ const o = {}; for (const k of CLOUD_KEYS()){ const v = localStorage.getItem(k); if (v !== null) o[k] = v; } if (Object.keys(o).length){ try { localStorage.setItem('imperium_stash_' + uid, JSON.stringify(o)); } catch(e){ console.warn('stash', e); } } },
+  unstash(uid){ const raw = localStorage.getItem('imperium_stash_' + uid); if (!raw) return; try { const o = JSON.parse(raw); for (const k in o) if (localStorage.getItem(k) === null) localStorage.setItem(k, o[k]); localStorage.removeItem('imperium_stash_' + uid); } catch(e){ console.warn('unstash', e); } },
   wipeLocal(){ for (const k of CLOUD_KEYS()) localStorage.removeItem(k); localStorage.removeItem(OWNER_KEY); this.pushed = {}; },
   // Envia para a conta só o que mudou desde o último envio
   async sync(){
@@ -48,7 +53,8 @@ const CLOUD = {
         else await NET.be.setUserData(NET.user.uid, k, v);
         if (v === null) delete this.pushed[k]; else this.pushed[k] = v;
       }
-    } catch(e){ console.warn('cloud sync', e); this.warn(); }
+      this.ok = true;
+    } catch(e){ console.warn('cloud sync', e); this.ok = false; this.warn(); }
     this.busy = false;
     if (this.again){ this.again = false; this.soon(); }
   },
@@ -119,9 +125,10 @@ async function enterAccount(fresh){
   showMenu();
 }
 async function logout(){
+  const uid = NET.user && NET.user.uid;
   await CLOUD.sync();
   try { await NET.be.signOut(); } catch(e){}
-  NET.user = null; CLOUD.wipeLocal();
+  NET.user = null; if (uid) CLOUD.stash(uid); CLOUD.wipeLocal();
   showMenu(); showLogin();
   toast('Você saiu da conta.');
 }

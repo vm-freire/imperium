@@ -286,8 +286,8 @@ const MapView = {
     x.quadraticCurveTo(w/2,h/2,w/2-14,h/2); x.lineTo(-w/2+14,h/2); x.quadraticCurveTo(-w/2,h/2,-w/2-10,h/2+10); x.quadraticCurveTo(-w/2,0,-w/2-10,-h/2-10); x.quadraticCurveTo(-w/2,-h/2,-w/2+14,-h/2);
     x.fill(); x.stroke(); x.lineWidth=0.8; x.strokeRect(-w/2+8,-h/2+6,w-16,h-12);
     x.fillStyle='#3d2812'; x.textAlign='center';
-    x.font='bold 22px "Cinzel Decorative", "Cinzel", Georgia, serif'; x.fillText('MAPPA MVNDI',0,-4);
-    x.font='italic 10px "IM Fell English", Georgia, serif'; x.fillText('Nova et accvrata totivs terrarvm orbis tabvla',0,16);
+    x.font='700 22px "Cinzel", Georgia, serif'; x.fillText('MAPA MUNDI',0,-4);
+    x.font='italic 11px Georgia, serif'; x.fillText('O mundo inteiro numa só carta',0,16);
     x.restore();
   },
   drawMonster(x, cx, cy, flip){
@@ -429,6 +429,7 @@ const MapView = {
         if (this.warBorder){ const pulse = 0.5+0.5*Math.sin(this.t*5); ctx.strokeStyle = `rgba(200,20,10,${0.4+pulse*0.5})`; ctx.lineWidth = Math.max(1.5, 3.2/z); ctx.stroke(this.warBorder); }
       }
       if (this.hoverPath && !this.placement){ ctx.strokeStyle = 'rgba(255,250,220,0.9)'; ctx.lineWidth = Math.max(1, 2.5/z); ctx.stroke(this.hoverPath); ctx.strokeStyle='rgba(60,30,10,0.9)'; ctx.lineWidth=Math.max(0.5,1/z); ctx.stroke(this.hoverPath); }
+      if (this.drawGeoLayers) this.drawGeoLayers(ctx, z);
       this.drawShips(ctx, z);
       this.drawLabels(ctx, z);
       this.drawRails(ctx, z);

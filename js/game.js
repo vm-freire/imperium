@@ -340,7 +340,7 @@ function addMods(m, fx, k){ if (!fx) return; k = k===undefined?1:k; for (const k
 function newGame(cfg){
   // no multiplayer todos os jogadores geram o mesmo mundo (mesma semente)
   const _rnd = Math.random; if (cfg.online) Math.random = makeRng(cfg.online.seed);
-  try { const r = newGameInner(cfg); if (typeof applyRealLeader === 'function') G.nations.forEach(n=>applyRealLeader(n, G.startYear, false)); return r; } finally { Math.random = _rnd; }
+  try { const r = newGameInner(cfg); if (typeof applyRealLeader === 'function') G.nations.forEach(n=>applyRealLeader(n, G.startYear, false)); afterGeoSetup(cfg); return r; } finally { Math.random = _rnd; }
 }
 function newGameInner(cfg){
   const era = ERAS[cfg.era];
@@ -349,7 +349,7 @@ function newGameInner(cfg){
     v:1, id: 'g'+Date.now(), created: Date.now(), turn:0, startYear: era.year, startMonth:0, era: cfg.era,
     costScale: era.pcF/0.35, p:null, nations:[null], wars:[], aiWars:[], hist:[], log:[], news:[], adj:{},
     stats:{battlesWon:0, battlesLost:0, cellsConquered:0, cellsLost:0, annexed:0, colonized:0, wars:0, eventsSeen:0, peakGdp:0, peakArea:0, peakPop:0, monthsAtWar:0, lastWarTurn:0, nukesUsed:0, loansTaken:0},
-    achievements:[], over:false, victory:false, warHistory:[], pendingEvents:[], speed:0, negs:[], slot:freeSlot(), rankHist:{}
+    achievements:[], over:false, victory:false, warHistory:[], pendingEvents:[], speed:0, negs:[], slot:freeSlot(), rankHist:{}, world: cfg.world || (typeof defaultWorld === 'function' ? defaultWorld() : null)
   };
   // terra (inclui ilha do jogador se no mar)
   Grid.buildLand(ON ? humans.map(h=>h.cfg.homePoly).filter(Boolean) : [cfg.homePoly].filter(Boolean));
@@ -357,12 +357,12 @@ function newGameInner(cfg){
   // nação do jogador (id 1)
   G.nations.push({id:1, name:cfg.name, color:cfg.color, alive:true, cells:0, cap:-1});
   // nações IA
-  G.eraList = eraNations(cfg.era);
+  G.eraList = typeof limitNations === 'function' ? limitNations(eraNations(cfg.era), cfg) : eraNations(cfg.era);
   G.eraList.forEach((d, k)=>{
     const pr = PROFILES[d.key] || {cult:'luso', res:[], exp:[], likes:['comercio'], dislikes:['expansao']};
     const H = d.hist || (HIST[d.key] && HIST[d.key][cfg.era]);
     G.nations.push({id:k+2, name:d.name, cult:pr.cult, key:d.key, res:(HIST_RES[d.key] || pr.res).slice(), histMil: H ? H[2] : 1, exp:pr.exp.slice(), likes:pr.likes.slice(), dislikes:pr.dislikes.slice(),
-      leader:genLeaderName(pr.cult), leaderAge:randInt(38,68), deals:{}, flag: eraNationFlag(d) || randomFlag(makeRng((k+2)*7919 + d.name.length*131)), color:NATION_COLORS[k % NATION_COLORS.length], gov:d.gov, relig:d.rel, seeds:d.seeds, w:d.w,
+      leader:genLeaderName(pr.cult), leaderAge:randInt(38,68), deals:{}, flag: eraNationFlag(d) || randomFlag(makeRng((k+2)*7919 + d.name.length*131)), color:NATION_COLORS[k % NATION_COLORS.length], gov:d.gov, relig:d.rel, seeds:d.seeds, w:d.w, a3:d.a3, isos:d.isos,
       pop: H ? H[0]*rand(0.95,1.05) : d.pop*era.popF*rand(0.9,1.1), pc: H ? H[1]*rand(0.92,1.08) : d.pc*1000*era.pcF*rand(0.85,1.15), ag:d.ag, bloc:d.bloc||null, alive:true, cells:0, area:0, cap:-1,
       capital: d.capital || CAPITALS[d.key] || genPlaceName(), relMod:0, rel:0, atWar:false, pact:false, alliance:false, trade:false, truce:-1, claim:0,
       tech: era.techs.length + (d.pc>30?2:d.pc<5?-3:0) + rand(-1,1), techOff:(d.pc>30?2:d.pc>10?0:d.pc<3?-4:-2) + rand(-1,1), treasury:0, power:0, navy:0, lastWar:-99});
@@ -372,9 +372,10 @@ function newGameInner(cfg){
     G.humanBase = G.nations.length;
     for (let s2=0; s2<5; s2++) G.nations.push({id:G.humanBase+s2, name:'—', key:'humano'+s2, cult:'luso', res:[], exp:[], likes:[], dislikes:[], leader:'', leaderAge:40, deals:{}, flag:randomFlag(), color:'#888888', gov:'republica', relig:'laico', seeds:[[0,0,1]], w:1, pop:1, pc:1000, ag:0, bloc:null, alive:false, cells:0, area:0, cap:-1, capital:'', relMod:0, rel:0, atWar:false, pact:false, alliance:false, trade:false, truce:-1, claim:0, tech:0, techOff:0, treasury:0, power:0, navy:0, lastWar:-99, histMil:1, human:true, empty:true});
   }
-  // Voronoi ponderado
+  // terras reais (Natural Earth); sem os dados, Voronoi ponderado
   const N = G.nations;
-  for (let i=0;i<NCELLS;i++){
+  if (typeof assignGeoTerritories === 'function') assignGeoTerritories(N, cfg);
+  else for (let i=0;i<NCELLS;i++){
     if (!Grid.land[i]) continue;
     const [lo, la] = cellCenter(i);
     let best = 0, bd = 17;
@@ -512,11 +513,24 @@ function nearestOwned(id, from){
   for (let i=0;i<NCELLS;i++) if (Grid.land[i] && Grid.owner[i]===id){ const d=(i%CW-fx)**2+(((i/CW)|0)-fy)**2; if (d<bd){bd=d;best=i;} }
   return best;
 }
+// ajustes depois de criar o mundo: cofre, estados reais
+function afterGeoSetup(cfg){
+  const p = G.p; if (!p) return;
+  if (typeof worldVal === 'function') p.treasury *= worldVal('money');
+  const ex = G.nations.find(x=>x && x.playerOrigin && x.isos);
+  if (ex && typeof realStatesFor === 'function'){
+    const rs = realStatesFor(ex.isos);
+    if (rs.length){ const ideal = clamp(p.area/150000, 2, 80); p.stateNames = rs; p.states = Math.round(clamp(rs.length, ideal*0.5, Math.max(ideal*2, 3))); }
+  }
+}
 function placeCities(){
   const p = G.p; const rnd = makeRng(p.cities*31 + p.homeCells.length);
   const n = Math.min(p.cities, Math.max(3, p.homeCells.length*2), 40);
   p.cityCells = []; p.cityNames = [];
-  for (let k=0;k<n;k++){ p.cityCells.push(p.homeCells[Math.floor(rnd()*p.homeCells.length)]); p.cityNames.push(genPlaceName(rnd)); }
+  // país real: usa as cidades reais (com o nome da época)
+  const ex = G.nations.find(x=>x && x.playerOrigin && x.isos);
+  if (ex && typeof realCitiesFor === 'function') for (const c of realCitiesFor(ex.isos, G.startYear, 80)){ if (p.cityCells.length >= n) break; const cell = cellOf(c.lon, c.lat); if (cell >= 0 && Grid.owner[cell] === 1 && cell !== p.capCell && !p.cityCells.includes(cell) && c.name !== p.capital){ p.cityCells.push(cell); p.cityNames.push(c.name); } }
+  for (let k=p.cityCells.length;k<n;k++){ p.cityCells.push(p.homeCells[Math.floor(rnd()*p.homeCells.length)]); p.cityNames.push(genPlaceName(rnd)); }
 }
 
 function aiPowerTarget(n){
@@ -534,17 +548,27 @@ function recount(){
     if (!Grid.land[i]) continue; const o = Grid.owner[i]; if (o<=0) continue;
     const n = N[o]; n.cells++; n.area += cellArea(i); n._sx += i%CW; n._sy += (i/CW)|0;
   }
+  // rótulo no maior bloco contínuo de terras (a metrópole, não as colônias)
+  const comp = new Int32Array(NCELLS).fill(-1), big = {}, stack = [];
+  for (let i=0;i<NCELLS;i++){
+    if (comp[i] >= 0 || !Grid.land[i]) continue; const o = Grid.owner[i]; if (o<=0) continue;
+    let cnt = 0, sx = 0, sy = 0; comp[i] = i; stack.push(i);
+    while (stack.length){ const c = stack.pop(); cnt++; sx += c%CW; sy += (c/CW)|0;
+      const x = c%CW, y = (c/CW)|0;
+      for (let dy=-1; dy<=1; dy++) for (let dx=-1; dx<=1; dx++){ if (!dx && !dy) continue; const nx = (x+dx+CW)%CW, ny = y+dy; if (ny<0 || ny>=CH) continue; const j = ny*CW+nx; if (comp[j] < 0 && Grid.land[j] && Grid.owner[j] === o){ comp[j] = i; stack.push(j); } } }
+    if (!big[o] || cnt > big[o].cnt) big[o] = {cnt, sx, sy, root:i};
+  }
   const best = {}, bd = {};
   for (let i=0;i<NCELLS;i++){
-    if (!Grid.land[i]) continue; const o = Grid.owner[i]; if (o<=0) continue;
-    const n = N[o]; const d = (i%CW - n._sx/n.cells)**2 + (((i/CW)|0) - n._sy/n.cells)**2;
+    const o = Grid.owner[i]; if (o<=0 || !big[o] || comp[i] !== big[o].root) continue;
+    const b = big[o], d = (i%CW - b.sx/b.cnt)**2 + (((i/CW)|0) - b.sy/b.cnt)**2;
     if (bd[o]===undefined || d < bd[o]){ bd[o]=d; best[o]=i; }
   }
   for (const n of N){
     if (!n) continue;
     if (n.cells){
       const [x,y] = cellXY(best[n.id]); n.lx = x; n.ly = y;
-      const span = Math.sqrt(n.cells)*DEG*1.5; n.labelSize = clamp(Math.min(Math.sqrt(n.cells)*0.8, span/(n.name.length*0.78)), 2.5, 24);
+      const mc = big[n.id] ? big[n.id].cnt : n.cells, span = Math.sqrt(mc)*DEG*1.5; n.labelSize = clamp(Math.min(Math.sqrt(mc)*0.8, span/(n.name.length*0.78)), 2.5, 24);
     }
   }
   if (G.p){
@@ -588,7 +612,7 @@ function calcMods(){
   }
   for (const t of p.techs) if (TECH[t]) addMods(m, TECH[t].fx);
   for (const t of p.temp) addMods(m, t.fx);
-  dealsMods(m); constitutionMods(m); if (typeof partyMods === 'function') partyMods(m); buildingsMods(m); cityMods(m); cityProjectMods(m); synergyMods(m);
+  dealsMods(m); constitutionMods(m); if (typeof partyMods === 'function') partyMods(m); if (typeof worldMods === 'function') worldMods(m); buildingsMods(m); cityMods(m); cityProjectMods(m); synergyMods(m);
   if (p.religion==='laico' || p.religion==='ateu') m.research += 0.05;
   if (p.gov==='teocracia' && p.religion!=='laico' && p.religion!=='ateu') m.stability += 4;
   return m;
@@ -1102,7 +1126,7 @@ function endTurn(){
   // ---------- crises internas ----------
   politicalChecks();
   // ---------- eventos aleatórios ----------
-  if (!G.over && !G.pendingEvents.length && chance(0.18)) rollEvent();
+  if (!G.over && !G.pendingEvents.length && chance(0.18*(typeof worldVal === 'function' ? worldVal('events') : 1))) rollEvent();
   checkGameOver();
   G.stats.eventsSeen = G.stats.eventsSeen;
 }
@@ -1137,7 +1161,7 @@ function aiTurn(){
       const adj = adjacent(1, id) || (n.navy > p.navy*1.2 && capDist(n) < 55);
       const opportunist = n.ag >= 0.55 && n.power > p.def*3 && n.rel < -5;
       if (adj && (n.rel < -25 || opportunist) && n.power > p.def*0.75){
-        const pr = 0.01*(n.ag+0.3)*(1 + Math.max(0,-n.rel-25)/40)*(n.claim?1.6:1)*(n.power > p.def*2 ? 1.5 : 1)*(typeof achWarMult === 'function' ? achWarMult(n) : 1);
+        const pr = 0.01*(n.ag+0.3)*(1 + Math.max(0,-n.rel-25)/40)*(n.claim?1.6:1)*(n.power > p.def*2 ? 1.5 : 1)*(typeof achWarMult === 'function' ? achWarMult(n) : 1)*(typeof worldVal === 'function' ? worldVal('aggression') : 1);
         if (chance(pr)){
           if (chance(0.4) && !G.pendingEvents.some(e=>e.id==='ultimato')) queueEvent('ultimato', {n:id});
           else { declareWar(id, true); if (typeof onWarDeclared === 'function') onWarDeclared(n); }
@@ -1153,7 +1177,7 @@ function aiTurn(){
   for (const w of G.wars.slice()){
     const n = N[w.e]; if (!n || !n.alive){ G.wars = G.wars.filter(x=>x!==w); continue; }
     if (n.human) continue;
-    if (chance(0.42*(0.5+n.ag))){ const r = aiAttack(n, w); if (r && typeof onAIAttack === 'function') onAIAttack(r); }
+    if (chance(Math.min(0.95, 0.42*(0.5+n.ag)*(typeof worldVal === 'function' ? worldVal('aggression') : 1)))){ const r = aiAttack(n, w); if (r && typeof onAIAttack === 'function') onAIAttack(r); }
     const dur = G.turn - w.start;
     if (dur > 4 && !G.pendingEvents.some(e=>e.id==='paz_ia' && e.d.n===w.e)){
       if (w.score > 12 && chance(0.08 + w.score*0.004)) queueEvent('paz_ia', {n:w.e, win:true});
