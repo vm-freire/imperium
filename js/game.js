@@ -280,7 +280,7 @@ const TECHS = [
   {id:'consciencia_digital', n:'Consciência Digital', icon:'💠', year:2100, req:['ia_geral','longevidade'], fx:{research:0.2, approval:2}, d:'Mentes humanas preservadas em computadores'},
   {id:'dyson', n:'Enxame de Dyson', icon:'☀️', year:2120, req:['energia_orbital','antimateria'], fx:{gdpMult:0.3}, d:'Captar a energia do próprio Sol — o auge da civilização'}
 ];
-TECHS.forEach(t=>{ t.cost = t.year < 1800 ? Math.round(90 + (t.year-1440)*0.45) : Math.round(250 + (t.year-1800)*5); t.tier = t.year<1870?0:t.year<1910?1:t.year<1945?2:t.year<1975?3:t.year<2005?4:t.year<2040?5:t.year<2051?6:7; });
+TECHS.forEach(t=>{ t.cost = t.year < 1800 ? Math.round(90 + (t.year-1440)*0.45) : Math.round(250 + (t.year-1800)*5); t.tier = t.year<1600?0:t.year<1760?1:t.year<1870?2:t.year<1910?3:t.year<1945?4:t.year<1975?5:t.year<2005?6:t.year<2040?7:t.year<2051?8:9; });
 for (const k in ERAS) ERAS[k].techs = TECHS.filter(t=>t.year <= ERAS[k].year - 5).map(t=>t.id);
 const TECH = Object.fromEntries(TECHS.map(t=>[t.id,t]));
 

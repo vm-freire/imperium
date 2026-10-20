@@ -350,7 +350,7 @@ function panelTecnologia(){
   const rate = p.rpRate || researchRate();
   const tiers = {};
   TECHS.forEach(t=> (tiers[t.tier] = tiers[t.tier] || []).push(t));
-  const names = ['I — Vapor (até 1870)','II — Eletricidade (1870–1910)','III — Guerras Mundiais (1910–1945)','IV — Atômica (1945–1975)','V — Informação (1975–2005)','VI — Automação (2005–2040)','VII — Futuro'];
+  const names = ['I — Velas e Pólvora (até 1600)','II — Razão e Luzes (1600–1760)','III — Vapor (1760–1870)','IV — Eletricidade (1870–1910)','V — Guerras Mundiais (1910–1945)','VI — Atômica (1945–1975)','VII — Informação (1975–2005)','VIII — Automação (2005–2040)','IX — Alvorada da Fusão (2040–2050)','X — Horizonte Estelar (depois de 2050)'];
   const y = curYear();
   const waiting = !cur && TECHS.some(t=>!p.techs.includes(t.id) && t.req.every(r=>p.techs.includes(r)));
   let curBox = '';
