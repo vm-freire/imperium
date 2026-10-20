@@ -320,7 +320,7 @@ function addMods(m, fx, k){ if (!fx) return; k = k===undefined?1:k; for (const k
 function newGame(cfg){
   // no multiplayer todos os jogadores geram o mesmo mundo (mesma semente)
   const _rnd = Math.random; if (cfg.online) Math.random = makeRng(cfg.online.seed);
-  try { return newGameInner(cfg); } finally { Math.random = _rnd; }
+  try { const r = newGameInner(cfg); if (typeof applyRealLeader === 'function') G.nations.forEach(n=>applyRealLeader(n, G.startYear, false)); return r; } finally { Math.random = _rnd; }
 }
 function newGameInner(cfg){
   const era = ERAS[cfg.era];
@@ -1105,7 +1105,8 @@ function aiTurn(){
     updateRelation(n);
     // cancelamentos
     if (n.trade && n.rel < -5 && chance(0.06)){ const t = pick(Object.keys(n.deals)); delete n.deals[t]; syncTrade(n); addLog(`${n.name} cancelou o acordo "${DEALS[t].n}" conosco.`, 'dip'); }
-    if (worldAuth && curMonth() === 0 && chance(0.07)){ const old = n.leader; n.leader = genLeaderName(n.cult); n.leaderAge = randInt(40,65); addNews(`${n.name}: ${old} deixa o poder; ${n.leader} assume.`); }
+    if (worldAuth && curMonth() === 0 && typeof applyRealLeader === 'function' && (applyRealLeader(n, curYear(), true) || realLeaderAt(n.key, curYear()))){ /* líder real da época */ }
+    else if (worldAuth && curMonth() === 0 && chance(0.07)){ const old = n.leader; n.leader = genLeaderName(n.cult); n.leaderAge = randInt(40,65); addNews(`${n.name}: ${old} deixa o poder; ${n.leader} assume.`); }
     if (worldAuth && curMonth() === 0) n.leaderAge = (n.leaderAge||50) + 1;
     if (n.alliance && n.rel < 25 && chance(0.1)){ n.alliance = false; addLog(`${n.name} desfez a aliança conosco.`, 'dip'); }
     // declarar guerra ao jogador

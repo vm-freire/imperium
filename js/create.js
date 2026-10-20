@@ -156,7 +156,7 @@ function stepIdent(){
     <div class="field"><label>Nome do país</label><input type="text" id="f-name" maxlength="28" value="${esc(c.name)}" placeholder="Ex.: Valdória"></div>
     <div class="field"><label>Nome oficial</label><input type="text" id="f-official" maxlength="60" value="${esc(c.official)}" placeholder="${esc(GOVS[c.gov].prefix+' '+(c.name||'...'))}"><span class="help">Deixe vazio para gerar automaticamente pelo regime.</span></div>
     <div class="grid2" style="gap:10px">
-      <div class="field"><label>Nome do líder</label><input type="text" id="f-leader" maxlength="40" value="${esc(c.leader)}"></div>
+      <div class="field"><label>Nome do líder</label><input type="text" id="f-leader" maxlength="22" value="${esc(c.leader)}"></div>
       <div class="field"><label>Título</label><input type="text" id="f-title" maxlength="24" value="${esc(c.title)}"></div>
     </div>
     <div class="field"><label>Idade do líder: <span class="valbox" id="v-age">${c.age} anos</span></label><input type="range" id="f-age" min="25" max="80" value="${c.age}"><span class="help">Líderes idosos podem morrer, gerando crises de sucessão.</span></div>

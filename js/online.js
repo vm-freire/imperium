@@ -272,7 +272,7 @@ async function hostTurn(){
 function runLocalTurn(){
   UI.turnLogs = []; UI.fxQueue = []; UI.worldBattles = 0;
   const prevYear = curYear();
-  endTurn(); SFX.turn();
+  endTurn(); SFX.turn(); if (typeof onlineAchTick === 'function') onlineAchTick();
   const logs = UI.turnLogs; UI.turnLogs = null;
   logs.filter(l=>l.k==='war' || (l.k==='bad' && /invadiu|capital|independ/i.test(l.txt))).slice(-2).forEach((l,i)=>setTimeout(()=>toast(esc(l.txt), l.k), i*400));
   (UI.negMsgs||[]).slice(-3).forEach(([msg,ok],i)=>setTimeout(()=>toast(esc(msg), ok?'dip':'bad'), 300 + i*400)); UI.negMsgs = [];
@@ -291,7 +291,7 @@ const fromCanon = id => id === G.online.myCanon ? 1 : id;
 function encodeCanon(){ let s = ''; for (let i=0;i<NCELLS;i++) s += String.fromCharCode(toCanon(Grid.owner[i]) + 64); return s; }
 async function publishWorld(){
   const N = G.nations, nations = [];
-  for (let id=2; id<N.length; id++){ const n = N[id]; if (!n || n.human || n.empty || n.playerOrigin) continue; nations.push([id, +n.pop.toFixed(3), Math.round(n.pc), +n.power.toFixed(1), +n.navy.toFixed(1), +n.tech.toFixed(2), n.alive?1:0, n.cap, n.capital, n.leader, n.leaderAge, +(n.histMil||1).toFixed(3)]); }
+  for (let id=2; id<N.length; id++){ const n = N[id]; if (!n || n.human || n.empty || n.playerOrigin) continue; nations.push([id, +n.pop.toFixed(3), Math.round(n.pc), +n.power.toFixed(1), +n.navy.toFixed(1), +n.tech.toFixed(2), n.alive?1:0, n.cap, n.capital, n.leader, n.leaderAge, +(n.histMil||1).toFixed(3), n.leaderTitle||null, n.realLeader?1:0]); }
   const w = {turn:G.turn, owner:encodeCanon(), nations, aiWars:G.aiWars, news:G.news.slice(0,6), ts:Date.now()};
   ON.lastWorld = w;
   await NET.be.setWorld(G.online.code, w);
@@ -323,8 +323,8 @@ function applyWorld(w, initial){
     // remove pendências já confirmadas
     ON.pending = ON.pending.filter(pd=>pd.cells.some(c=>{ const canon = w.owner.charCodeAt(c) - 64; return canon !== toCanon(pd.to); }));
     for (const row of w.nations){
-      const [id, pop, pc, power, navy, tech, alive, cap, capital, leader, leaderAge, hm] = row, n = G.nations[id]; if (!n || n.human) continue;
-      Object.assign(n, {pop, pc, power, navy, tech, alive:!!alive, cap, capital, leader, leaderAge, histMil:hm});
+      const [id, pop, pc, power, navy, tech, alive, cap, capital, leader, leaderAge, hm, ltitle, lreal] = row, n = G.nations[id]; if (!n || n.human) continue;
+      Object.assign(n, {pop, pc, power, navy, tech, alive:!!alive, cap, capital, leader, leaderAge, histMil:hm, leaderTitle:ltitle||null, realLeader:!!lreal});
       ON.snapPower[id] = power;
     }
     G.aiWars = w.aiWars || [];
@@ -367,12 +367,15 @@ function onEvents(evs){
   }
 }
 function humanByUid(uid){ return G.nations.find(n=>n && n.human && n.uid === uid); }
-function sendMail(toUid, type, payload){ return NET.be.pushEvent(G.online.code, Object.assign({type, from:NET.user.uid, fromName:G.p.name, to:toUid}, payload||{})); }
+function sendMail(toUid, type, payload){
+  const st = {msg:'onMsgs', propose:'onProposals'}[type]; if (st && G && G.stats) G.stats[st] = (G.stats[st]||0) + 1;
+  return NET.be.pushEvent(G.online.code, Object.assign({type, from:NET.user.uid, fromName:G.p.name, to:toUid}, payload||{})); }
 function handleMail(ev){
   const n = humanByUid(ev.from); const who = n ? n.name : (ev.fromName || 'Outro jogador');
   if (ev.type === 'msg'){ SFX.bell(); toast(`💬 <b>${esc(who)}</b>: ${esc(ev.text)}`, 'dip'); addLog(`💬 ${who}: ${ev.text}`, 'dip'); return; }
   if (ev.type === 'war'){ if (n && !n.atWar){ declareWar(n.id, true); G.stats.humanWars = (G.stats.humanWars||0); SFX.warDeclared(); bigBanner('GUERRA!', `${esc(who)} declarou guerra contra você!`); } refreshAll(); return; }
-  if (ev.type === 'attacked'){ const lost = applyUnitLosses(ev.loss || 0.05, 'land'); for (const c of (G.p.corps||[])) lossesToCorps(c, (ev.loss||0.05)*0.6); G.p.corps = (G.p.corps||[]).filter(c=>corpsUnitsCount(c)>0);
+  if (ev.type === 'attacked'){ if (ev.cells) G.stats.humanCellsLost = (G.stats.humanCellsLost||0) + ev.cells; else G.stats.humanRepelled = (G.stats.humanRepelled||0) + 1;
+    const lost = applyUnitLosses(ev.loss || 0.05, 'land'); for (const c of (G.p.corps||[])) lossesToCorps(c, (ev.loss||0.05)*0.6); G.p.corps = (G.p.corps||[]).filter(c=>corpsUnitsCount(c)>0);
     MapView.doShake(8, 500); SFX.alarm(); toast(`🔥 ${esc(who)} atacou e tomou ${ev.cells} região(ões)! Perdemos ${lost} divisões.`, 'bad'); addLog(`🔥 ${who} invadiu nosso território (${ev.cells} regiões).`, 'bad'); derive(); refreshAll(); return; }
   if (ev.type === 'propose'){
     const K = {alliance:'uma aliança militar', trade:'um acordo comercial', pact:'um pacto de não-agressão', peace:'a paz'}[ev.kind];
@@ -391,7 +394,7 @@ function applyHumanDeal(n, kind){
   if (kind === 'alliance'){ n.alliance = true; n.pact = true; addLog(`🤝 Aliança formada com o jogador ${n.name}.`, 'dip'); }
   if (kind === 'pact'){ n.pact = true; addLog(`📜 Pacto com o jogador ${n.name}.`, 'dip'); }
   if (kind === 'trade'){ n.deals = n.deals || {}; n.deals.livre_comercio = {since:G.turn, until:G.turn+240}; n.deals.tarifas = {since:G.turn, until:G.turn+240}; syncTrade(n); addLog(`⚓ Acordo comercial com o jogador ${n.name}.`, 'dip'); }
-  if (kind === 'peace' && n.atWar){ endWar(n.id, 'branca'); }
+  if (kind === 'peace' && n.atWar){ endWar(n.id, 'branca'); G.stats.onPeace = (G.stats.onPeace||0) + 1; }
   refreshAll(); publishPlayer();
 }
 // regimes diferentes "travam" os acordos
@@ -475,9 +478,13 @@ function openPlayersPanel(){
 const _playerAttack = playerAttack;
 playerAttack = function(cell, commit, corpsId){
   const e = Grid.owner[cell], n = G.nations[e];
+  const capBefore = n ? n.cap : -1, davi = n && n.human && (n.power||0) > (G.p.atk||0) * 1.5;
   const r = _playerAttack(cell, commit, corpsId);
   if (G.online && n && n.human && r && r.ok){
-    if (r.win){ G.stats.humanCells = (G.stats.humanCells||0) + r.captured.length; if (!n.alive) G.stats.humanKills = (G.stats.humanKills||0) + 1; }
+    const s = G.stats;
+    if (r.win){ s.humanCells = (s.humanCells||0) + r.captured.length; s.humanWins = (s.humanWins||0) + 1; if (!n.alive) s.humanKills = (s.humanKills||0) + 1;
+      if (capBefore >= 0 && r.captured.includes(capBefore)){ s.humanCapitals = (s.humanCapitals||0) + 1; if (davi) s.onDavid = (s.onDavid||0) + 1; } }
+    else s.humanLosses = (s.humanLosses||0) + 1;
     sendMail(n.uid, 'attacked', {cells: r.win ? r.captured.length : 0, loss: r.win ? 0.06*commit : 0.02*commit});
     publishPlayer();
   }

@@ -66,6 +66,19 @@ function showPopover(html, x, y){
 function closePopover(){ $('#popover').classList.add('hidden'); MapView.selCell = -1; }
 function showTip(html, x, y){ const t = $('#tooltip'); t.innerHTML = html; t.classList.remove('hidden'); t.style.left = Math.min(window.innerWidth-270, x+16)+'px'; t.style.top = (y+16)+'px'; }
 function hideTip(){ $('#tooltip').classList.add('hidden'); }
+// Avisos de metas e conquistas: um de cada vez, no canto inferior direito
+const NOTIF = {q:[], busy:false};
+function notify(icon, title, text, kind){ NOTIF.q.push({icon, title, text, kind}); if (!NOTIF.busy) nextNotif(); }
+function nextNotif(){
+  const it = NOTIF.q.shift(); if (!it){ NOTIF.busy = false; return; }
+  NOTIF.busy = true;
+  const el = document.createElement('div'); el.className = 'notif ' + (it.kind||'');
+  el.innerHTML = `<div class="ni">${it.icon}</div><div><div class="nt">${it.title}</div><div class="nd">${it.text||''}</div></div>`;
+  el.onclick = ()=>{ el.classList.add('out'); };
+  $('#app').appendChild(el); SFX.fanfare();
+  setTimeout(()=>el.classList.add('out'), 4200);
+  setTimeout(()=>{ el.remove(); setTimeout(nextNotif, 500); }, 4700);
+}
 function bigBanner(t1, t2){ const b = document.createElement('div'); b.className='big-banner'; b.innerHTML = `<div class="b1">${t1}</div><div class="b2">${t2||''}</div>`; $('#app').appendChild(b); setTimeout(()=>b.remove(), 3300); }
 
 // ------------------------------------------------------------
@@ -123,7 +136,7 @@ function updateTopbar(){
   if (!G) return;
   const p = G.p, b = p.lastBudget || budget();
   const fc = $('#tb-flag').getContext('2d'); drawFlag(fc, p.flag, 0, 0, 54, 36);
-  $('#tb-name').textContent = p.name; $('#tb-sub').textContent = `${p.title} ${p.leader}`;
+  $('#tb-name').textContent = p.name; $('#tb-sub').textContent = `${p.title} ${p.leader}`; $('#tb-sub').title = `${p.title} ${p.leader}`;
   $('#tb-date').textContent = MONTHS[curMonth()]; $('#tb-year').textContent = `Ano ${curYear()} · Mês ${G.turn+1}`;
   const bal = b.bal;
   const html =
@@ -510,8 +523,8 @@ function panelMetas(){
   ${done.length ? `<div class="sub">Cumpridos</div>${done.map(o=>`<div class="row"><span class="k">✔ ${o.icon} ${o.n}</span><span class="v muted">cap. ${o.ch}</span></div>`).join('')}` : ''}
   ${ch <= 4 ? `<div class="muted" style="margin-top:8px">Os próximos capítulos são revelados quando todos os objetivos do atual forem cumpridos. A vitória só vem com o objetivo final.</div>` : ''}`;
 }
-function onObjective(o, r){ const f = ()=>{ SFX.fanfare(); bigBanner(`🎯 ${o.n}`, `Objetivo cumprido! ${r}`); }; if (UI.turnLogs) UI.fxQueue.push(f); else f(); }
-function onChapter(ch){ const f = ()=>{ SFX.victory(); if (ch > 4) bigBanner('🏁 Objetivo final liberado', FINAL_OBJ[G.finalObj].n); else bigBanner(`📖 Capítulo ${['','I','II','III','IV'][ch]}`, OBJ_CHAPTERS[ch]); }; if (UI.turnLogs) UI.fxQueue.push(f); else f(); }
+function onObjective(o, r){ notify('🎯', `Meta cumprida: ${esc(o.n)}`, r, 'obj'); }
+function onChapter(ch){ if (ch > 4) notify('🏁', 'Objetivo final liberado', FINAL_OBJ[G.finalObj].n, 'obj'); else notify('📖', `Capítulo ${['','I','II','III','IV'][ch]}`, OBJ_CHAPTERS[ch], 'obj'); }
 
 
 function openEvolve(b){
@@ -761,7 +774,7 @@ function openNation(id){
   const html = `
     <div class="flex" style="gap:14px">${flagImg(n,96,64)}<div style="flex:1"><div class="m-title" style="text-align:left;margin:0">${esc(n.name)}</div>
       <div class="muted">${GOVS[n.gov]?GOVS[n.gov].name:''} · ${RELIGIONS[n.relig]||''} · Capital: ${esc(n.capital)}</div>
-      <div>👤 <b>${esc((GOVS[n.gov]||{}).title||'Líder')} ${esc(n.leader||'')}</b> <small class="muted">(${n.leaderAge||'?'} anos)</small>${n.bloc?` · 🏳️ ${BLOC_NAMES[n.bloc]}`:''}</div>
+      <div>👤 <b>${esc(n.leaderTitle||(GOVS[n.gov]||{}).title||'Líder')} ${esc(n.leader||'')}</b>${n.realLeader?' <small class="badge" title="Personagem histórico real">histórico</small>':''} <small class="muted">(${n.leaderAge||'?'} anos)</small>${n.bloc?` · 🏳️ ${BLOC_NAMES[n.bloc]}`:''}</div>
       <div>${nationTags(n)}${n.claim?'<span class="tag war">REIVINDICA NOSSAS TERRAS</span>':''}</div></div>
       <div style="text-align:center;min-width:120px"><div class="lbl">Relação conosco</div><div style="font-family:var(--title);font-size:26px;font-weight:900" class="${n.rel>=0?'up':'down'}">${n.rel>0?'+':''}${n.rel}</div><div>${relLabel(n.rel)}</div></div></div>
     <div class="relbar" style="margin:8px 0 4px"><i style="left:${(n.rel+100)/2}%"></i></div>
@@ -791,10 +804,8 @@ function openNation(id){
     </div>
     ${negs.length ? `<div class="sub">✉️ Negociações em andamento</div>${negs.map(x=>row(`${negIcon(x)} ${negName(x)}`, `resposta em ~${Math.max(1,x.due-G.turn)} mês(es)`)).join('')}` : ''}
     ${w ? `<div class="sub">⚔️ Guerra — placar ${w.score>0?'+':''}${w.score}</div>
-      <div class="muted">Propostas de paz levam 1–2 meses para serem respondidas.</div>
+      <button class="btn green" style="width:100%;margin:6px 0" data-dip="peace_table">🕊️ Abrir mesa de paz — propor valores e negociar</button>
       <div class="btn-grid">
-        ${act('peace_branca', `🕊️ Paz branca (${Math.round(peaceChance(id,'branca')*100)}%)`, pending('peace'))}
-        ${act('peace_reparacoes', `💰 Exigir reparações (${Math.round(peaceChance(id,'reparacoes')*100)}%)`, pending('peace'))}
         ${act('peace_anexar', `👑 Anexação total (${Math.round(peaceChance(id,'anexar')*100)}%)`, pending('peace') || peaceChance(id,'anexar')===0, 'Exige placar de guerra alto e inimigo pequeno')}
         ${act('peace_render', `🏳️ Render-se já (pagar ${fmtMoney(p.gdp*0.05)})`)}
       </div>
@@ -823,6 +834,7 @@ function openNation(id){
     if (k==='fly'){ closeModal(); const [lo,la]=cellCenter(n.cap); MapView.flyTo(lo,la,3); return; }
     if (k==='war'){ closeModal(); confirmModal('⚔️', `Guerra contra ${esc(n.name)}?`, `${n.pact?'<b>Quebraremos um pacto de não-agressão!</b> ':''}${n.truce>G.turn?'<b>Quebraremos uma trégua!</b> ':''}${dealCount(n)?`Perderemos ${dealCount(n)} acordo(s) comercial(is). `:''}${GOVS[p.gov].family==='dem' && n.rel>-40 && !n.claim ? 'O povo não verá motivo para esta guerra (−8 apoio). ':''}Aliados de ${esc(n.name)} podem entrar no conflito. Exército deles: ${fmtNum(n.power,0)} · nosso: ${fmtNum(p.atk,0)}.`, 'Declarar guerra', ()=>{
         declareWar(id, false); SFX.warDeclared(); MapView.doShake(10, 700); bigBanner('GUERRA!', `${esc(p.name)} × ${esc(n.name)}`); refreshAll(); saveGame(); }, true); return; }
+    if (k === 'peace_table'){ SFX.page(); closeModal(); openPeaceTable(id); return; }
     if (k.startsWith('peace_')){
       const t = k.slice(6);
       if (t === 'render'){ makePeace(id, 'render'); SFX.bell(); closeModal(); refreshAll(); return; }
@@ -1083,7 +1095,7 @@ function onAIAttack(r){
   };
   if (UI.turnLogs) UI.fxQueue.push(fx); else fx();
 }
-function onAchievement(id){ const a = ACHIEVEMENTS[id]; setTimeout(()=>{ SFX.fanfare(); toast(`🏅 <b>${a.n}</b> — ${a.d}`, 'good'); }, 600); }
+function onAchievement(id){ const a = ACHIEVEMENTS[id]; notify(a.icon || '🏅', `Conquista: ${esc(a.n)}`, esc(a.d), 'ach'); }
 function onGameOver(reason, kind){
   stopAuto(); UI.speed = 0;
   setTimeout(()=>{

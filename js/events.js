@@ -291,13 +291,16 @@ const EVENTS = {
     choices:d=>{ const n=G.nations[d.n];
       if (d.win===true) return [
         {t:'Aceitar paz e reparações', h:`+${fmtMoney(d.amt)}`, f:()=>{G.p.treasury+=d.amt; endWar(d.n,'reparacoes'); app(4);}},
+        {t:'Pedir mais (contraproposta)', h:'Abre a mesa de paz', f:()=>{ setTimeout(()=>openPeaceTable(d.n, d.amt), 350); }},
         {t:'Lutar até o fim', h:'A guerra continua', f:()=>{}}];
       if (d.win===false) return [
         {t:'Ceder territórios', h:'Perdemos regiões de fronteira', f:()=>{makePeace(d.n,'ceder');}},
         {t:'Pagar indenização', h:`-${mny(0.05)}, -8 apoio`, f:()=>{makePeace(d.n,'render');}},
+        {t:'Negociar o valor', h:'Abre a mesa de paz', f:()=>{ setTimeout(()=>openPeaceTable(d.n, -Math.min(G.p.gdp*0.05, Math.max(0, G.p.treasury))), 350); }},
         {t:'Jamais! Continuar lutando', h:'+2 apoio', f:()=>{app(2);}}];
       return [
         {t:'Aceitar paz branca', h:'Fim da guerra', f:()=>{endWar(d.n,'branca'); app(3);}},
+        {t:'Exigir reparações', h:'Abre a mesa de paz', f:()=>{ setTimeout(()=>openPeaceTable(d.n, 0), 350); }},
         {t:'Recusar', h:'A guerra continua', f:()=>{}}];
     }},
   campanha:{icon:'🗳️', title:'Campanha Eleitoral', special:true,
