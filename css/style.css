@@ -512,3 +512,20 @@ body:has(#scr-page:not(.hidden)) .corner-fs, body:has(#scr-create:not(.hidden)) 
 .sab.off{opacity:.55}
 .sab .si{font-size:26px}
 .sab small{display:block;font-size:12.5px;color:var(--ink2);margin-top:2px}
+
+/* Enciclopédia */
+.enc{display:grid;grid-template-columns:250px 1fr;gap:16px;align-items:start}
+.enc-nav{display:flex;flex-direction:column;gap:4px;position:sticky;top:0}
+.enc-nav input{padding:9px 10px;font-size:15px;border:1px solid rgba(90,55,20,.4);border-radius:8px;background:#fffaf0;margin-bottom:6px}
+.enc-nav button{text-align:left;padding:8px 10px;border:1px solid transparent;border-radius:7px;background:transparent;font-size:15px;color:var(--ink);cursor:pointer}
+.enc-nav button:hover{background:rgba(90,55,20,.08)}
+.enc-nav button.on{background:#7a1b14;color:#fbeed0}
+.enc-h{font-family:var(--title);color:var(--red);margin:0 0 10px}
+.enc-intro{font-style:italic;margin-bottom:10px;color:var(--ink2)}
+.enc-cat{font-family:var(--title);font-weight:700;font-size:17px;margin:14px 0 6px;border-bottom:1px solid rgba(90,55,20,.3)}
+.enc-item{padding:10px 12px;margin-bottom:8px;border:1px solid rgba(90,55,20,.22);border-radius:8px;background:rgba(255,250,235,.55);line-height:1.45}
+.enc-item h4{margin:0 0 4px;font-family:var(--title);font-size:16px}
+.enc-item p{margin:6px 0 0}
+.enc-item ul{margin:6px 0 0 18px;padding:0}
+.enc-fx{margin-top:6px;font-size:13px;color:#2d5a19}
+@media (max-width:760px){ .enc{grid-template-columns:1fr} .enc-nav{position:static} }

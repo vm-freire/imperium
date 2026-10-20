@@ -1210,6 +1210,7 @@ function openGameMenu(){
     <button class="choice" id="gm-save"><b>💾 Salvar jogo</b><span>O jogo também é salvo automaticamente a cada mês</span></button>
     <button class="choice" id="gm-rep"><b>📊 Relatório completo</b><span>Gráficos, guerras, rankings e crônica</span></button>
     <button class="choice" id="gm-tro"><b>🏅 Conquistas</b><span>Todas as conquistas para platinar o jogo</span></button>
+    <button class="choice" id="gm-ency"><b>📖 Enciclopédia e História</b><span>Cada regime, lei, pesquisa e unidade explicados, com a história real</span></button>
     <button class="choice" id="gm-help"><b>🧭 Instruções</b><span>Como jogar</span></button>
     <button class="choice" id="gm-opt"><b>⚙️ Opções de som</b><span>Volume, música e efeitos</span></button>
     <button class="choice" id="gm-menu"><b>🏰 Salvar e voltar ao menu</b><span>Continue depois de onde parou</span></button>
@@ -1220,6 +1221,7 @@ function openGameMenu(){
   m.querySelector('#gm-rep').onclick = ()=>{ closeModal(); openLiveReport(); };
   m.querySelector('#gm-tro').onclick = ()=>{ closeModal(); openTrophies(); };
   m.querySelector('#gm-help').onclick = ()=>{ closeModal(); openHelp(); };
+  m.querySelector('#gm-ency').onclick = ()=>{ closeModal(); openEncyclopedia(); };
   m.querySelector('#gm-opt').onclick = ()=>{ closeModal(); openOptions(); };
   m.querySelector('#gm-menu').onclick = ()=>{ saveGame(); closeModal(); showMenu(); };
   m.querySelector('#gm-quit').onclick = ()=>{ SFX.error(); closeModal(); const q = openModal(`<div class="m-icon">⛔</div><div class="m-title" style="color:#b3261e">Finalizar o mundo?</div>

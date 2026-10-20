@@ -494,6 +494,7 @@ $('#m-online').onclick = ()=>openOnline();
 $('#m-trophies').onclick = ()=>{ SFX.init(); SFX.page(); UI.pageBack = null; openTrophies(); };
 $('#m-history').onclick = ()=>{ SFX.init(); SFX.page(); UI.pageBack = null; openHistory(); };
 $('#m-help').onclick = ()=>{ SFX.init(); SFX.page(); openHelp(); };
+$('#m-ency').onclick = ()=>{ SFX.init(); SFX.page(); openEncyclopedia(); };
 $('#m-options').onclick = ()=>{ SFX.init(); openOptions(); };
 
 
