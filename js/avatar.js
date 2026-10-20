@@ -14,6 +14,9 @@ const AV = {
   brows:{n:'Sobrancelhas', o:{normal:'Normais', grossa:'Grossas', fina:'Finas', arqueada:'Arqueadas', franzida:'Franzidas'}},
   nose:{n:'Nariz', o:{medio:'Médio', pequeno:'Pequeno', largo:'Largo', aquilino:'Aquilino'}},
   mouth:{n:'Boca', o:{sorriso:'Sorriso', serio:'Sério', largo:'Sorriso largo', bravo:'Bravo', labios:'Lábios marcados'}},
+  chin:{n:'Queixo', o:{normal:'Normal', furinho:'Com furinho', marcado:'Marcado'}},
+  age:{n:'Idade aparente', o:{jovem:'Jovem', adulto:'Adulto', maduro:'Maduro', idoso:'Idoso'}},
+  makeup:{n:'Maquiagem', o:{nenhuma:'Nenhuma', leve:'Leve', batom:'Batom', sombra:'Sombra nos olhos', completa:'Completa'}},
   hair:{n:'Cabelo', o:{careca:'Careca', raspado:'Raspado', curto:'Curto', topete:'Topete', lateral:'Repartido', calvo:'Calvície', cacheado:'Cacheado', crespo:'Black power', medio:'Médio', longo:'Longo liso', rabo:'Rabo de cavalo', coque:'Coque', trancas:'Tranças', chanel:'Chanel', moicano:'Moicano'}},
   hairColor:{n:'Cor do cabelo', o:{preto:'#1d1612', castanho:'#4a2e1b', claro:'#7b5530', loiro:'#d9b56b', ruivo:'#a8481f', grisalho:'#8d8a85', branco:'#e8e4dc', azul:'#2f5fa8', rosa:'#c9558f'}},
   beard:{n:'Barba e bigode', o:{nenhuma:'Nenhuma', bigode:'Bigode', imperial:'Bigode imperial', cavanhaque:'Cavanhaque', curta:'Barba curta', cheia:'Barba cheia', costeletas:'Costeletas', longa:'Barba longa'}},
@@ -25,7 +28,7 @@ const AV = {
   outfitColor:{n:'Cor da roupa', o:{grafite:'#2f3540', marinho:'#1f3358', vinho:'#6e1f2a', verde:'#2f5233', bege:'#bfa77a', branco:'#ece6d6', preto:'#151515', roxo:'#4f2d6b', dourado:'#b48a2c'}},
   bg:{n:'Fundo', o:{pergaminho:'#e9d9b0', ceu:'#bcd3e6', vinho:'#d8b7b0', verde:'#c4d8bd', noite:'#3a3550', ouro:'#e3c46e'}}
 };
-const AV_TABS = {rosto:['skin','face','eyes','eyeColor','brows','nose','mouth'], cabelo:['hair','hairColor','beard'], marcas:['marks','glasses','hat','extras'], roupa:['outfit','outfitColor','bg']};
+const AV_TABS = {rosto:['skin','age','face','chin','eyes','eyeColor','brows','nose','mouth','makeup'], cabelo:['hair','hairColor','beard'], marcas:['marks','glasses','hat','extras'], roupa:['outfit','outfitColor','bg']};
 const AV_TAB_N = {rosto:'🙂 Rosto', cabelo:'💇 Cabelo e barba', marcas:'🕶️ Marcas e acessórios', roupa:'👔 Roupa e altura', escudo:'🛡️ Escudo do partido'};
 
 // ---------------- Nomes por sexo ----------------
@@ -65,6 +68,7 @@ function randomAvatar(sex, rnd, gov){
     beard: f ? 'nenhuma' : pk('beard', ['nenhuma','nenhuma','bigode','imperial','cavanhaque','curta','cheia','costeletas']),
     marks, glasses: rnd() < 0.25 ? pk('glasses', ['redondo','quadrado','redondo','monoculo']) : 'nenhum',
     hat: fam === 'mon' && rnd() < 0.5 ? (f ? 'tiara' : 'coroa') : gov === 'ditadura' && rnd() < 0.6 ? 'quepe' : fam === 'teo' && rnd() < 0.5 ? (rnd() < 0.5 ? 'mitra' : 'turbante') : 'nenhum',
+    chin: pk('chin', ['normal','normal','furinho','marcado']), age: pk('age', ['jovem','adulto','adulto','maduro','maduro','idoso']), makeup: f ? pk('makeup', ['nenhuma','leve','leve','batom','completa']) : 'nenhuma',
     extras, outfit, outfitColor:pk('outfitColor', ['grafite','marinho','vinho','verde','preto','marinho']), bg:pk('bg'), height: Math.round(f ? 155 + rnd()*22 : 165 + rnd()*25)};
 }
 
@@ -87,126 +91,198 @@ function emblemSVG(em, size){
 }
 
 // ---------------- Desenho do avatar ----------------
+// Luz vinda do alto à esquerda: degradês na pele, cabelo e roupa; contornos finos.
 const shade = (hex, k) => { const n = parseInt(hex.slice(1), 16); let r = n>>16, g = (n>>8)&255, b = n&255; const f = v => Math.max(0, Math.min(255, Math.round(v*k))); return '#' + ((1<<24) + (f(r)<<16) + (f(g)<<8) + f(b)).toString(16).slice(1); };
+const mix = (a, b, t) => { const A = parseInt(a.slice(1), 16), B = parseInt(b.slice(1), 16); const ch = s => Math.round(((A>>s)&255)*(1-t) + ((B>>s)&255)*t); return '#' + ((1<<24) + (ch(16)<<16) + (ch(8)<<8) + ch(0)).toString(16).slice(1); };
+let AV_SEQ = 0;
 function avatarSVG(av, emblem, size){
   if (!av) return ''; size = size || 120;
-  const C = k => AV[k].o[av[k]] || Object.values(AV[k].o)[0];
-  const skin = C('skin'), skinD = shade(skin, 0.86), hc = C('hairColor'), hcD = shade(hc, 0.75), oc = C('outfitColor'), ocD = shade(oc, 0.78), bg = C('bg');
-  const H = clamp(((av.height||172) - 172) / 22, -1, 1);           // altura: muda a posição da cabeça e dos ombros
-  const cx = 100, cy = 92 - H*7, sh = 178 - H*3;
-  const fw = {oval:36, redondo:40, quadrado:39, fino:32, coracao:37}[av.face] || 36, fh = {oval:44, redondo:41, quadrado:43, fino:47, coracao:44}[av.face] || 44;
-  const jaw = av.face === 'quadrado' ? `M${cx-fw} ${cy} V${cy+fh*0.55} Q${cx-fw*0.75} ${cy+fh} ${cx} ${cy+fh} Q${cx+fw*0.75} ${cy+fh} ${cx+fw} ${cy+fh*0.55} V${cy} Z`
-    : av.face === 'coracao' ? `M${cx-fw} ${cy-4} Q${cx-fw} ${cy+fh*0.6} ${cx} ${cy+fh} Q${cx+fw} ${cy+fh*0.6} ${cx+fw} ${cy-4} Z` : '';
-  const has = (k, v) => (av[k]||[]).includes(v);
-  const f = av.sex === 'f';
-  let s = `<svg viewBox="0 0 200 220" width="${size}" height="${size*1.1}" xmlns="http://www.w3.org/2000/svg" style="display:block">`;
-  s += `<rect width="200" height="220" rx="18" fill="${bg}"/><circle cx="100" cy="95" r="86" fill="${shade(bg,1.06)}"/>`;
-  // cabelo de trás (longo)
-  const backHair = {longo:`<path d="M${cx-fw-6} ${cy-10} Q${cx-fw-14} ${cy+60} ${cx-fw+2} ${cy+86} H${cx+fw-2} Q${cx+fw+14} ${cy+60} ${cx+fw+6} ${cy-10} Z" fill="${hc}"/>`,
-    trancas:`<path d="M${cx-fw-2} ${cy} q-8 40 2 80" stroke="${hc}" stroke-width="12" fill="none" stroke-linecap="round"/><path d="M${cx+fw+2} ${cy} q8 40 -2 80" stroke="${hc}" stroke-width="12" fill="none" stroke-linecap="round"/>`,
-    crespo:`<circle cx="${cx}" cy="${cy-12}" r="${fw+20}" fill="${hc}"/>`, cacheado:`<g fill="${hc}">${[-1,-0.5,0,0.5,1].map(t=>`<circle cx="${cx+t*(fw+4)}" cy="${cy-fh*0.62+Math.abs(t)*14}" r="15"/>`).join('')}<circle cx="${cx-fw-4}" cy="${cy+4}" r="12"/><circle cx="${cx+fw+4}" cy="${cy+4}" r="12"/></g>`,
-    chanel:`<path d="M${cx-fw-8} ${cy-14} V${cy+34} H${cx+fw+8} V${cy-14} Z" fill="${hc}"/>`, medio:`<path d="M${cx-fw-6} ${cy-14} Q${cx-fw-8} ${cy+30} ${cx-fw+4} ${cy+40} H${cx+fw-4} Q${cx+fw+8} ${cy+30} ${cx+fw+6} ${cy-14} Z" fill="${hc}"/>`,
-    rabo:`<path d="M${cx+fw-6} ${cy-20} q34 18 14 74" stroke="${hc}" stroke-width="14" fill="none" stroke-linecap="round"/>`}[av.hair] || '';
+  const id = 'av' + (++AV_SEQ), C = k => AV[k] && AV[k].o[av[k]] || Object.values(AV[k].o)[0];
+  const has = (k, v) => (av[k]||[]).includes(v), f = av.sex === 'f';
+  const skin = C('skin'), sL = shade(skin, 1.08), sD = shade(skin, 0.84), sDD = shade(skin, 0.68), ln = shade(skin, 0.52);
+  const hc = C('hairColor'), hL = mix(hc, '#ffffff', 0.17), hD = shade(hc, 0.62);
+  const oc = C('outfitColor'), oL = mix(oc, '#ffffff', 0.18), oD = shade(oc, 0.62), bg = C('bg');
+  const age = av.age || 'adulto', mk = av.makeup || 'nenhuma';
+  const H = clamp(((av.height||172) - 172) / 22, -1, 1);
+  const cx = 100, cy = 98 - H*5, sh = 170 - H*3;
+  const [tw, cw, jw, fh] = {oval:[34,37,26,45], redondo:[37,40,31,41], quadrado:[36,38,34,44], fino:[31,33,21,48], coracao:[38,37,18,46]}[av.face] || [34,37,26,45];
+  const T = cy - fh;
+  // ---- formato do rosto (lado direito espelhado) ----
+  const R = (d) => cx + d, L = (d) => cx - d;
+  const face = `M${cx} ${T} C${R(tw*0.62)} ${T} ${R(tw)} ${T+fh*0.28} ${R(tw)} ${cy-12} C${R(tw+0.5)} ${cy-2} ${R(cw)} ${cy+2} ${R(cw-1)} ${cy+12} C${R(cw-2)} ${cy+fh*0.45} ${R(jw+3)} ${cy+fh*0.7} ${R(jw*0.5)} ${cy+fh*0.92} Q${R(jw*0.2)} ${cy+fh+1} ${cx} ${cy+fh+1} `
+    + `Q${L(jw*0.2)} ${cy+fh+1} ${L(jw*0.5)} ${cy+fh*0.92} C${L(jw+3)} ${cy+fh*0.7} ${L(cw-2)} ${cy+fh*0.45} ${L(cw-1)} ${cy+12} C${L(cw)} ${cy+2} ${L(tw+0.5)} ${cy-2} ${L(tw)} ${cy-12} C${L(tw)} ${T+fh*0.28} ${L(tw*0.62)} ${T} ${cx} ${T} Z`;
+  let s = `<svg viewBox="0 0 200 220" width="${size}" height="${Math.round(size*1.1)}" xmlns="http://www.w3.org/2000/svg" style="display:block">
+  <defs>
+    <radialGradient id="${id}bg" cx="45%" cy="38%" r="75%"><stop offset="0" stop-color="${mix(bg,'#ffffff',0.25)}"/><stop offset="1" stop-color="${shade(bg,0.82)}"/></radialGradient>
+    <radialGradient id="${id}sk" cx="40%" cy="36%" r="70%"><stop offset="0" stop-color="${sL}"/><stop offset=".62" stop-color="${skin}"/><stop offset="1" stop-color="${sD}"/></radialGradient>
+    <linearGradient id="${id}nk" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${sDD}"/><stop offset="1" stop-color="${sD}"/></linearGradient>
+    <linearGradient id="${id}hr" x1="0" x2=".35" y1="0" y2="1"><stop offset="0" stop-color="${hL}"/><stop offset=".45" stop-color="${hc}"/><stop offset="1" stop-color="${hD}"/></linearGradient>
+    <linearGradient id="${id}cl" x1="0" x2=".6" y1="0" y2="1"><stop offset="0" stop-color="${oL}"/><stop offset=".5" stop-color="${oc}"/><stop offset="1" stop-color="${oD}"/></linearGradient>
+    <radialGradient id="${id}ir" cx="50%" cy="45%" r="55%"><stop offset="0" stop-color="${mix(C('eyeColor'),'#ffffff',0.35)}"/><stop offset=".7" stop-color="${C('eyeColor')}"/><stop offset="1" stop-color="${shade(C('eyeColor'),0.45)}"/></radialGradient>
+    <clipPath id="${id}fc"><path d="${face}"/></clipPath>
+  </defs>
+  <rect width="200" height="220" rx="18" fill="url(#${id}bg)"/><rect x="1" y="1" width="198" height="218" rx="17" fill="none" stroke="rgba(0,0,0,.18)" stroke-width="2"/>`;
+  const hairFill = `url(#${id}hr)`, hairStroke = `stroke="${hD}" stroke-width="1.1"`;
+  // ---- cabelo de trás ----
+  const backHair = {
+    longo:`<path d="M${L(tw+7)} ${cy-12} C${L(tw+14)} ${cy+40} ${L(tw+12)} ${cy+70} ${L(tw-4)} ${cy+92} L${R(tw-4)} ${cy+92} C${R(tw+12)} ${cy+70} ${R(tw+14)} ${cy+40} ${R(tw+7)} ${cy-12} Z" fill="${hairFill}" ${hairStroke}/>`,
+    trancas:`<path d="M${L(tw+3)} ${cy} q-9 42 2 84" stroke="${hc}" stroke-width="13" fill="none" stroke-linecap="round"/><path d="M${R(tw+3)} ${cy} q9 42 -2 84" stroke="${hc}" stroke-width="13" fill="none" stroke-linecap="round"/>${[0,1,2,3,4].map(i=>`<path d="M${L(tw+9)} ${cy+8+i*15} l10 6 M${R(tw+9)} ${cy+8+i*15} l-10 6" stroke="${hD}" stroke-width="1.5"/>`).join('')}`,
+    crespo:`<path d="M${cx} ${T-30} C${R(tw+32)} ${T-28} ${R(tw+34)} ${cy+18} ${R(tw+12)} ${cy+22} L${L(tw+12)} ${cy+22} C${L(tw+34)} ${cy+18} ${L(tw+32)} ${T-28} ${cx} ${T-30} Z" fill="${hairFill}" ${hairStroke}/>`,
+    cacheado:`<g fill="${hc}" stroke="${hD}" stroke-width="1">${[[-1.15,0.05],[1.15,0.05],[-1.2,0.4],[1.2,0.4],[-1.05,0.75],[1.05,0.75]].map(([t,v])=>`<circle cx="${cx+t*tw}" cy="${cy-fh*0.3+v*fh}" r="11"/>`).join('')}</g>`,
+    chanel:`<path d="M${L(tw+9)} ${cy-14} V${cy+34} Q${cx} ${cy+38} ${R(tw+9)} ${cy+34} V${cy-14} Z" fill="${hairFill}" ${hairStroke}/>`,
+    medio:`<path d="M${L(tw+7)} ${cy-14} C${L(tw+10)} ${cy+20} ${L(tw+6)} ${cy+36} ${L(tw-4)} ${cy+44} L${R(tw-4)} ${cy+44} C${R(tw+6)} ${cy+36} ${R(tw+10)} ${cy+20} ${R(tw+7)} ${cy-14} Z" fill="${hairFill}" ${hairStroke}/>`,
+    rabo:`<path d="M${R(tw-6)} ${T+8} C${R(tw+30)} ${T+20} ${R(tw+24)} ${cy+40} ${R(tw+12)} ${cy+62}" stroke="${hc}" stroke-width="15" fill="none" stroke-linecap="round"/>`
+  }[av.hair] || '';
   s += backHair;
-  // corpo e roupa
-  const body = (fill, extra) => `<path d="M${cx-62} 220 Q${cx-60} ${sh-6} ${cx-26} ${sh-16} H${cx+26} Q${cx+60} ${sh-6} ${cx+62} 220 Z" fill="${fill}"/>${extra||''}`;
-  s += `<rect x="${cx-12}" y="${cy+fh-8}" width="24" height="${sh-cy-fh-2}" fill="${skinD}"/>`;          // pescoço
-  const O = av.outfit;
-  if (O === 'terno') s += body(oc, `<path d="M${cx-20} ${sh-16} L${cx} ${sh+26} L${cx+20} ${sh-16} Z" fill="#f4f1ea"/><path d="M${cx-26} ${sh-16} L${cx-6} ${sh+40} L${cx-30} ${sh+20} Z M${cx+26} ${sh-16} L${cx+6} ${sh+40} L${cx+30} ${sh+20} Z" fill="${ocD}"/>`);
-  else if (O === 'uniforme') s += body(oc, `<rect x="${cx-62}" y="${sh-14}" width="124" height="6" fill="${shade(oc,1.2)}"/><path d="M${cx-14} ${sh-16} H${cx+14} L${cx} ${sh+6} Z" fill="${ocD}"/><g fill="#d8b24a">${[0,1,2].map(i=>`<circle cx="${cx}" cy="${sh+14+i*14}" r="3"/>`).join('')}</g><rect x="${cx-58}" y="${sh-10}" width="22" height="7" rx="2" fill="#d8b24a"/><rect x="${cx+36}" y="${sh-10}" width="22" height="7" rx="2" fill="#d8b24a"/>`);
-  else if (O === 'manto') s += body(oc, `<path d="M${cx-62} 220 Q${cx-58} ${sh-4} ${cx-24} ${sh-14} L${cx-14} 220 Z M${cx+62} 220 Q${cx+58} ${sh-4} ${cx+24} ${sh-14} L${cx+14} 220 Z" fill="#f4f1ea"/><g fill="#222">${[0,1,2,3].map(i=>`<circle cx="${cx-40+i*4}" cy="${sh+10+i*12}" r="1.6"/><circle cx="${cx+40-i*4}" cy="${sh+10+i*12}" r="1.6"/>`).join('')}</g><rect x="${cx-26}" y="${sh-18}" width="52" height="10" rx="5" fill="#d8b24a"/>`);
-  else if (O === 'batina') s += body(oc, `<rect x="${cx-10}" y="${sh-18}" width="20" height="8" fill="#f4f1ea"/><path d="M${cx-4} ${sh+10} h8 v14 h10 v8 h-10 v24 h-8 v-24 h-10 v-8 h10 Z" fill="#d8b24a"/>`);
-  else if (O === 'jaleco') s += body('#f2f2f0', `<path d="M${cx-20} ${sh-16} L${cx} ${sh+30} L${cx+20} ${sh-16} Z" fill="${oc}"/><rect x="${cx+22}" y="${sh+18}" width="20" height="16" fill="#e3e3e0"/><rect x="${cx+28}" y="${sh+12}" width="3" height="12" fill="#3d78b5"/>`);
-  else if (O === 'casual') s += body(oc, `<path d="M${cx-18} ${sh-16} L${cx} ${sh+4} L${cx+18} ${sh-16}" stroke="${ocD}" stroke-width="5" fill="none"/>`);
-  else if (O === 'vestido') s += body(oc, `<path d="M${cx-30} ${sh-14} Q${cx} ${sh+22} ${cx+30} ${sh-14}" fill="${skinD}"/>`);
-  else if (O === 'tunica') s += body(oc, `<path d="M${cx-26} ${sh-16} Q${cx} ${sh+10} ${cx+26} ${sh-16}" stroke="#d8b24a" stroke-width="4" fill="none"/><path d="M${cx-62} 214 H${cx+62}" stroke="#d8b24a" stroke-width="5"/>`);
-  else if (O === 'futurista') s += body(oc, `<path d="M${cx-50} ${sh+4} L${cx} ${sh+30} L${cx+50} ${sh+4}" stroke="#5ff0ff" stroke-width="3" fill="none"/><circle cx="${cx}" cy="${sh+30}" r="6" fill="#5ff0ff"/><path d="M${cx-30} ${sh-16} H${cx+30} V${sh-8} H${cx-30} Z" fill="${ocD}"/>`);
-  else s += body(oc);
-  if (has('extras','gravata') && (O === 'terno' || O === 'jaleco' || O === 'casual')) s += `<path d="M${cx-5} ${sh-12} H${cx+5} L${cx+7} ${sh+30} L${cx} ${sh+38} L${cx-7} ${sh+30} Z" fill="#8a1c1c"/>`;
-  if (has('extras','laco')) s += `<path d="M${cx} ${sh-10} l-12 -6 v12 Z M${cx} ${sh-10} l12 -6 v12 Z" fill="#151515"/>`;
-  if (has('extras','faixa')) s += `<path d="M${cx-52} ${sh-4} L${cx+40} 220 L${cx+56} 220 L${cx-38} ${sh-10} Z" fill="#2f7d32"/><path d="M${cx-46} ${sh-6} L${cx+46} 220" stroke="#e6c13a" stroke-width="5"/>`;
-  if (has('extras','medalhas')) s += `<g>${[0,1,2].map(i=>`<rect x="${cx-48+i*9}" y="${sh+10}" width="7" height="9" fill="${['#b3261e','#1f4e8c','#2d6a2d'][i]}"/><circle cx="${cx-44.5+i*9}" cy="${sh+24}" r="4" fill="#d8b24a"/>`).join('')}</g>`;
-  if (has('extras','colar')) s += `<path d="M${cx-22} ${sh-14} Q${cx} ${sh+12} ${cx+22} ${sh-14}" stroke="#e8d8a0" stroke-width="3" fill="none" stroke-dasharray="1 4" stroke-linecap="round"/>`;
-  if (has('extras','broche') && emblem) s += `<g transform="translate(${cx+30} ${sh+6}) scale(0.24)"><path d="${emblemPath(emblem.shape)}" fill="${emblem.c1}" stroke="${emblem.c2}" stroke-width="6"/><text x="50" y="56" text-anchor="middle" dominant-baseline="middle" font-size="44" fill="${emblem.c2}">${emblem.sym}</text></g>`;
-  // orelhas e rosto
-  s += `<ellipse cx="${cx-fw}" cy="${cy+4}" rx="7" ry="10" fill="${skinD}"/><ellipse cx="${cx+fw}" cy="${cy+4}" rx="7" ry="10" fill="${skinD}"/>`;
-  if (has('extras','brincos')) s += `<circle cx="${cx-fw-1}" cy="${cy+15}" r="3.5" fill="#e6c13a"/><circle cx="${cx+fw+1}" cy="${cy+15}" r="3.5" fill="#e6c13a"/>`;
-  s += jaw ? `<path d="${jaw}" fill="${skin}"/><ellipse cx="${cx}" cy="${cy}" rx="${fw}" ry="${fh*0.72}" fill="${skin}"/>` : `<ellipse cx="${cx}" cy="${cy+2}" rx="${fw}" ry="${fh}" fill="${skin}"/>`;
-  // marcas
-  if (has('marks','rugas')) s += `<path d="M${cx-14} ${cy-24} q14 -4 28 0 M${cx-12} ${cy-19} q12 -3 24 0" stroke="${skinD}" stroke-width="1.6" fill="none"/><path d="M${cx-26} ${cy+12} q4 8 2 14 M${cx+26} ${cy+12} q-4 8 -2 14" stroke="${skinD}" stroke-width="1.6" fill="none"/>`;
-  if (has('marks','olheiras')) s += `<path d="M${cx-22} ${cy+3} q8 5 15 0 M${cx+7} ${cy+3} q8 5 15 0" stroke="${shade(skin,0.7)}" stroke-width="2" fill="none"/>`;
-  if (has('marks','bochechas')) s += `<circle cx="${cx-22}" cy="${cy+14}" r="8" fill="#e46d6d" opacity=".35"/><circle cx="${cx+22}" cy="${cy+14}" r="8" fill="#e46d6d" opacity=".35"/>`;
-  if (has('marks','sardas')) s += `<g fill="${shade(skin,0.62)}">${[[-24,10],[-19,14],[-14,9],[-21,6],[14,9],[19,14],[24,10],[21,6],[-4,12],[4,12]].map(([x,y])=>`<circle cx="${cx+x}" cy="${cy+y}" r="1.4"/>`).join('')}</g>`;
-  if (has('marks','pinta')) s += `<circle cx="${cx+16}" cy="${cy+24}" r="2.2" fill="#3b2418"/>`;
-  // olhos
-  const ec = C('eyeColor'), ey = cy - 2;
-  const eye = (x) => {
-    if (av.eyes === 'fechado') return `<path d="M${x-7} ${ey+1} q7 -7 14 0" stroke="#2a1a12" stroke-width="2.6" fill="none" stroke-linecap="round"/>`;
-    const ry = {amendoado:3.6, sonolento:3, arregalado:6.5}[av.eyes] || 5, rx = av.eyes === 'amendoado' ? 7.5 : 6.5;
-    let e = `<ellipse cx="${x}" cy="${ey}" rx="${rx}" ry="${ry}" fill="#fff"/><circle cx="${x}" cy="${ey}" r="${Math.min(ry, 4)}" fill="${ec}"/><circle cx="${x}" cy="${ey}" r="1.8" fill="#111"/><circle cx="${x+1.4}" cy="${ey-1.4}" r="0.9" fill="#fff"/>`;
-    if (av.eyes === 'sonolento') e += `<path d="M${x-rx-1} ${ey-1} H${x+rx+1}" stroke="${skinD}" stroke-width="3"/>`;
-    if (f) e += `<path d="M${x-rx} ${ey-ry+1} q${rx} -3 ${rx*2} 0" stroke="#1b1410" stroke-width="1.8" fill="none"/>`;
+  // ---- corpo ----
+  const shoulders = `M${cx-72} 220 C${cx-72} ${sh+4} ${cx-60} ${sh-13} ${cx-30} ${sh-17} L${cx+30} ${sh-17} C${cx+60} ${sh-13} ${cx+72} ${sh+4} ${cx+72} 220 Z`;
+  // pescoço com sombra do queixo
+  s += `<path d="M${cx-14} ${cy+fh-18} L${cx-15} ${sh-10} Q${cx} ${sh-1} ${cx+15} ${sh-10} L${cx+14} ${cy+fh-18} Z" fill="url(#${id}nk)" stroke="${ln}" stroke-width=".8"/>`;
+  if (!f && (age === 'maduro' || age === 'idoso')) s += `<path d="M${cx-5} ${cy+fh+6} q5 6 10 0" stroke="${sDD}" stroke-width="1.2" fill="none"/>`;
+  const O = av.outfit, clothes = `url(#${id}cl)`;
+  const body = (fill, extra) => `<path d="${shoulders}" fill="${fill}" stroke="${oD}" stroke-width="1.2"/>${extra||''}`;
+  const fold = (x1, y1, x2, y2) => `<path d="M${x1} ${y1} Q${(x1+x2)/2+4} ${(y1+y2)/2} ${x2} ${y2}" stroke="${oD}" stroke-width="1.4" fill="none" opacity=".55"/>`;
+  const shirt = (c) => `<path d="M${cx-19} ${sh-16} L${cx} ${sh+30} L${cx+19} ${sh-16} Z" fill="${c||'#f6f3ec'}"/><path d="M${cx-19} ${sh-16} L${cx-6} ${sh-2} L${cx-1} ${sh-14} Z M${cx+19} ${sh-16} L${cx+6} ${sh-2} L${cx+1} ${sh-14} Z" fill="#ffffff" stroke="#c9c2b4" stroke-width=".8"/>`;
+  if (O === 'terno') s += body(clothes, shirt() + `<path d="M${cx-30} ${sh-17} L${cx-7} ${sh+44} L${cx-24} ${sh+26} L${cx-34} ${sh+4} Z" fill="${oD}" opacity=".9"/><path d="M${cx+30} ${sh-17} L${cx+7} ${sh+44} L${cx+24} ${sh+26} L${cx+34} ${sh+4} Z" fill="${shade(oc,0.8)}"/><path d="M${cx-34} ${sh+4} l6 3 M${cx+34} ${sh+4} l-6 3" stroke="${oD}" stroke-width="1.5"/><circle cx="${cx-4}" cy="${sh+50}" r="2.2" fill="${oD}"/>` + fold(cx-56, sh+8, cx-50, 214) + fold(cx+56, sh+8, cx+50, 214) + `<path d="M${cx-46} ${sh+30} h12" stroke="${oL}" stroke-width="2.5" opacity=".7"/>`);
+  else if (O === 'uniforme') s += body(clothes, `<path d="M${cx-17} ${sh-18} H${cx+17} V${sh-6} Q${cx} ${sh+2} ${cx-17} ${sh-6} Z" fill="${oD}"/><path d="M${cx-15} ${sh-12} h6 M${cx+9} ${sh-12} h6" stroke="#d8b24a" stroke-width="2"/><path d="M${cx} ${sh-4} V218" stroke="${oD}" stroke-width="1.5"/>${[0,1,2,3].map(i=>`<circle cx="${cx+5}" cy="${sh+8+i*14}" r="3.2" fill="#d8b24a" stroke="#8c6a1a" stroke-width=".8"/><circle cx="${cx+4}" cy="${sh+7+i*14}" r="1" fill="#fff6c8"/>`).join('')}<path d="M${cx-62} ${sh-12} Q${cx-48} ${sh-20} ${cx-34} ${sh-14} L${cx-36} ${sh-4} Q${cx-50} ${sh-10} ${cx-64} ${sh-2} Z M${cx+62} ${sh-12} Q${cx+48} ${sh-20} ${cx+34} ${sh-14} L${cx+36} ${sh-4} Q${cx+50} ${sh-10} ${cx+64} ${sh-2} Z" fill="#d8b24a" stroke="#8c6a1a" stroke-width=".8"/>${[0,1,2,3,4].map(i=>`<path d="M${cx-60+i*5} ${sh-4} v7 M${cx+40+i*5} ${sh-4} v7" stroke="#c9a13b" stroke-width="1.2"/>`).join('')}` + fold(cx-54, sh+12, cx-48, 214) + fold(cx+54, sh+12, cx+48, 214));
+  else if (O === 'manto') s += body(clothes, `<path d="M${cx-64} 220 C${cx-60} ${sh+4} ${cx-46} ${sh-10} ${cx-22} ${sh-15} L${cx-12} 220 Z M${cx+64} 220 C${cx+60} ${sh+4} ${cx+46} ${sh-10} ${cx+22} ${sh-15} L${cx+12} 220 Z" fill="#f7f4ee" stroke="#d6d0c4" stroke-width="1"/><g fill="#1c1c1c">${[0,1,2,3,4].map(i=>`<path d="M${cx-44+i*5} ${sh+6+i*12} l1.5 -3 l1.5 3 l-1.5 2 Z"/><path d="M${cx+41-i*5} ${sh+6+i*12} l1.5 -3 l1.5 3 l-1.5 2 Z"/>`).join('')}</g><path d="M${cx-26} ${sh-12} Q${cx} ${sh+10} ${cx+26} ${sh-12}" stroke="#d8b24a" stroke-width="3" fill="none" stroke-dasharray="4 2"/><circle cx="${cx}" cy="${sh+2}" r="5" fill="#b3261e" stroke="#d8b24a" stroke-width="2"/>`);
+  else if (O === 'batina') s += body(clothes, `<path d="M${cx-11} ${sh-18} H${cx+11} V${sh-9} H${cx-11} Z" fill="${oD}"/><rect x="${cx-4}" y="${sh-17}" width="8" height="6" fill="#ffffff"/><path d="M${cx-3.5} ${sh+12} h7 v13 h10 v7 h-10 v26 h-7 v-26 h-10 v-7 h10 Z" fill="#d8b24a" stroke="#8c6a1a" stroke-width=".8"/>` + fold(cx-50, sh+10, cx-44, 214) + fold(cx+50, sh+10, cx+44, 214));
+  else if (O === 'jaleco') s += body('#f4f4f1', shirt(oc) + `<path d="M${cx-4} ${sh-12} H${cx+4} L${cx+6} ${sh+30} L${cx} ${sh+38} L${cx-6} ${sh+30} Z" fill="${shade(oc,0.75)}"/><path d="M${cx-30} ${sh-17} L${cx-8} ${sh+46} L${cx-26} ${sh+24} Z M${cx+30} ${sh-17} L${cx+8} ${sh+46} L${cx+26} ${sh+24} Z" fill="#e3e3de" stroke="#c9c9c2" stroke-width=".8"/><rect x="${cx+28}" y="${sh+22}" width="18" height="15" rx="2" fill="#ebebe6" stroke="#c9c9c2"/><rect x="${cx+32}" y="${sh+14}" width="2.5" height="13" rx="1" fill="#3d78b5"/><rect x="${cx+37}" y="${sh+16}" width="2.5" height="11" rx="1" fill="#b3261e"/>`);
+  else if (O === 'casual') s += body(clothes, `<path d="M${cx-18} ${sh-16} L${cx} ${sh+10} L${cx+18} ${sh-16}" fill="url(#${id}nk)"/><path d="M${cx-20} ${sh-18} L${cx-4} ${sh+10} L${cx-12} ${sh-2} Z M${cx+20} ${sh-18} L${cx+4} ${sh+10} L${cx+12} ${sh-2} Z" fill="${oL}" stroke="${oD}" stroke-width=".8"/><path d="M${cx} ${sh+10} V218" stroke="${oD}" stroke-width="1"/>${[0,1,2].map(i=>`<circle cx="${cx+3}" cy="${sh+24+i*16}" r="1.8" fill="#eee"/>`).join('')}` + fold(cx-54, sh+10, cx-46, 214));
+  else if (O === 'vestido') s += body(clothes, `<path d="M${cx-30} ${sh-15} C${cx-20} ${sh+18} ${cx+20} ${sh+18} ${cx+30} ${sh-15} Z" fill="url(#${id}nk)"/><path d="M${cx-30} ${sh-15} C${cx-20} ${sh+18} ${cx+20} ${sh+18} ${cx+30} ${sh-15}" stroke="${oD}" stroke-width="2" fill="none"/>` + fold(cx-40, sh+20, cx-30, 214) + fold(cx+40, sh+20, cx+30, 214) + fold(cx-8, sh+30, cx-2, 214));
+  else if (O === 'tunica') s += body(clothes, `<path d="M${cx-26} ${sh-16} Q${cx} ${sh+12} ${cx+26} ${sh-16}" stroke="#d8b24a" stroke-width="4" fill="none"/><path d="M${cx-26} ${sh-16} Q${cx} ${sh+12} ${cx+26} ${sh-16}" stroke="#8c6a1a" stroke-width="1" fill="none" stroke-dasharray="2 3"/><path d="M${cx-70} 212 H${cx+70}" stroke="#d8b24a" stroke-width="5"/>` + fold(cx-30, sh+20, cx-24, 210) + fold(cx+30, sh+20, cx+24, 210));
+  else if (O === 'futurista') s += body(clothes, `<path d="M${cx-30} ${sh-17} H${cx+30} L${cx+22} ${sh-6} H${cx-22} Z" fill="${oD}"/><path d="M${cx-54} ${sh+2} L${cx} ${sh+30} L${cx+54} ${sh+2}" stroke="#5ff0ff" stroke-width="2.5" fill="none"/><path d="M${cx-54} ${sh+2} L${cx} ${sh+30} L${cx+54} ${sh+2}" stroke="#5ff0ff" stroke-width="7" fill="none" opacity=".2"/><circle cx="${cx}" cy="${sh+30}" r="6" fill="#5ff0ff"/><circle cx="${cx}" cy="${sh+30}" r="11" fill="#5ff0ff" opacity=".2"/><path d="M${cx-60} ${sh+40} H${cx-30} M${cx+30} ${sh+40} H${cx+60}" stroke="#5ff0ff" stroke-width="1.5" opacity=".7"/>`);
+  else s += body(clothes);
+  if (has('extras','gravata') && ['terno','jaleco','casual'].includes(O)) s += `<path d="M${cx-5} ${sh-13} H${cx+5} L${cx+4} ${sh-7} H${cx-4} Z" fill="#6e1414"/><path d="M${cx-4} ${sh-7} H${cx+4} L${cx+7} ${sh+30} L${cx} ${sh+39} L${cx-7} ${sh+30} Z" fill="#8a1c1c"/><path d="M${cx-3} ${sh+2} l6 6 M${cx-4} ${sh+14} l7 7" stroke="#a83232" stroke-width="2"/>`;
+  if (has('extras','laco')) s += `<path d="M${cx} ${sh-11} C${cx-6} ${sh-18} ${cx-14} ${sh-16} ${cx-14} ${sh-10} C${cx-14} ${sh-4} ${cx-6} ${sh-4} ${cx} ${sh-11} C${cx+6} ${sh-18} ${cx+14} ${sh-16} ${cx+14} ${sh-10} C${cx+14} ${sh-4} ${cx+6} ${sh-4} ${cx} ${sh-11} Z" fill="#151515"/><rect x="${cx-2.5}" y="${sh-14}" width="5" height="6" rx="1.5" fill="#2a2a2a"/>`;
+  if (has('extras','faixa')) s += `<path d="M${cx-54} ${sh-6} L${cx+40} 220 L${cx+58} 220 L${cx-38} ${sh-12} Z" fill="#2f7d32"/><path d="M${cx-49} ${sh-8} L${cx+47} 220" stroke="#e6c13a" stroke-width="5"/><path d="M${cx-54} ${sh-6} L${cx+40} 220 M${cx-38} ${sh-12} L${cx+58} 220" stroke="rgba(0,0,0,.25)" stroke-width="1"/><circle cx="${cx+14}" cy="${sh+62}" r="7" fill="#e6c13a" stroke="#8c6a1a"/>`;
+  if (has('extras','medalhas')) s += `<g>${[0,1,2].map(i=>`<rect x="${cx-50+i*10}" y="${sh+8}" width="8" height="10" fill="${['#b3261e','#1f4e8c','#2d6a2d'][i]}" stroke="rgba(0,0,0,.3)" stroke-width=".6"/><path d="M${cx-50+i*10} ${sh+11} h8" stroke="#f4f1ea" stroke-width="1.2"/><circle cx="${cx-46+i*10}" cy="${sh+24}" r="4.5" fill="#d8b24a" stroke="#8c6a1a" stroke-width=".8"/><circle cx="${cx-47+i*10}" cy="${sh+23}" r="1.2" fill="#fff6c8"/>`).join('')}</g>`;
+  if (has('extras','colar')) s += `<path d="M${cx-22} ${sh-14} Q${cx} ${sh+14} ${cx+22} ${sh-14}" stroke="#f1e6c2" stroke-width="3.2" fill="none" stroke-dasharray=".1 4.2" stroke-linecap="round"/><circle cx="${cx}" cy="${sh+2}" r="3" fill="#f1e6c2"/>`;
+  if (has('extras','broche') && emblem) s += `<g transform="translate(${cx+28} ${sh+6}) scale(0.24)"><path d="${emblemPath(emblem.shape)}" fill="${emblem.c1}" stroke="${emblem.c2}" stroke-width="6"/><text x="50" y="56" text-anchor="middle" dominant-baseline="middle" font-size="44" fill="${emblem.c2}">${emblem.sym}</text></g>`;
+  // ---- orelhas ----
+  const ear = (sgn) => { const x = cx + sgn*(tw+0.5); return `<path d="M${x} ${cy-9} C${x+sgn*9} ${cy-13} ${x+sgn*11} ${cy+9} ${x+sgn*2} ${cy+16} Z" fill="${sD}" stroke="${ln}" stroke-width=".9"/><path d="M${x+sgn*2} ${cy-5} C${x+sgn*7} ${cy-6} ${x+sgn*7} ${cy+7} ${x+sgn*2} ${cy+10}" stroke="${sDD}" stroke-width="1.3" fill="none"/>`; };
+  s += ear(-1) + ear(1);
+  if (has('extras','brincos')) s += `<circle cx="${L(tw+3)}" cy="${cy+16}" r="3.2" fill="#e6c13a" stroke="#8c6a1a" stroke-width=".7"/><circle cx="${R(tw+3)}" cy="${cy+16}" r="3.2" fill="#e6c13a" stroke="#8c6a1a" stroke-width=".7"/>`;
+  // ---- rosto ----
+  s += `<path d="${face}" fill="url(#${id}sk)" stroke="${ln}" stroke-width="1.1"/>`;
+  s += `<g clip-path="url(#${id}fc)">`;
+  // sombra do cabelo na testa e da mandíbula
+  if (!['careca','raspado','calvo','moicano'].includes(av.hair)) s += `<path d="M${L(tw)} ${T+fh*0.32} Q${cx} ${T+fh*0.18} ${R(tw)} ${T+fh*0.32} L${R(tw)} ${T} L${L(tw)} ${T} Z" fill="${sDD}" opacity=".35"/>`;
+  s += `<path d="M${R(cw-6)} ${cy+8} C${R(cw-6)} ${cy+fh*0.6} ${R(jw)} ${cy+fh*0.8} ${cx} ${cy+fh+2} L${R(cw+4)} ${cy+fh+4} Z" fill="${sD}" opacity=".45"/>`;
+  // maçãs do rosto
+  s += `<ellipse cx="${L(cw*0.55)}" cy="${cy+12}" rx="9" ry="5" fill="${sL}" opacity=".45"/><ellipse cx="${R(cw*0.55)}" cy="${cy+12}" rx="9" ry="5" fill="${sL}" opacity=".25"/>`;
+  if (f || has('marks','bochechas') || mk === 'leve' || mk === 'completa') s += `<ellipse cx="${L(cw*0.55)}" cy="${cy+15}" rx="8" ry="5" fill="#e0606a" opacity="${has('marks','bochechas')?0.42:0.18}"/><ellipse cx="${R(cw*0.55)}" cy="${cy+15}" rx="8" ry="5" fill="#e0606a" opacity="${has('marks','bochechas')?0.42:0.18}"/>`;
+  // idade e marcas
+  const wr = (op) => `<path d="M${cx-13} ${T+fh*0.36} q13 -3 26 0 M${cx-10} ${T+fh*0.42} q10 -2 20 0" stroke="${sDD}" stroke-width="1" fill="none" opacity="${op}"/><path d="M${L(cw*0.45)} ${cy+10} q-3 10 2 18 M${R(cw*0.45)} ${cy+10} q3 10 -2 18" stroke="${sDD}" stroke-width="1.1" fill="none" opacity="${op}"/><path d="M${L(23)} ${cy-1} l-5 -2 M${L(23)} ${cy+2} l-5 1 M${R(23)} ${cy-1} l5 -2 M${R(23)} ${cy+2} l5 1" stroke="${sDD}" stroke-width=".9" opacity="${op}"/>`;
+  if (age === 'maduro') s += wr(0.45);
+  if (age === 'idoso' || has('marks','rugas')) s += wr(0.85) + `<path d="M${L(jw*0.6)} ${cy+fh*0.75} q4 6 10 7 M${R(jw*0.6)} ${cy+fh*0.75} q-4 6 -10 7" stroke="${sDD}" stroke-width="1" fill="none" opacity=".6"/>`;
+  if (has('marks','sardas')) s += `<g fill="${shade(skin,0.62)}" opacity=".85">${[[-25,9],[-20,13],[-15,8],[-22,5],[-17,16],[15,8],[20,13],[25,9],[22,5],[17,16],[-5,10],[5,10],[0,8]].map(([x,y])=>`<circle cx="${cx+x}" cy="${cy+y}" r="${1+((x*7+y)&1)*0.4}"/>`).join('')}</g>`;
+  if (has('marks','pinta')) s += `<circle cx="${cx+17}" cy="${cy+fh*0.55}" r="1.9" fill="#3b2418"/>`;
+  s += `</g>`;
+  // ---- olhos ----
+  const ey = cy - 2, ew = 8;
+  const up = {amendoado:4.2, sonolento:3.8, arregalado:6.8, fechado:4}[av.eyes] || 5.4, lo = up * 0.55;
+  const eyePath = (x) => `M${x-ew} ${ey} C${x-ew*0.5} ${ey-up*1.28} ${x+ew*0.5} ${ey-up*1.28} ${x+ew} ${ey-0.6} C${x+ew*0.5} ${ey+lo*1.35} ${x-ew*0.5} ${ey+lo*1.35} ${x-ew} ${ey} Z`;
+  const eyeDraw = (x, k) => {
+    if (av.eyes === 'fechado') return `<path d="M${x-ew} ${ey+1} Q${x} ${ey-6} ${x+ew} ${ey+1}" stroke="${shade(ln,0.6)}" stroke-width="2.3" fill="none" stroke-linecap="round"/><path d="M${x-ew+1} ${ey+4} Q${x} ${ey+1} ${x+ew-1} ${ey+4}" stroke="${sDD}" stroke-width=".9" fill="none" opacity=".7"/>`;
+    const ir = Math.min(up*0.92, 4.6);
+    let e = '';
+    if (mk === 'sombra' || mk === 'completa') e += `<path d="M${x-ew-1} ${ey-1} C${x-ew*0.5} ${ey-up*2.2} ${x+ew*0.5} ${ey-up*2.2} ${x+ew+1} ${ey-1}" fill="#7a4f86" opacity=".32"/>`;
+    e += `<clipPath id="${id}e${k}"><path d="${eyePath(x)}"/></clipPath><path d="${eyePath(x)}" fill="#f6f2ea"/>`;
+    e += `<g clip-path="url(#${id}e${k})"><circle cx="${x+0.5}" cy="${ey+0.3}" r="${ir}" fill="url(#${id}ir)" stroke="${shade(C('eyeColor'),0.4)}" stroke-width=".7"/><circle cx="${x+0.5}" cy="${ey+0.3}" r="${ir*0.42}" fill="#0c0806"/><circle cx="${x+1.9}" cy="${ey-1.4}" r="1.15" fill="#ffffff"/><circle cx="${x-0.9}" cy="${ey+1.6}" r=".55" fill="#ffffff" opacity=".8"/><path d="M${x-ew} ${ey-up} H${x+ew} V${ey-up*0.35} H${x-ew} Z" fill="${sDD}" opacity=".18"/></g>`;
+    e += `<path d="M${x-ew} ${ey} C${x-ew*0.5} ${ey-up*1.28} ${x+ew*0.5} ${ey-up*1.28} ${x+ew} ${ey-0.6}" stroke="#1d130e" stroke-width="${f||mk!=='nenhuma'?2.3:1.7}" fill="none" stroke-linecap="round"/>`;
+    e += `<path d="M${x-ew+1} ${ey+0.6} C${x-ew*0.4} ${ey+lo*1.3} ${x+ew*0.4} ${ey+lo*1.3} ${x+ew-0.5} ${ey}" stroke="${sDD}" stroke-width=".8" fill="none" opacity=".7"/>`;
+    e += `<path d="M${x-ew+1} ${ey-up-2.4} Q${x} ${ey-up*1.75-2.6} ${x+ew-0.5} ${ey-up-1.8}" stroke="${sDD}" stroke-width=".9" fill="none" opacity=".6"/>`;
+    if (av.eyes === 'sonolento') e += `<path d="M${x-ew} ${ey} C${x-ew*0.5} ${ey-up*1.28} ${x+ew*0.5} ${ey-up*1.28} ${x+ew} ${ey-0.6} L${x+ew} ${ey-0.2} C${x+ew*0.4} ${ey-up*0.35} ${x-ew*0.4} ${ey-up*0.35} ${x-ew} ${ey+0.4} Z" fill="${sD}" stroke="#1d130e" stroke-width="1.2"/>`;
+    if (f || mk === 'completa' || mk === 'leve'){ const o = k === 'L' ? -1 : 1; e += [0,1,2].map(i=>`<path d="M${x+o*(ew-1-i*2.2)} ${ey-up*0.95+i*0.4} l${o*1.8} -2.3" stroke="#1d130e" stroke-width="1" stroke-linecap="round"/>`).join(''); }
     return e;
   };
-  s += eye(cx-14) + (has('marks','tapaolho') ? '' : eye(cx+14));
-  // sobrancelhas
-  const bw = {grossa:4.2, fina:1.6, normal:2.6, arqueada:2.4, franzida:3.2}[av.brows] || 2.6, bc = av.hairColor === 'careca' ? '#3a2a20' : (['grisalho','branco'].includes(av.hairColor) ? shade(hc, 0.85) : hcD);
-  const brow = (x, d) => av.brows === 'arqueada' ? `<path d="M${x-9} ${ey-9} q9 -9 18 0" stroke="${bc}" stroke-width="${bw}" fill="none" stroke-linecap="round"/>`
-    : av.brows === 'franzida' ? `<path d="M${x-9} ${ey-12+(d<0?0:4)} L${x+9} ${ey-12+(d<0?4:0)}" stroke="${bc}" stroke-width="${bw}" stroke-linecap="round"/>`
-    : `<path d="M${x-9} ${ey-10} q9 -4 18 0" stroke="${bc}" stroke-width="${bw}" fill="none" stroke-linecap="round"/>`;
+  if (age === 'idoso' || has('marks','olheiras')) s += `<path d="M${L(14+ew)} ${ey+3} Q${L(14)} ${ey+9} ${L(14-ew)} ${ey+3} M${R(14-ew)} ${ey+3} Q${R(14)} ${ey+9} ${R(14+ew)} ${ey+3}" stroke="${shade(skin,0.66)}" stroke-width="1.6" fill="none" opacity=".7"/>`;
+  s += eyeDraw(cx-14, 'L') + (has('marks','tapaolho') ? '' : eyeDraw(cx+14, 'R'));
+  // ---- sobrancelhas afinando nas pontas ----
+  const bcol = av.hair === 'careca' && av.beard === 'nenhuma' ? shade(skin, 0.45) : (['grisalho','branco'].includes(av.hairColor) ? shade(hc, 0.82) : hD);
+  const [tI, tO, arch, drop] = {grossa:[5,2.6,2.6,0], fina:[2,0.9,3,0], arqueada:[3.1,1.2,6,0], franzida:[3.6,1.6,1,3], normal:[3.3,1.4,3,0]}[av.brows] || [3.3,1.4,3,0];
+  const brow = (x, sgn) => { const xi = x - sgn*8, xo = x + sgn*9, by = ey - up - 5.5, mid = x + sgn*1.5;
+    return `<path d="M${xi} ${by+drop} Q${mid} ${by-arch} ${xo} ${by+1.5} Q${mid} ${by-arch+(tI+tO)/2} ${xi} ${by+drop+tI} Z" fill="${bcol}" stroke="${shade(bcol,0.8)}" stroke-width=".4"/>`; };
   s += brow(cx-14, -1) + brow(cx+14, 1);
-  // nariz
-  const ny = cy + 12;
-  s += {pequeno:`<path d="M${cx} ${ny-6} q-3 6 1 7" stroke="${skinD}" stroke-width="2" fill="none" stroke-linecap="round"/>`, largo:`<path d="M${cx-2} ${ny-10} q-8 12 -3 13 q5 2 10 0 q5 -1 -3 -13" stroke="${skinD}" stroke-width="2.2" fill="none"/>`,
-    aquilino:`<path d="M${cx-1} ${ny-14} q8 8 3 15 q-3 2 -7 0" stroke="${skinD}" stroke-width="2.2" fill="none" stroke-linecap="round"/>`}[av.nose] || `<path d="M${cx} ${ny-10} q-6 9 -1 11 q3 1 6 0" stroke="${skinD}" stroke-width="2.2" fill="none" stroke-linecap="round"/>`;
-  // boca
-  const my = cy + 26, lip = f || av.mouth === 'labios' ? '#b5484f' : shade(skin, 0.55);
-  s += {serio:`<path d="M${cx-9} ${my} H${cx+9}" stroke="${lip}" stroke-width="3" stroke-linecap="round"/>`, largo:`<path d="M${cx-13} ${my-3} Q${cx} ${my+12} ${cx+13} ${my-3} Z" fill="#7a2b2b"/><path d="M${cx-10} ${my-1} H${cx+10}" stroke="#fff" stroke-width="3"/>`,
-    bravo:`<path d="M${cx-10} ${my+3} Q${cx} ${my-5} ${cx+10} ${my+3}" stroke="${lip}" stroke-width="3" fill="none" stroke-linecap="round"/>`, labios:`<path d="M${cx-11} ${my} Q${cx-5} ${my-5} ${cx} ${my-2} Q${cx+5} ${my-5} ${cx+11} ${my} Q${cx} ${my+8} ${cx-11} ${my} Z" fill="${lip}"/>`}[av.mouth]
-    || `<path d="M${cx-10} ${my-1} Q${cx} ${my+7} ${cx+10} ${my-1}" stroke="${lip}" stroke-width="3" fill="none" stroke-linecap="round"/>`;
-  if (has('marks','cicatriz')) s += `<path d="M${cx+20} ${ey-14} L${cx+10} ${ey+12}" stroke="#a35a4a" stroke-width="2.4"/><path d="M${cx+19} ${ey-8} l-5 -1 M${cx+16} ${ey-1} l-5 -1 M${cx+13} ${ey+6} l-5 -1" stroke="#a35a4a" stroke-width="1.4"/>`;
-  // barba
-  const B = av.beard, bcol = hc;
-  if (B === 'bigode') s += `<path d="M${cx-14} ${my-5} Q${cx} ${my-12} ${cx+14} ${my-5} Q${cx} ${my-7} ${cx-14} ${my-5} Z" fill="${bcol}" stroke="${bcol}" stroke-width="3"/>`;
-  if (B === 'imperial') s += `<path d="M${cx} ${my-7} C${cx-10} ${my-12} ${cx-20} ${my-4} ${cx-26} ${my-14} C${cx-20} ${my} ${cx-8} ${my-2} ${cx} ${my-4} C${cx+8} ${my-2} ${cx+20} ${my} ${cx+26} ${my-14} C${cx+20} ${my-4} ${cx+10} ${my-12} ${cx} ${my-7} Z" fill="${bcol}"/>`;
-  if (B === 'cavanhaque') s += `<path d="M${cx-12} ${my-5} Q${cx} ${my-11} ${cx+12} ${my-5}" stroke="${bcol}" stroke-width="4" fill="none"/><path d="M${cx-8} ${my+6} Q${cx} ${my+22} ${cx+8} ${my+6} Z" fill="${bcol}"/>`;
-  if (B === 'curta' || B === 'cheia' || B === 'longa'){ const d = B === 'curta' ? 8 : B === 'cheia' ? 16 : 34;
-    s += `<path d="M${cx-fw+2} ${cy+6} Q${cx-fw+2} ${cy+fh+d*0.6} ${cx} ${cy+fh+d} Q${cx+fw-2} ${cy+fh+d*0.6} ${cx+fw-2} ${cy+6} Q${cx+fw-8} ${cy+30} ${cx+10} ${my+4} Q${cx} ${my+8} ${cx-10} ${my+4} Q${cx-fw+8} ${cy+30} ${cx-fw+2} ${cy+6} Z" fill="${bcol}" opacity="${B==='curta'?0.75:1}"/><path d="M${cx-13} ${my-5} Q${cx} ${my-11} ${cx+13} ${my-5}" stroke="${bcol}" stroke-width="4" fill="none"/>`; }
-  if (B === 'costeletas') s += `<path d="M${cx-fw+1} ${cy-8} V${cy+26} Q${cx-fw+8} ${cy+30} ${cx-fw+10} ${cy+20} V${cy-8} Z M${cx+fw-1} ${cy-8} V${cy+26} Q${cx+fw-8} ${cy+30} ${cx+fw-10} ${cy+20} V${cy-8} Z" fill="${bcol}"/>`;
-  // cabelo da frente
-  const top = cy - fh;
-  s += {raspado:`<path d="M${cx-fw} ${cy-6} Q${cx-fw} ${top-2} ${cx} ${top-2} Q${cx+fw} ${top-2} ${cx+fw} ${cy-6} Q${cx} ${top+12} ${cx-fw} ${cy-6} Z" fill="${hc}" opacity=".55"/>`,
-    curto:`<path d="M${cx-fw-2} ${cy-2} Q${cx-fw-4} ${top-8} ${cx} ${top-8} Q${cx+fw+4} ${top-8} ${cx+fw+2} ${cy-2} Q${cx+fw-6} ${top+10} ${cx} ${top+10} Q${cx-fw+6} ${top+10} ${cx-fw-2} ${cy-2} Z" fill="${hc}"/>`,
-    topete:`<path d="M${cx-fw-2} ${cy-2} Q${cx-fw-4} ${top-6} ${cx-10} ${top-12} Q${cx+10} ${top-26} ${cx+fw+4} ${top-2} Q${cx+fw+4} ${cy-14} ${cx+fw+2} ${cy-2} Q${cx+fw-6} ${top+12} ${cx} ${top+12} Q${cx-fw+6} ${top+12} ${cx-fw-2} ${cy-2} Z" fill="${hc}"/>`,
-    lateral:`<path d="M${cx-fw-2} ${cy-2} Q${cx-fw-4} ${top-8} ${cx-6} ${top-8} Q${cx+fw+6} ${top-8} ${cx+fw+2} ${cy-6} Q${cx+fw-4} ${top+6} ${cx-8} ${top+16} L${cx-12} ${top+4} Q${cx-fw+4} ${top+12} ${cx-fw-2} ${cy-2} Z" fill="${hc}"/>`,
-    calvo:`<path d="M${cx-fw-2} ${cy+4} Q${cx-fw-4} ${cy-22} ${cx-fw+10} ${cy-28} L${cx-fw+12} ${cy-12} Z M${cx+fw+2} ${cy+4} Q${cx+fw+4} ${cy-22} ${cx+fw-10} ${cy-28} L${cx+fw-12} ${cy-12} Z" fill="${hc}"/>`,
-    cacheado:`<g fill="${hc}">${[-0.8,-0.4,0,0.4,0.8].map(t=>`<circle cx="${cx+t*fw}" cy="${top+4-Math.cos(t)*4}" r="12"/>`).join('')}</g>`,
-    crespo:`<path d="M${cx-fw} ${cy-10} Q${cx} ${top+16} ${cx+fw} ${cy-10}" fill="${hc}"/>`,
-    medio:`<path d="M${cx-fw-6} ${cy+8} Q${cx-fw-6} ${top-8} ${cx} ${top-8} Q${cx+fw+6} ${top-8} ${cx+fw+6} ${cy+8} Q${cx+fw-4} ${top+8} ${cx-4} ${top+14} Q${cx-fw+2} ${top+10} ${cx-fw-6} ${cy+8} Z" fill="${hc}"/>`,
-    longo:`<path d="M${cx-fw-6} ${cy+10} Q${cx-fw-6} ${top-8} ${cx} ${top-8} Q${cx+fw+6} ${top-8} ${cx+fw+6} ${cy+10} Q${cx+fw-2} ${top+12} ${cx+4} ${top+12} Q${cx-10} ${top+20} ${cx-fw-6} ${cy+10} Z" fill="${hc}"/>`,
-    rabo:`<path d="M${cx-fw-3} ${cy-2} Q${cx-fw-4} ${top-8} ${cx} ${top-8} Q${cx+fw+4} ${top-8} ${cx+fw+3} ${cy-2} Q${cx} ${top+8} ${cx-fw-3} ${cy-2} Z" fill="${hc}"/>`,
-    coque:`<circle cx="${cx}" cy="${top-12}" r="15" fill="${hc}"/><path d="M${cx-fw-3} ${cy-2} Q${cx-fw-4} ${top-8} ${cx} ${top-8} Q${cx+fw+4} ${top-8} ${cx+fw+3} ${cy-2} Q${cx} ${top+8} ${cx-fw-3} ${cy-2} Z" fill="${hc}"/>`,
-    trancas:`<path d="M${cx-fw-3} ${cy-2} Q${cx-fw-4} ${top-8} ${cx} ${top-8} Q${cx+fw+4} ${top-8} ${cx+fw+3} ${cy-2} Q${cx} ${top+8} ${cx-fw-3} ${cy-2} Z" fill="${hc}"/>`,
-    chanel:`<path d="M${cx-fw-8} ${cy+30} V${cy-6} Q${cx-fw-6} ${top-8} ${cx} ${top-8} Q${cx+fw+6} ${top-8} ${cx+fw+8} ${cy-6} V${cy+30} H${cx+fw-2} V${cy-6} Q${cx} ${top+16} ${cx-fw+2} ${cy-6} V${cy+30} Z" fill="${hc}"/>`,
-    moicano:`<path d="M${cx-9} ${cy-20} Q${cx-10} ${top-26} ${cx} ${top-30} Q${cx+10} ${top-26} ${cx+9} ${cy-20} Z" fill="${hc}"/>`}[av.hair] || '';
-  // óculos
+  // ---- nariz com sombra ----
+  const ny = cy + 14, nw = {pequeno:3, largo:5.6}[av.nose] || 4.2;
+  s += av.nose === 'aquilino' ? `<path d="M${cx+2} ${ey+2} Q${cx+8} ${ny-6} ${cx+3} ${ny+2}" stroke="${sDD}" stroke-width="1.6" fill="none" opacity=".75"/>` : `<path d="M${cx+3} ${ey+3} Q${cx+5} ${ny-5} ${cx+5} ${ny}" stroke="${sDD}" stroke-width="1.4" fill="none" opacity=".55"/>`;
+  s += `<path d="M${cx-1.5} ${ey+5} Q${cx-2.5} ${ny-4} ${cx-1} ${ny-1}" stroke="${sL}" stroke-width="2" fill="none" opacity=".6"/>`;
+  s += `<ellipse cx="${cx}" cy="${ny+2}" rx="${nw+0.5}" ry="3.6" fill="${sD}" opacity=".35"/><ellipse cx="${cx-0.8}" cy="${ny+0.8}" rx="2.4" ry="1.6" fill="${sL}" opacity=".7"/>`;
+  s += `<path d="M${cx-nw-2} ${ny+1.5} Q${cx-nw-3} ${ny+5.5} ${cx-nw+0.5} ${ny+5.2} M${cx+nw+2} ${ny+1.5} Q${cx+nw+3} ${ny+5.5} ${cx+nw-0.5} ${ny+5.2}" stroke="${ln}" stroke-width="1.1" fill="none"/>`;
+  s += `<ellipse cx="${cx-nw*0.55}" cy="${ny+5}" rx="1.7" ry="1" fill="${shade(skin,0.4)}"/><ellipse cx="${cx+nw*0.55}" cy="${ny+5}" rx="1.7" ry="1" fill="${shade(skin,0.4)}"/>`;
+  // ---- boca ----
+  const my = cy + Math.round(fh*0.56), mw = av.mouth === 'largo' ? 13 : av.mouth === 'serio' ? 9.5 : 11;
+  const lipBase = mk === 'batom' || mk === 'completa' ? '#a51d34' : f ? mix(skin, '#b8505a', 0.55) : mix(skin, '#9c4a45', 0.32);
+  const lipU = shade(lipBase, 0.82), lipLine = shade(lipBase, 0.5), full = av.mouth === 'labios' ? 1.5 : f ? 1.2 : 0.85;
+  s += `<path d="M${cx-2} ${ny+7} Q${cx} ${my-4} ${cx+2} ${ny+7}" stroke="${sD}" stroke-width="1" fill="none" opacity=".5"/>`;
+  if (av.mouth === 'largo') s += `<path d="M${cx-mw} ${my-1.5} Q${cx} ${my+2} ${cx+mw} ${my-1.5} Q${cx} ${my+12} ${cx-mw} ${my-1.5} Z" fill="#4a1616" stroke="${lipLine}" stroke-width="1.2"/><path d="M${cx-mw+2} ${my-0.6} Q${cx} ${my+2} ${cx+mw-2} ${my-0.6} L${cx+mw-3.5} ${my+2.6} Q${cx} ${my+4.5} ${cx-mw+3.5} ${my+2.6} Z" fill="#fbf8f0"/><path d="M${cx-mw+4} ${my+8} Q${cx} ${my+11} ${cx+mw-4} ${my+8}" stroke="${lipBase}" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M${L(mw+3)} ${my-6} q-3 5 0 9 M${R(mw+3)} ${my-6} q3 5 0 9" stroke="${sDD}" stroke-width="1" fill="none" opacity=".6"/>`;
+  else {
+    const cY = av.mouth === 'sorriso' ? -1.8 : av.mouth === 'bravo' ? 2.2 : 0;
+    s += `<path d="M${cx-mw} ${my+cY} Q${cx-mw*0.5} ${my-3.2*full} ${cx} ${my-1.6*full} Q${cx+mw*0.5} ${my-3.2*full} ${cx+mw} ${my+cY} Q${cx} ${my+1} ${cx-mw} ${my+cY} Z" fill="${lipU}"/>`;
+    s += `<path d="M${cx-mw} ${my+cY} Q${cx} ${my+1} ${cx+mw} ${my+cY} Q${cx+mw*0.55} ${my+5.6*full} ${cx} ${my+6*full} Q${cx-mw*0.55} ${my+5.6*full} ${cx-mw} ${my+cY} Z" fill="${lipBase}"/>`;
+    s += `<path d="M${cx-mw-1} ${my+cY-0.3} Q${cx} ${my+(av.mouth==='bravo'?-1:2.4)} ${cx+mw+1} ${my+cY-0.3}" stroke="${lipLine}" stroke-width="1.3" fill="none" stroke-linecap="round"/>`;
+    s += `<ellipse cx="${cx-2}" cy="${my+3.2*full}" rx="${mw*0.32}" ry="1.1" fill="#ffffff" opacity=".28"/>`;
+    if (av.mouth === 'sorriso') s += `<path d="M${L(mw+2)} ${my-5} q-2.5 4 0 7 M${R(mw+2)} ${my-5} q2.5 4 0 7" stroke="${sDD}" stroke-width=".9" fill="none" opacity=".55"/>`;
+  }
+  // ---- queixo ----
+  if (av.chin === 'furinho') s += `<path d="M${cx} ${cy+fh-6} v4" stroke="${sDD}" stroke-width="1.3" stroke-linecap="round" opacity=".8"/>`;
+  if (av.chin === 'marcado') s += `<path d="M${cx-8} ${my+10} Q${cx} ${my+13} ${cx+8} ${my+10}" stroke="${sDD}" stroke-width="1.2" fill="none" opacity=".6"/><ellipse cx="${cx-2}" cy="${cy+fh-4}" rx="6" ry="2.5" fill="${sL}" opacity=".55"/>`;
+  if (has('marks','cicatriz')) s += `<path d="M${cx+21} ${ey-15} L${cx+11} ${ey+13}" stroke="#a35a4a" stroke-width="2.2" stroke-linecap="round"/><path d="M${cx+20} ${ey-9} l-5 -1 M${cx+17} ${ey-2} l-5 -1 M${cx+14} ${ey+5} l-5 -1" stroke="#a35a4a" stroke-width="1.2"/>`;
+  // ---- barba ----
+  const B = av.beard, bF = hairFill;
+  const stache = (h) => `<path d="M${cx} ${my-4} C${cx-5} ${my-8-h} ${cx-12} ${my-7-h} ${cx-14} ${my-2} C${cx-10} ${my-4} ${cx-5} ${my-4} ${cx} ${my-3} C${cx+5} ${my-4} ${cx+10} ${my-4} ${cx+14} ${my-2} C${cx+12} ${my-7-h} ${cx+5} ${my-8-h} ${cx} ${my-4} Z" fill="${bF}" stroke="${hD}" stroke-width=".8"/>`;
+  if (B === 'bigode') s += stache(1);
+  if (B === 'imperial') s += `<path d="M${cx} ${my-5} C${cx-8} ${my-11} ${cx-18} ${my-5} ${cx-27} ${my-15} C${cx-22} ${my-1} ${cx-9} ${my-2} ${cx} ${my-3} C${cx+9} ${my-2} ${cx+22} ${my-1} ${cx+27} ${my-15} C${cx+18} ${my-5} ${cx+8} ${my-11} ${cx} ${my-5} Z" fill="${bF}" stroke="${hD}" stroke-width=".8"/>`;
+  if (B === 'cavanhaque') s += stache(0) + `<path d="M${cx-9} ${my+6} Q${cx} ${my+4} ${cx+9} ${my+6} Q${cx+6} ${cy+fh+6} ${cx} ${cy+fh+8} Q${cx-6} ${cy+fh+6} ${cx-9} ${my+6} Z" fill="${bF}" stroke="${hD}" stroke-width=".8"/>`;
+  if (B === 'curta' || B === 'cheia' || B === 'longa'){
+    const d = B === 'curta' ? 4 : B === 'cheia' ? 12 : 30;
+    s += `<path d="M${L(cw-1)} ${cy+8} C${L(cw-1)} ${cy+fh*0.6} ${L(jw+4)} ${cy+fh*0.8+d*0.5} ${cx} ${cy+fh+d} C${R(jw+4)} ${cy+fh*0.8+d*0.5} ${R(cw-1)} ${cy+fh*0.6} ${R(cw-1)} ${cy+8} C${R(cw-6)} ${cy+20} ${R(mw+5)} ${my-2} ${R(mw)} ${my+4} Q${cx} ${my+9} ${L(mw)} ${my+4} C${L(mw+5)} ${my-2} ${L(cw-6)} ${cy+20} ${L(cw-1)} ${cy+8} Z" fill="${bF}" opacity="${B==='curta'?0.62:0.97}" stroke="${B==='curta'?'none':hD}" stroke-width=".8"/>` + stache(B === 'curta' ? 0 : 1);
+    if (B !== 'curta') s += [...Array(9)].map((_,i)=>`<path d="M${cx-20+i*5} ${cy+fh-4+(i%2)*3} q1 5 0 ${6+d*0.3}" stroke="${hL}" stroke-width=".8" fill="none" opacity=".5"/>`).join('');
+    else s += `<g fill="${hD}" opacity=".5">${[...Array(26)].map((_,i)=>`<circle cx="${cx-22+(i*7)%44}" cy="${cy+fh-12+((i*13)%14)}" r=".7"/>`).join('')}</g>`;
+  }
+  if (B === 'costeletas') s += `<path d="M${L(tw-1)} ${cy-10} V${cy+24} Q${L(tw-8)} ${cy+30} ${L(tw-10)} ${cy+20} V${cy-10} Z M${R(tw-1)} ${cy-10} V${cy+24} Q${R(tw-8)} ${cy+30} ${R(tw-10)} ${cy+20} V${cy-10} Z" fill="${bF}" stroke="${hD}" stroke-width=".8"/>`;
+  // ---- cabelo da frente (com mechas) ----
+  const top = T;
+  const strands = (pts) => pts.map(([x1,y1,x2,y2])=>`<path d="M${x1} ${y1+5} Q${(x1+x2)/2+3} ${(y1+y2)/2+4} ${x2} ${y2+5}" stroke="${hL}" stroke-width="1" fill="none" opacity=".55"/>`).join('');
+  const front = {
+    raspado:`<path d="M${L(tw)} ${cy-8} C${L(tw)} ${top-2} ${R(tw)} ${top-2} ${R(tw)} ${cy-8} Q${cx} ${top+12} ${L(tw)} ${cy-8} Z" fill="${hc}" opacity=".5"/>`,
+    curto:`<path d="M${L(tw+2)} ${cy-4} C${L(tw+4)} ${top-27} ${R(tw+4)} ${top-27} ${R(tw+2)} ${cy-4} Q${R(tw-4)} ${top+8} ${R(8)} ${top+11} Q${cx} ${top+7} ${L(8)} ${top+11} Q${L(tw-4)} ${top+8} ${L(tw+2)} ${cy-4} Z" fill="${hairFill}" ${hairStroke}/>` + strands([[cx-20,top,cx-8,top+8],[cx-4,top-4,cx+6,top+7],[cx+10,top-2,cx+20,top+8]]),
+    topete:`<path d="M${L(tw+2)} ${cy-4} C${L(tw+4)} ${top-6} ${L(14)} ${top-14} ${L(4)} ${top-16} C${R(14)} ${top-26} ${R(tw+6)} ${top-8} ${R(tw+2)} ${cy-4} Q${R(tw-4)} ${top+10} ${cx} ${top+12} Q${L(tw-4)} ${top+10} ${L(tw+2)} ${cy-4} Z" fill="${hairFill}" ${hairStroke}/>` + strands([[cx-14,top-8,cx+14,top-14],[cx-8,top-2,cx+18,top-6],[cx-20,top+4,cx+4,top]]),
+    lateral:`<path d="M${L(tw+2)} ${cy-4} C${L(tw+4)} ${top-27} ${R(tw+6)} ${top-27} ${R(tw+2)} ${cy-8} Q${R(tw-4)} ${top+6} ${L(8)} ${top+16} L${L(12)} ${top+4} Q${L(tw-4)} ${top+12} ${L(tw+2)} ${cy-4} Z" fill="${hairFill}" ${hairStroke}/>` + strands([[cx-6,top-4,cx+24,top+4],[cx-4,top+2,cx+20,top+10]]),
+    calvo:`<path d="M${L(tw+2)} ${cy+4} C${L(tw+4)} ${cy-20} ${L(tw-6)} ${cy-30} ${L(tw-12)} ${cy-30} L${L(tw-12)} ${cy-14} Z M${R(tw+2)} ${cy+4} C${R(tw+4)} ${cy-20} ${R(tw-6)} ${cy-30} ${R(tw-12)} ${cy-30} L${R(tw-12)} ${cy-14} Z" fill="${hairFill}" ${hairStroke}/>`,
+    cacheado:`<g fill="${hairFill}" ${hairStroke}>${[-0.85,-0.45,0,0.45,0.85].map(t=>`<circle cx="${cx+t*tw}" cy="${top+3-Math.cos(t)*5}" r="12"/>`).join('')}</g><g fill="none" stroke="${hL}" stroke-width="1" opacity=".55">${[-0.85,-0.45,0,0.45,0.85].map(t=>`<path d="M${cx+t*tw-5} ${top+1} q5 -6 9 0"/>`).join('')}</g>`,
+    crespo:`<path d="M${L(tw+2)} ${cy-10} Q${cx} ${top+16} ${R(tw+2)} ${cy-10} Q${R(tw+4)} ${top-4} ${cx} ${top-8} Q${L(tw+4)} ${top-4} ${L(tw+2)} ${cy-10} Z" fill="${hairFill}"/><g fill="none" stroke="${hL}" stroke-width=".9" opacity=".35">${[-16,-6,4,14].map(x=>`<path d="M${cx+x} ${top+2} q3 -3 6 0"/>`).join('')}</g>`,
+    medio:`<path d="M${L(tw+7)} ${cy+8} C${L(tw+8)} ${top-27} ${R(tw+8)} ${top-27} ${R(tw+7)} ${cy+8} Q${R(tw-3)} ${top+8} ${R(2)} ${top+14} Q${L(tw-2)} ${top+10} ${L(tw+7)} ${cy+8} Z" fill="${hairFill}" ${hairStroke}/>` + strands([[cx-24,top+4,cx-30,cy],[cx+24,top+4,cx+30,cy],[cx-6,top-4,cx+16,top+8]]),
+    longo:`<path d="M${L(tw+7)} ${cy+12} C${L(tw+8)} ${top-27} ${R(tw+8)} ${top-27} ${R(tw+7)} ${cy+12} Q${R(tw-2)} ${top+12} ${R(4)} ${top+12} Q${L(10)} ${top+22} ${L(tw+7)} ${cy+12} Z" fill="${hairFill}" ${hairStroke}/>` + strands([[cx-26,top+8,cx-34,cy+30],[cx+26,top+8,cx+34,cy+30],[cx-8,top-4,cx+14,top+8]]),
+    rabo:`<path d="M${L(tw+3)} ${cy-4} C${L(tw+4)} ${top-27} ${R(tw+4)} ${top-27} ${R(tw+3)} ${cy-4} Q${cx} ${top+9} ${L(tw+3)} ${cy-4} Z" fill="${hairFill}" ${hairStroke}/>` + strands([[cx-20,top+2,cx+10,top-4],[cx-10,top+6,cx+20,top]]),
+    coque:`<circle cx="${cx}" cy="${top-12}" r="15" fill="${hairFill}" ${hairStroke}/><path d="M${cx-10} ${top-16} q10 -6 20 0" stroke="${hL}" stroke-width="1.2" fill="none" opacity=".6"/><path d="M${L(tw+3)} ${cy-4} C${L(tw+4)} ${top-27} ${R(tw+4)} ${top-27} ${R(tw+3)} ${cy-4} Q${cx} ${top+9} ${L(tw+3)} ${cy-4} Z" fill="${hairFill}" ${hairStroke}/>` + strands([[cx-20,top+2,cx-2,top-6],[cx+20,top+2,cx+2,top-6]]),
+    trancas:`<path d="M${L(tw+3)} ${cy-4} C${L(tw+4)} ${top-27} ${R(tw+4)} ${top-27} ${R(tw+3)} ${cy-4} Q${cx} ${top+9} ${L(tw+3)} ${cy-4} Z" fill="${hairFill}" ${hairStroke}/><path d="M${cx} ${top-6} V${top+8}" stroke="${hD}" stroke-width="1.2"/>`,
+    chanel:`<path d="M${L(tw+9)} ${cy+32} V${cy-6} C${L(tw+8)} ${top-27} ${R(tw+8)} ${top-27} ${R(tw+9)} ${cy-6} V${cy+32} H${R(tw-1)} V${cy-6} Q${cx} ${top+18} ${L(tw-1)} ${cy-6} V${cy+32} Z" fill="${hairFill}" ${hairStroke}/><path d="M${L(tw-1)} ${cy-4} Q${cx} ${top+16} ${R(tw-1)} ${cy-4}" stroke="${hD}" stroke-width="1" fill="none"/>` + strands([[cx-30,top+6,cx-34,cy+24],[cx+30,top+6,cx+34,cy+24]]),
+    moicano:`<path d="M${cx-9} ${cy-22} C${cx-11} ${top-14} ${cx-6} ${top-30} ${cx} ${top-32} C${cx+6} ${top-30} ${cx+11} ${top-14} ${cx+9} ${cy-22} Z" fill="${hairFill}" ${hairStroke}/><path d="M${L(tw)} ${cy-6} C${L(tw)} ${top+4} ${cx-12} ${top} ${cx-10} ${top+4} M${R(tw)} ${cy-6} C${R(tw)} ${top+4} ${cx+12} ${top} ${cx+10} ${top+4}" stroke="${hc}" stroke-width="3" fill="none" opacity=".35"/>`
+  }[av.hair] || '';
+  s += front;
+  // ---- óculos ----
   const G2 = av.glasses;
-  if (G2 === 'redondo') s += `<g stroke="#2b2b2b" stroke-width="2.2" fill="rgba(255,255,255,.15)"><circle cx="${cx-14}" cy="${ey}" r="9"/><circle cx="${cx+14}" cy="${ey}" r="9"/><path d="M${cx-5} ${ey} H${cx+5}"/></g>`;
-  if (G2 === 'quadrado') s += `<g stroke="#2b2b2b" stroke-width="2.4" fill="rgba(255,255,255,.15)"><rect x="${cx-24}" y="${ey-7}" width="19" height="14" rx="2"/><rect x="${cx+5}" y="${ey-7}" width="19" height="14" rx="2"/><path d="M${cx-5} ${ey} H${cx+5}"/></g>`;
-  if (G2 === 'sol') s += `<g fill="#151515"><rect x="${cx-25}" y="${ey-7}" width="21" height="13" rx="4"/><rect x="${cx+4}" y="${ey-7}" width="21" height="13" rx="4"/><rect x="${cx-5}" y="${ey-3}" width="10" height="3"/></g>`;
-  if (G2 === 'monoculo') s += `<circle cx="${cx+14}" cy="${ey}" r="9" stroke="#c9a13b" stroke-width="2.4" fill="rgba(255,255,255,.2)"/><path d="M${cx+22} ${ey+4} q8 20 -4 40" stroke="#c9a13b" stroke-width="1.2" fill="none"/>`;
-  if (has('marks','tapaolho')) s += `<path d="M${cx-fw} ${ey-18} L${cx+fw} ${ey+10}" stroke="#151515" stroke-width="2.5"/><ellipse cx="${cx+14}" cy="${ey}" rx="10" ry="8" fill="#151515"/>`;
-  // na cabeça
+  const lens = 'rgba(220,235,245,.18)';
+  if (G2 === 'redondo') s += `<g stroke="#2b2420" stroke-width="2" fill="${lens}"><circle cx="${cx-14}" cy="${ey}" r="9.5"/><circle cx="${cx+14}" cy="${ey}" r="9.5"/><path d="M${cx-4.5} ${ey-1} Q${cx} ${ey-4} ${cx+4.5} ${ey-1}" fill="none"/><path d="M${L(23.5)} ${ey-2} L${L(tw+1)} ${ey-4} M${R(23.5)} ${ey-2} L${R(tw+1)} ${ey-4}" fill="none"/></g><path d="M${cx-19} ${ey-5} l4 -2 M${cx+9} ${ey-5} l4 -2" stroke="#fff" stroke-width="1.2" opacity=".7"/>`;
+  if (G2 === 'quadrado') s += `<g stroke="#1e1a17" stroke-width="2.4" fill="${lens}"><rect x="${cx-25}" y="${ey-7.5}" width="20" height="15" rx="3"/><rect x="${cx+5}" y="${ey-7.5}" width="20" height="15" rx="3"/><path d="M${cx-5} ${ey-2} H${cx+5} M${L(25)} ${ey-3} L${L(tw+1)} ${ey-5} M${R(25)} ${ey-3} L${R(tw+1)} ${ey-5}" fill="none"/></g><path d="M${cx-21} ${ey-4} l5 -2 M${cx+9} ${ey-4} l5 -2" stroke="#fff" stroke-width="1.2" opacity=".6"/>`;
+  if (G2 === 'sol') s += `<g><path d="M${cx-26} ${ey-7} H${cx-4} Q${cx-4} ${ey+8} ${cx-15} ${ey+8} Q${cx-26} ${ey+8} ${cx-26} ${ey-7} Z M${cx+26} ${ey-7} H${cx+4} Q${cx+4} ${ey+8} ${cx+15} ${ey+8} Q${cx+26} ${ey+8} ${cx+26} ${ey-7} Z" fill="#141414" stroke="#000" stroke-width="1.2"/><path d="M${cx-4} ${ey-5} H${cx+4} M${L(26)} ${ey-6} L${L(tw+1)} ${ey-7} M${R(26)} ${ey-6} L${R(tw+1)} ${ey-7}" stroke="#000" stroke-width="2"/><path d="M${cx-22} ${ey-4} l7 0 M${cx+8} ${ey-4} l7 0" stroke="#fff" stroke-width="1.4" opacity=".35"/></g>`;
+  if (G2 === 'monoculo') s += `<circle cx="${cx+14}" cy="${ey}" r="9.5" stroke="#c9a13b" stroke-width="2.2" fill="${lens}"/><path d="M${cx+9} ${ey-5} l4 -2" stroke="#fff" stroke-width="1.2" opacity=".7"/><path d="M${cx+22} ${ey+5} q9 22 -4 44" stroke="#c9a13b" stroke-width="1.1" fill="none"/>`;
+  if (has('marks','tapaolho')) s += `<path d="M${L(tw)} ${ey-19} L${R(tw)} ${ey+11}" stroke="#151515" stroke-width="2.4"/><path d="M${cx+4} ${ey-7} Q${cx+14} ${ey-11} ${cx+24} ${ey-5} Q${cx+25} ${ey+7} ${cx+14} ${ey+9} Q${cx+4} ${ey+7} ${cx+4} ${ey-7} Z" fill="#151515"/>`;
+  // ---- na cabeça ----
   const Ht = av.hat, ht = top - 2;
-  if (Ht === 'coroa') s += `<path d="M${cx-28} ${ht+4} L${cx-30} ${ht-22} L${cx-15} ${ht-8} L${cx} ${ht-28} L${cx+15} ${ht-8} L${cx+30} ${ht-22} L${cx+28} ${ht+4} Z" fill="#e2b53b" stroke="#a67c1a" stroke-width="2"/><circle cx="${cx}" cy="${ht-6}" r="4" fill="#b3261e"/><circle cx="${cx-18}" cy="${ht-4}" r="3" fill="#1f4e8c"/><circle cx="${cx+18}" cy="${ht-4}" r="3" fill="#2d6a2d"/>`;
-  if (Ht === 'tiara') s += `<path d="M${cx-26} ${ht+8} Q${cx} ${ht-16} ${cx+26} ${ht+8}" stroke="#e2d6b0" stroke-width="4" fill="none"/><path d="M${cx-8} ${ht-2} L${cx} ${ht-14} L${cx+8} ${ht-2} Z" fill="#e2d6b0"/><circle cx="${cx}" cy="${ht-5}" r="3" fill="#3d78b5"/>`;
-  if (Ht === 'quepe') s += `<path d="M${cx-34} ${ht+10} Q${cx} ${ht-24} ${cx+34} ${ht+10} Z" fill="${oc}"/><rect x="${cx-34}" y="${ht+6}" width="68" height="8" fill="#151515"/><path d="M${cx-30} ${ht+14} Q${cx} ${ht+24} ${cx+30} ${ht+14}" fill="#151515"/><circle cx="${cx}" cy="${ht-2}" r="5" fill="#d8b24a"/>`;
-  if (Ht === 'cartola') s += `<rect x="${cx-22}" y="${ht-40}" width="44" height="46" fill="#151515"/><rect x="${cx-34}" y="${ht+2}" width="68" height="7" rx="3" fill="#151515"/><rect x="${cx-22}" y="${ht-6}" width="44" height="6" fill="#8a1c1c"/>`;
-  if (Ht === 'boina') s += `<ellipse cx="${cx+6}" cy="${ht}" rx="38" ry="14" fill="${oc}"/><circle cx="${cx+6}" cy="${ht-12}" r="3" fill="${ocD}"/>`;
-  if (Ht === 'turbante') s += `<path d="M${cx-36} ${ht+12} Q${cx-38} ${ht-26} ${cx} ${ht-28} Q${cx+38} ${ht-26} ${cx+36} ${ht+12} Q${cx} ${ht} ${cx-36} ${ht+12} Z" fill="#ece6d6" stroke="#cfc6ae" stroke-width="2"/><circle cx="${cx}" cy="${ht-6}" r="5" fill="#2d6a2d"/>`;
-  if (Ht === 'mitra') s += `<path d="M${cx-24} ${ht+8} L${cx-20} ${ht-30} Q${cx} ${ht-52} ${cx+20} ${ht-30} L${cx+24} ${ht+8} Z" fill="#ece6d6" stroke="#d8b24a" stroke-width="3"/><path d="M${cx} ${ht-40} V${ht+4} M${cx-10} ${ht-20} H${cx+10}" stroke="#d8b24a" stroke-width="4"/>`;
-  if (Ht === 'capacete') s += `<path d="M${cx-38} ${ht+14} Q${cx-38} ${ht-26} ${cx} ${ht-26} Q${cx+38} ${ht-26} ${cx+38} ${ht+14} Z" fill="#4c5a3a"/><rect x="${cx-40}" y="${ht+10}" width="80" height="6" rx="3" fill="#3a462c"/>`;
-  if (Ht === 'fone') s += `<path d="M${cx-fw-4} ${cy} Q${cx-fw-4} ${top-14} ${cx} ${top-14} Q${cx+fw+4} ${top-14} ${cx+fw+4} ${cy}" stroke="#2a2f3a" stroke-width="5" fill="none"/><rect x="${cx-fw-10}" y="${cy-8}" width="10" height="20" rx="4" fill="#2a2f3a"/><rect x="${cx+fw}" y="${cy-8}" width="10" height="20" rx="4" fill="#2a2f3a"/><path d="M${cx+fw+4} ${cy+10} q-6 16 -22 18" stroke="#5ff0ff" stroke-width="2" fill="none"/>`;
+  const gold = `fill="#e2b53b" stroke="#8c6a1a" stroke-width="1.4"`;
+  if (Ht === 'coroa') s += `<path d="M${cx-29} ${ht+5} L${cx-31} ${ht-22} L${cx-16} ${ht-9} L${cx} ${ht-30} L${cx+16} ${ht-9} L${cx+31} ${ht-22} L${cx+29} ${ht+5} Z" ${gold}/><path d="M${cx-29} ${ht+5} H${cx+29} V${ht-2} H${cx-29} Z" fill="#c9a13b" stroke="#8c6a1a" stroke-width="1"/><circle cx="${cx}" cy="${ht+1.5}" r="3.4" fill="#b3261e"/><circle cx="${cx-17}" cy="${ht+1.5}" r="2.6" fill="#1f4e8c"/><circle cx="${cx+17}" cy="${ht+1.5}" r="2.6" fill="#2d6a2d"/>${[[-31,-22],[0,-30],[31,-22]].map(([x,y])=>`<circle cx="${cx+x}" cy="${ht+y}" r="2.6" fill="#f4f1ea" stroke="#8c6a1a" stroke-width=".6"/>`).join('')}<path d="M${cx-24} ${ht-4} L${cx-25} ${ht-16}" stroke="#fff3b0" stroke-width="1.2" opacity=".7"/>`;
+  if (Ht === 'tiara') s += `<path d="M${cx-27} ${ht+9} Q${cx} ${ht-15} ${cx+27} ${ht+9}" stroke="#ece2bf" stroke-width="3.6" fill="none"/><path d="M${cx-9} ${ht-1} L${cx} ${ht-15} L${cx+9} ${ht-1} Z" fill="#ece2bf" stroke="#b9ab80" stroke-width=".8"/><circle cx="${cx}" cy="${ht-5}" r="2.8" fill="#3d78b5"/>${[-18,18].map(x=>`<circle cx="${cx+x}" cy="${ht+1}" r="1.8" fill="#ffffff"/>`).join('')}`;
+  if (Ht === 'quepe') s += `<path d="M${cx-35} ${ht+11} C${cx-38} ${ht-14} ${cx-20} ${ht-26} ${cx} ${ht-26} C${cx+20} ${ht-26} ${cx+38} ${ht-14} ${cx+35} ${ht+11} Z" fill="url(#${id}cl)" stroke="${oD}" stroke-width="1.2"/><rect x="${cx-35}" y="${ht+5}" width="70" height="9" fill="#151515"/><path d="M${cx-34} ${ht+9} H${cx+34}" stroke="#d8b24a" stroke-width="1.6"/><path d="M${cx-30} ${ht+14} Q${cx} ${ht+26} ${cx+30} ${ht+14} Z" fill="#1d1d1d" stroke="#000" stroke-width=".8"/><path d="M${cx-22} ${ht+17} Q${cx} ${ht+22} ${cx+12} ${ht+18}" stroke="#555" stroke-width="1" fill="none"/><circle cx="${cx}" cy="${ht-4}" r="5.5" fill="#d8b24a" stroke="#8c6a1a"/><path d="M${cx} ${ht-8} l1.3 2.7 3 .4 -2.2 2 .6 3 -2.7 -1.5 -2.7 1.5 .6 -3 -2.2 -2 3 -.4 Z" fill="#8c6a1a"/>`;
+  if (Ht === 'cartola') s += `<path d="M${cx-22} ${ht+3} L${cx-20} ${ht-40} Q${cx} ${ht-44} ${cx+20} ${ht-40} L${cx+22} ${ht+3} Z" fill="#161616" stroke="#000"/><rect x="${cx-22}" y="${ht-7}" width="44" height="7" fill="#7a1b1b"/><path d="M${cx-36} ${ht+4} Q${cx} ${ht+12} ${cx+36} ${ht+4} Q${cx} ${ht} ${cx-36} ${ht+4} Z" fill="#111" stroke="#000"/><path d="M${cx-14} ${ht-36} V${ht-10}" stroke="#444" stroke-width="2" opacity=".6"/>`;
+  if (Ht === 'boina') s += `<path d="M${cx-36} ${ht+6} C${cx-40} ${ht-16} ${cx+30} ${ht-24} ${cx+44} ${ht} C${cx+30} ${ht+8} ${cx-20} ${ht+12} ${cx-36} ${ht+6} Z" fill="url(#${id}cl)" stroke="${oD}" stroke-width="1"/><circle cx="${cx+4}" cy="${ht-14}" r="2.6" fill="${oD}"/>`;
+  if (Ht === 'turbante') s += `<path d="M${cx-37} ${ht+12} C${cx-40} ${ht-24} ${cx+40} ${ht-24} ${cx+37} ${ht+12} Q${cx} ${ht+2} ${cx-37} ${ht+12} Z" fill="#f2ede0" stroke="#c9bfa3" stroke-width="1.2"/>${[0,1,2].map(i=>`<path d="M${cx-34+i*6} ${ht+8-i*8} Q${cx} ${ht-4-i*8} ${cx+34-i*6} ${ht+8-i*8}" stroke="#d6ccb1" stroke-width="1.4" fill="none"/>`).join('')}<path d="M${cx} ${ht-14} l4 6 -4 6 -4 -6 Z" fill="#2d6a2d" stroke="#d8b24a"/>`;
+  if (Ht === 'mitra') s += `<path d="M${cx-24} ${ht+8} L${cx-20} ${ht-30} Q${cx} ${ht-54} ${cx+20} ${ht-30} L${cx+24} ${ht+8} Z" fill="#f2ede0" stroke="#d8b24a" stroke-width="2.4"/><path d="M${cx} ${ht-44} V${ht+6} M${cx-11} ${ht-18} H${cx+11}" stroke="#d8b24a" stroke-width="4"/><path d="M${cx-24} ${ht+8} H${cx+24}" stroke="#d8b24a" stroke-width="4"/>`;
+  if (Ht === 'capacete') s += `<path d="M${cx-39} ${ht+14} C${cx-40} ${ht-26} ${cx+40} ${ht-26} ${cx+39} ${ht+14} Z" fill="#56643f" stroke="#2e3622" stroke-width="1.2"/><path d="M${cx-24} ${ht-12} Q${cx} ${ht-20} ${cx+14} ${ht-14}" stroke="#7d8c62" stroke-width="2" fill="none"/><rect x="${cx-42}" y="${ht+10}" width="84" height="6" rx="3" fill="#3a462c"/>`;
+  if (Ht === 'fone') s += `<path d="M${L(tw+4)} ${cy} C${L(tw+4)} ${top-16} ${R(tw+4)} ${top-16} ${R(tw+4)} ${cy}" stroke="#2a2f3a" stroke-width="5" fill="none"/><rect x="${L(tw+11)}" y="${cy-9}" width="11" height="22" rx="4.5" fill="#2a2f3a"/><rect x="${R(tw)}" y="${cy-9}" width="11" height="22" rx="4.5" fill="#2a2f3a"/><path d="M${R(tw+4)} ${cy+11} q-6 16 -22 18" stroke="#5ff0ff" stroke-width="2" fill="none"/><circle cx="${R(tw-18)}" cy="${cy+29}" r="2.2" fill="#5ff0ff"/>`;
   s += `</svg>`;
   return s;
 }
