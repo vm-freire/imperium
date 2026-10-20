@@ -496,3 +496,6 @@ body:has(#scr-page:not(.hidden)) .corner-fs, body:has(#scr-create:not(.hidden)) 
 .wc-presets .mode-card.sel{outline:3px solid #7a1b14}
 .wc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px 18px;max-height:52vh;overflow:auto;padding:4px}
 .wc-opt .help{font-size:13px;margin:2px 0 4px}
+
+.hist-card{position:relative}
+.hist-card .h-del{position:absolute;top:8px;right:8px}

@@ -1251,13 +1251,17 @@ function openHistory(){
   const h = getHistory();
   const html = h.length ? `<div class="hist-list">${h.map((r,i)=>`<div class="hist-card" data-h="${i}"><canvas width="84" height="56" data-hf="${i}" style="border:1px solid var(--ink2)"></canvas>
     <div><div class="nm">${esc(r.name)}</div><div class="meta">${esc(r.title)} ${esc(r.leader)} · ${GOVS[r.gov]?GOVS[r.gov].name:''}<br>${r.startYear} → ${esc(r.endDate)} (${fmtNum(r.months/12,1)} anos)<br>
-    ${r.victory?'<span class="badge win">VITÓRIA</span>':r.kind==='abandono'?'<span class="badge ab">ENCERRADA</span>':'<span class="badge">DERROTA</span>'} Pontuação <b>${fmtNum(r.score)}</b><br><i>${esc((r.reason||'').slice(0,90))}</i></div></div></div>`).join('')}</div>
+    ${r.victory?'<span class="badge win">VITÓRIA</span>':r.kind==='abandono'?'<span class="badge ab">ENCERRADA</span>':'<span class="badge">DERROTA</span>'} Pontuação <b>${fmtNum(r.score)}</b><br><i>${esc((r.reason||'').slice(0,90))}</i></div><button class="btn xs danger h-del" data-hdel="${i}" title="Apagar esta partida do histórico">🗑️</button></div></div>`).join('')}</div>
     <div style="margin-top:16px;text-align:right"><button class="btn sm" id="h-clear">🗑️ Apagar histórico</button></div>`
     : '<div class="muted" style="text-align:center;padding:60px">Nenhuma nação foi registrada ainda. Funde a sua e escreva história!</div>';
   showPage('📚 Histórico de Nações', html, ()=>{
     $$('[data-hf]').forEach(c=>drawFlag(c.getContext('2d'), h[+c.dataset.hf].flag, 0, 0, 84, 56));
     $$('[data-h]').forEach(c=>c.onclick = ()=>{ SFX.page(); UI.pageBack = openHistory; openReport(h[+c.dataset.h]); });
-    const cl = $('#h-clear'); if (cl) cl.onclick = ()=>confirmModal('🗑️','Apagar todo o histórico?','Esta ação não pode ser desfeita.','Apagar', ()=>{ localStorage.removeItem(HIST_KEY); openHistory(); showMenu(); openHistory(); }, true);
+    $$('[data-hdel]').forEach(b=>b.onclick = e=>{ e.stopPropagation(); const r = h[+b.dataset.hdel]; SFX.click();
+      confirmModal('🗑️', 'Apagar esta partida do histórico?', `A nação <b>${esc(r.name)}</b> (${r.startYear} → ${esc(r.endDate)}) sai do histórico para sempre, com o relatório dela.`, 'Apagar', ()=>{
+        try { localStorage.setItem(HIST_KEY, JSON.stringify(getHistory().filter(x=>x.id !== r.id))); } catch(err){}
+        if (typeof CLOUD !== 'undefined') CLOUD.soon(500); SFX.error(); toast('Partida apagada do histórico.'); showMenu(); openHistory(); }, true); });
+    const cl = $('#h-clear'); if (cl) cl.onclick = ()=>confirmModal('🗑️','Apagar todo o histórico?','Esta ação não pode ser desfeita.','Apagar', ()=>{ localStorage.removeItem(HIST_KEY); if (typeof CLOUD !== 'undefined') CLOUD.soon(500); showMenu(); openHistory(); }, true);
   });
 }
 
@@ -1308,17 +1312,19 @@ function startNewGame(cfg){
   }, 600);
   saveGame();
 }
-function openSlots(){
+function openSlots(overwrite){
   const slots = listSlots();
-  const m = openModal(`<div class="m-icon">📜</div><div class="m-title">Partidas salvas</div><div class="m-date">Até ${MAX_SLOTS} partidas ao mesmo tempo</div>
+  const m = openModal(`<div class="m-icon">📜</div><div class="m-title">${overwrite ? 'Escolha a partida que será substituída' : 'Partidas salvas'}</div><div class="m-date">${overwrite ? 'O novo jogo vai ocupar a vaga escolhida e a partida antiga será apagada.' : `Até ${MAX_SLOTS} partidas ao mesmo tempo`}</div>
     <div class="slot-list">${slots.map(({i,meta})=> meta ? `<div class="slot"><canvas width="66" height="44" data-sf="${i}"></canvas>
       <div class="slot-info"><b>${esc(meta.name)}</b><small>${esc(meta.title||'')} ${esc(meta.leader||'')} · ${GOVS[meta.gov]?GOVS[meta.gov].name:''}</small><small>📅 ${esc(meta.date)} · salvo em ${new Date(meta.savedAt).toLocaleString('pt-BR')}</small></div>
-      <button class="btn green sm" data-load="${i}">▶ Jogar</button><button class="btn sm danger" data-del="${i}">🗑️</button></div>`
+      ${overwrite ? '' : `<button class="btn green sm" data-load="${i}">▶ Jogar</button>`}<button class="btn sm" data-over="${i}" title="Começar um novo jogo nesta vaga">♻️ ${overwrite ? 'Substituir esta' : 'Sobrescrever'}</button><button class="btn sm danger" data-del="${i}" title="Apagar">🗑️</button></div>`
       : `<div class="slot empty"><span class="slot-n">${i+1}</span><div class="slot-info"><b>Vaga livre</b><small>Use “Novo Jogo” para começar uma nação aqui.</small></div></div>`).join('')}</div>
     <div class="m-actions"><button class="btn" id="sl-close">Fechar</button></div>`, {wide:true});
   m.querySelectorAll('[data-sf]').forEach(c=>{ const mt = slotMeta(+c.dataset.sf); if (mt && mt.flag) drawFlag(c.getContext('2d'), mt.flag, 0, 0, 66, 44); });
   m.querySelector('#sl-close').onclick = ()=>{ SFX.click(); closeModal(); };
   m.querySelectorAll('[data-load]').forEach(b=> b.onclick = ()=>{ SFX.page(); closeModal(); continueGame(+b.dataset.load); });
+  m.querySelectorAll('[data-over]').forEach(b=> b.onclick = ()=>{ const i = +b.dataset.over, mt = slotMeta(i); closeModal();
+    confirmModal('♻️', 'Sobrescrever esta partida?', `Você vai começar um <b>novo jogo</b> na vaga de <b>${esc(mt.name)}</b> (${esc(mt.date)}). Quando a nova nação for fundada, a partida antiga será apagada para sempre (ela <b>não</b> vai para o histórico).`, 'Sobrescrever', ()=>{ C.overwriteSlot = i; SFX.page(); setTimeout(chooseMode, 50); }, true); });
   m.querySelectorAll('[data-del]').forEach(b=> b.onclick = ()=>{ const i = +b.dataset.del, mt = slotMeta(i); closeModal();
     confirmModal('🗑️', 'Apagar esta partida?', `A partida de <b>${esc(mt.name)}</b> (${esc(mt.date)}) será apagada para sempre. Ela <b>não</b> vai para o histórico.`, 'Apagar partida', ()=>{ deleteSlot(i); SFX.error(); showMenu(); setTimeout(openSlots, 60); }, true); });
 }

@@ -137,7 +137,7 @@ function applyExisting(name){
 function launchGame(cfg){
   if (C.launching) return; C.launching = true;
   $('#curtain').classList.remove('hidden'); setTimeout(()=>$('#curtain').classList.add('hidden'), 1700);
-  setTimeout(()=>{ C.launching = false; startNewGame(cfg); }, 500);
+  setTimeout(()=>{ C.launching = false; const ov = C.overwriteSlot; if (ov != null && ov >= 0){ deleteSlot(ov); C.overwriteSlot = null; } startNewGame(cfg); }, 500);
 }
 function startExisting(){
   const c = C.cfg;
@@ -486,7 +486,8 @@ function placementClick(lon, lat){
 
 // ---------------- menu e inicialização ----------------
 $('#m-new').onclick = ()=>{ SFX.init(); SFX.page();
-  if (freeSlot() < 0){ confirmModal('📜', 'Todas as vagas estão ocupadas', `Você já tem ${MAX_SLOTS} partidas salvas. Apague uma delas para começar um novo jogo.`, 'Ver partidas salvas', ()=>setTimeout(openSlots, 50)); return; }
+  C.overwriteSlot = null;
+  if (freeSlot() < 0){ confirmModal('📜', 'Todas as vagas estão ocupadas', `Você já tem ${MAX_SLOTS} partidas salvas. Escolha uma para sobrescrever com o novo jogo (ou apague uma delas).`, 'Escolher partida', ()=>setTimeout(()=>openSlots(true), 50)); return; }
   chooseMode(); };
 $('#m-continue').onclick = ()=>{ SFX.init(); SFX.page(); openSlots(); };
 $('#m-online').onclick = ()=>openOnline();
