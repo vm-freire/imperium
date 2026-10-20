@@ -99,7 +99,7 @@ for (const k in ACH_OLD_CAT) if (ACHIEVEMENTS[k]) ACHIEVEMENTS[k].cat = ACH_OLD_
 for (const k in ACH_EXTRA) if (ACH_EXTRA[k]) ACHIEVEMENTS[k] = ACH_EXTRA[k];
 
 function getTrophies(){ try { return JSON.parse(localStorage.getItem(TROPHY_KEY)) || {}; } catch(e){ return {}; } }
-function saveTrophy(id){ try { const t = getTrophies(); if (!t[id]){ t[id] = {at:Date.now(), nation:G && G.p ? G.p.name : ''}; localStorage.setItem(TROPHY_KEY, JSON.stringify(t)); } } catch(e){} }
+function saveTrophy(id){ try { const t = getTrophies(), nation = G && G.p ? G.p.name : ''; if (!t[id]) t[id] = {at:Date.now(), nation, count:1}; else { t[id].count = (t[id].count||1) + 1; t[id].last = Date.now(); t[id].lastNation = nation; } localStorage.setItem(TROPHY_KEY, JSON.stringify(t)); } catch(e){} }
 function checkTrophies(){
   for (const id in ACH_EXTRA){
     const a = ACH_EXTRA[id]; if (!a || !a.check || G.achievements.includes(id)) continue;

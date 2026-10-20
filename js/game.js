@@ -1137,7 +1137,7 @@ function aiTurn(){
       const adj = adjacent(1, id) || (n.navy > p.navy*1.2 && capDist(n) < 55);
       const opportunist = n.ag >= 0.55 && n.power > p.def*3 && n.rel < -5;
       if (adj && (n.rel < -25 || opportunist) && n.power > p.def*0.75){
-        const pr = 0.01*(n.ag+0.3)*(1 + Math.max(0,-n.rel-25)/40)*(n.claim?1.6:1)*(n.power > p.def*2 ? 1.5 : 1);
+        const pr = 0.01*(n.ag+0.3)*(1 + Math.max(0,-n.rel-25)/40)*(n.claim?1.6:1)*(n.power > p.def*2 ? 1.5 : 1)*(typeof achWarMult === 'function' ? achWarMult(n) : 1);
         if (chance(pr)){
           if (chance(0.4) && !G.pendingEvents.some(e=>e.id==='ultimato')) queueEvent('ultimato', {n:id});
           else { declareWar(id, true); if (typeof onWarDeclared === 'function') onWarDeclared(n); }
@@ -1145,8 +1145,9 @@ function aiTurn(){
       }
     }
     // propostas
-    if (!n.atWar && n.rel > 55 && !n.alliance && chance(0.004)) queueEvent('proposta_alianca', {n:id});
-    if (!n.atWar && n.rel > 25 && !n.trade && chance(0.006)) queueEvent('proposta_comercio', {n:id});
+    const dm = typeof achDipMult === 'function' ? achDipMult() : 1;
+    if (!n.atWar && n.rel > 55 && !n.alliance && chance(0.004*dm)) queueEvent('proposta_alianca', {n:id});
+    if (!n.atWar && n.rel > 25 && !n.trade && chance(0.006*dm)) queueEvent('proposta_comercio', {n:id});
   }
   // guerras contra o jogador
   for (const w of G.wars.slice()){

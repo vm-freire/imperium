@@ -508,7 +508,7 @@ function openTrophies(){
       <div style="font-family:var(--title);font-size:24px;font-weight:900;color:var(--red)">${tc.have} / ${tc.total} conquistas</div>
       ${meter(tc.have, tc.total, '#c9a13b')}<div class="muted">${plat ? 'PLATINADO! Você conquistou absolutamente tudo.' : 'Desbloqueie todas para platinar o jogo. As conquistas valem para todas as partidas.'}</div></div>
     ${Object.entries(ACH_CATS).map(([c, cn])=> byCat[c] ? `<div class="section-title">${cn} <span class="muted">(${byCat[c].filter(([id])=>t[id]).length}/${byCat[c].length})</span></div>
-      <div class="trophy-grid">${byCat[c].map(([id, a])=>`<div class="trophy ${t[id]?'got':''}"${tip(`${a.icon} ${a.n}`, a.d, t[id] ? `Conquistada com ${esc(t[id].nation||'')} em ${new Date(t[id].at).toLocaleDateString('pt-BR')}` : 'Ainda bloqueada')}><span class="ti">${t[id]?a.icon:'🔒'}</span><b>${a.n}</b><small>${a.d}</small></div>`).join('')}</div>` : '').join('')}`);
+      <div class="trophy-grid">${byCat[c].map(([id, a])=>`<div class="trophy ${t[id]?'got':''}"${tip(`${a.icon} ${a.n}`, a.d + (typeof ACH_FX !== 'undefined' && ACH_FX[id] ? `<br><b>Consequência:</b> ${ACH_FX[id].t} — ${ACH_FX[id].d}` : ''), t[id] ? `Conquistada com ${esc(t[id].nation||'')} em ${new Date(t[id].at).toLocaleDateString('pt-BR')}${(t[id].count||1) > 1 ? ` · feita ${t[id].count} vezes` : ''}` : 'Ainda bloqueada')}><span class="ti">${t[id]?a.icon:'🔒'}</span>${t[id] && (t[id].count||1) > 1 ? `<span class="tcount">${t[id].count}x</span>` : ''}${typeof ACH_FX !== 'undefined' && ACH_FX[id] ? `<span class="tfx ${ACH_FX[id].tone}" title="Tem consequência no jogo">${{bom:'✅',ruim:'⚠️',misto:'⚖️'}[ACH_FX[id].tone]}</span>` : ''}<b>${a.n}</b><small>${a.d}</small></div>`).join('')}</div>` : '').join('')}`);
 }
 
 
