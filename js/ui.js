@@ -160,7 +160,7 @@ function updateTopbar(){
   $('#ticker-text').textContent = G.news.length ? G.news.join('   ✦   ') : 'Sem notícias do mundo.';
 }
 
-function refreshAll(){ if (!G) return; derive(); updateTopbar(); renderPanel(); }
+function refreshAll(){ if (!G) return; MapView._uiVer = (MapView._uiVer||0) + 1; derive(); updateTopbar(); renderPanel(); }
 
 // ------------------------------------------------------------
 //  Painéis laterais

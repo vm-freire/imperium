@@ -89,8 +89,13 @@ const MapView = {
       const dt = last ? Math.min(0.1, (ts - last)/1000) : 0; last = ts; this.paused = this.isPaused(); if (!this.paused) this.t += dt;
       const sig = this.cam.x + ',' + this.cam.y + ',' + this.cam.z + ',' + this.hoverCell + ',' + this.hoverOwner + ',' + this.selCell + ',' + this.mode + ',' + this.canvas.width + 'x' + this.canvas.height + ',' + (typeof G !== 'undefined' && G ? G.turn : -1);
       const busy = !this.paused || this.menuMode || this.dirty || this.anims.length || this.shake || this.placement || this.buildMode || this.kick > 0 || sig !== lastSig || ts - lastDraw > 500;
-      if (busy){ this.frame(); lastSig = sig; lastDraw = ts; if (this.kick > 0) this.kick--; }
+      // o próximo quadro é agendado ANTES de desenhar: um erro num desenho nunca mais congela o mapa
       requestAnimationFrame(loop);
+      if (busy){
+        try { this.frame(); }
+        catch(err){ console.warn('quadro do mapa', err); if (this.ctx.reset) this.ctx.reset(); this.anims = []; this._l1Key = null; this._sub = {}; }
+        lastSig = sig; lastDraw = ts; if (this.kick > 0) this.kick--;
+      }
     };
     requestAnimationFrame(loop);
   },
@@ -172,6 +177,7 @@ const MapView = {
     p.forEach(([lo,la],k)=>{ const [x,y]=proj(lo,la); k ? path.lineTo(x,y) : path.moveTo(x,y); }); path.closePath();
   },
   buildPaths(extra){
+    this._terrVer = (this._terrVer || 0) + 1;   // invalida o cache da camada de baixo
     this.landPath = new Path2D();
     for (const p of Object.values(CONTINENTS)) this.polyPath(p, this.landPath);
     for (const p of extra) this.polyPath(p, this.landPath);
@@ -205,6 +211,7 @@ const MapView = {
   },
 
   buildBase(extra){
+    this._terrVer = (this._terrVer || 0) + 1;   // invalida o cache da camada de baixo
     const c = document.createElement('canvas'); c.width = MW; c.height = MH;
     const x = c.getContext('2d');
     // pergaminho
@@ -349,7 +356,7 @@ const MapView = {
       (a,b)=> a!==b,
       (a,b)=> (a===1)!==(b===1),
       (a,b)=> a!==b && ((a===1 && atWar[b]===1) || (b===1 && atWar[a]===1))]);
-    this.hoverCache = new Map();
+    this.hoverCache = new Map(); this._terrVer = (this._terrVer || 0) + 1;
     this.hoverPath = this.hoverOwner > 0 ? this.nationPath(this.hoverOwner) : null;
     this.dirty = false;
   },
@@ -437,6 +444,70 @@ const MapView = {
     const z = this.cam.z;
     ctx.setTransform(this.dpr*z, 0, 0, this.dpr*z, this.dpr*(-this.cam.x*z+sx), this.dpr*(-this.cam.y*z+sy));
     ctx.imageSmoothingEnabled = true;
+    // camada de baixo (fundo, territórios, relevo, costa e fronteiras): é a parte mais cara e não muda
+    // enquanto a câmera e o mapa ficam parados — guardamos uma cópia exata e só redesenhamos quando algo muda
+    const hasG = !!(G && G.nations);
+    const l1Key = hasG ? [this.cam.x, this.cam.y, z, this.canvas.width, this.canvas.height, this.dpr, this.mode, this._terrVer || 0,
+      G.p && G.p.homePoly && G.nations[1].alive ? G.nations[1].color : '-', this.borderPath ? 1 : 0].join('|') : '';
+    const cacheable = hasG && !this.shake && !this.menuMode;
+    if (cacheable && this._l1 && this._l1Key === l1Key){
+      ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.drawImage(this._l1, 0, 0); ctx.restore();
+      ctx.lineJoin = 'round';   // estado que a camada de baixo deixaria
+    } else {
+      this.drawLayer1(ctx, z);
+      // a câmera ficou parada por 2 quadros seguidos: vale a pena guardar
+      if (cacheable && this._l1Pending === l1Key){
+        if (!this._l1) this._l1 = document.createElement('canvas');
+        if (this._l1.width !== this.canvas.width || this._l1.height !== this.canvas.height){ this._l1.width = this.canvas.width; this._l1.height = this.canvas.height; }
+        const lx = this._l1.getContext('2d'); lx.setTransform(1,0,0,1,0,0); lx.clearRect(0, 0, this._l1.width, this._l1.height); lx.drawImage(this.canvas, 0, 0);
+        this._l1Key = l1Key;
+      } else this._l1Key = null;
+      this._l1Pending = l1Key;
+    }
+
+    if (hasG){
+      if (this.borderPath && this.warBorder){ const pulse = 0.5+0.5*Math.sin(this.t*5); ctx.strokeStyle = `rgba(200,20,10,${0.4+pulse*0.5})`; ctx.lineWidth = Math.max(1.5, 3.2/z); ctx.stroke(this.warBorder); }
+      if (this.hoverPath && !this.placement){ ctx.strokeStyle = 'rgba(255,250,220,0.9)'; ctx.lineWidth = Math.max(1, 2.5/z); ctx.stroke(this.hoverPath); ctx.strokeStyle='rgba(60,30,10,0.9)'; ctx.lineWidth=Math.max(0.5,1/z); ctx.stroke(this.hoverPath); }
+      this._boxes = [];
+      // partes estáticas (mudam só com a câmera, o mês ou uma ação do jogador) ficam em cópias transparentes,
+      // desenhadas na mesma ordem; navios, bandeira, tropas e animações continuam ao vivo entre elas
+      const sk = cacheable ? l1Key + '|' + G.turn + '|' + (this._uiVer||0) : null;
+      this.subCache('estados', sk, ctx, z, c=>{ if (this.drawGeoStates) this.drawGeoStates(c, z); });
+      this.drawShips(ctx, z);
+      this.subCache('rotulos', sk && sk + '|' + this.hoverCell + '|' + this.buildMode, ctx, z, c=>{
+        this.drawLabels(c, z); this.drawRails(c, z); this.drawSynergies(c, z); this.drawSites(c, z); this.drawBuildings(c, z); });
+      this.drawCities(ctx, z);
+      this.subCache('cidades', sk, ctx, z, c=>{ if (this.drawGeoLayers) this.drawGeoLayers(c, z); });
+      this.drawCorps(ctx, z);
+      this.drawExpeditions(ctx, z);
+      if (this.worldFx && !this.menuMode && !this.paused) this.ambientWar(now);
+    } else this.drawShips(ctx, z);
+
+    if (this.selCell >= 0){ const [x,y]=cellXY(this.selCell); const r = 5 + Math.sin(this.t*6)*1.5; ctx.strokeStyle='#8b1a1a'; ctx.lineWidth=1.5/z+0.3; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x-r-3,y); ctx.lineTo(x-r+2,y); ctx.moveTo(x+r-2,y); ctx.lineTo(x+r+3,y); ctx.moveTo(x,y-r-3); ctx.lineTo(x,y-r+2); ctx.moveTo(x,y+r-2); ctx.lineTo(x,y+r+3); ctx.stroke(); }
+    if (this.placement) this.drawPlacement(ctx, z);
+    if (this.buildMode && this.hoverCell >= 0) this.drawBuildGhost(ctx, z);
+    this.drawAnims(ctx, z, now);
+  },
+
+  // desenha "fn" direto; se a chave se repetir no quadro seguinte, grava o resultado numa camada transparente
+  // e passa a só colar essa camada enquanto a chave não mudar
+  subCache(name, key, ctx, z, fn){
+    const C = this._sub || (this._sub = {}), e = C[name] || (C[name] = {});
+    if (!key){ e.key = e.pending = null; fn(ctx); return; }
+    if (e.key === key && e.cv){ ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.drawImage(e.cv, 0, 0); ctx.restore(); return; }
+    if (e.pending !== key){ e.pending = key; e.key = null; fn(ctx); return; }
+    if (!e.cv) e.cv = document.createElement('canvas');
+    if (e.cv.width !== this.canvas.width || e.cv.height !== this.canvas.height){ e.cv.width = this.canvas.width; e.cv.height = this.canvas.height; }
+    const x = e.cv.getContext('2d'); x.setTransform(1,0,0,1,0,0); x.clearRect(0, 0, e.cv.width, e.cv.height);
+    x.setTransform(ctx.getTransform()); x.imageSmoothingEnabled = ctx.imageSmoothingEnabled;
+    for (const k of ['lineJoin','lineCap','textAlign','textBaseline','font','letterSpacing','globalAlpha','lineWidth','strokeStyle','fillStyle']) try { x[k] = ctx[k]; } catch(err){}
+    const real = this.ctx; this.ctx = x;
+    try { fn.call(this, x); } finally { this.ctx = real; }
+    e.key = key;
+    ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.drawImage(e.cv, 0, 0); ctx.restore();
+  },
+  // camada de baixo do mapa (desenhada direto ou guardada em cache pelo frame)
+  drawLayer1(ctx, z){
     ctx.drawImage(this.base, 0, 0);
 
     if (G && G.nations){
@@ -450,7 +521,7 @@ const MapView = {
         ctx.save(); const hp = new Path2D(); this.polyPath(G.p.homePoly, hp); ctx.clip(hp);
         ctx.strokeStyle = hexA(G.nations[1].color, 0.35); ctx.lineWidth = 1/z*1.2;
         const [ax, ay] = proj(G.p.homePoly[0][0], G.p.homePoly[0][1]);
-        for (let k=-300;k<300;k+=4) { ctx.beginPath(); ctx.moveTo(ax+k-150, ay-150); ctx.lineTo(ax+k+150, ay+150); ctx.stroke(); }
+        ctx.beginPath(); for (let k=-300;k<300;k+=4) { ctx.moveTo(ax+k-150, ay-150); ctx.lineTo(ax+k+150, ay+150); } ctx.stroke();   // 150 traços paralelos num só desenho
         ctx.restore();
       }
       ctx.restore();
@@ -469,28 +540,8 @@ const MapView = {
         ctx.strokeStyle = 'rgba(70,35,15,0.75)'; ctx.lineWidth = Math.max(0.5, 1.2/z); ctx.stroke(this.borderPath); ctx.restore();
         ctx.strokeStyle = 'rgba(255,240,200,0.5)'; ctx.lineWidth = Math.max(1.6, 4/z); ctx.stroke(this.playerBorder);
         ctx.strokeStyle = G.nations[1].color; ctx.lineWidth = Math.max(1, 2.2/z); ctx.stroke(this.playerBorder);
-        if (this.warBorder){ const pulse = 0.5+0.5*Math.sin(this.t*5); ctx.strokeStyle = `rgba(200,20,10,${0.4+pulse*0.5})`; ctx.lineWidth = Math.max(1.5, 3.2/z); ctx.stroke(this.warBorder); }
       }
-      if (this.hoverPath && !this.placement){ ctx.strokeStyle = 'rgba(255,250,220,0.9)'; ctx.lineWidth = Math.max(1, 2.5/z); ctx.stroke(this.hoverPath); ctx.strokeStyle='rgba(60,30,10,0.9)'; ctx.lineWidth=Math.max(0.5,1/z); ctx.stroke(this.hoverPath); }
-      this._boxes = [];
-      if (this.drawGeoStates) this.drawGeoStates(ctx, z);
-      this.drawShips(ctx, z);
-      this.drawLabels(ctx, z);
-      this.drawRails(ctx, z);
-      this.drawSynergies(ctx, z);
-      this.drawSites(ctx, z);
-      this.drawBuildings(ctx, z);
-      this.drawCities(ctx, z);
-      if (this.drawGeoLayers) this.drawGeoLayers(ctx, z);
-      this.drawCorps(ctx, z);
-      this.drawExpeditions(ctx, z);
-      if (this.worldFx && !this.menuMode && !this.paused) this.ambientWar(now);
-    } else this.drawShips(ctx, z);
-
-    if (this.selCell >= 0){ const [x,y]=cellXY(this.selCell); const r = 5 + Math.sin(this.t*6)*1.5; ctx.strokeStyle='#8b1a1a'; ctx.lineWidth=1.5/z+0.3; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x-r-3,y); ctx.lineTo(x-r+2,y); ctx.moveTo(x+r-2,y); ctx.lineTo(x+r+3,y); ctx.moveTo(x,y-r-3); ctx.lineTo(x,y-r+2); ctx.moveTo(x,y+r-2); ctx.lineTo(x,y+r+3); ctx.stroke(); }
-    if (this.placement) this.drawPlacement(ctx, z);
-    if (this.buildMode && this.hoverCell >= 0) this.drawBuildGhost(ctx, z);
-    this.drawAnims(ctx, z, now);
+    }
   },
 
   isPaused(){ return !!(typeof G !== 'undefined' && G && !G.over && !G.online && !this.menuMode && typeof UI !== 'undefined' && UI.speed === 0 && !UI.busy); },
@@ -717,8 +768,17 @@ const MapView = {
   },
   drawAnims(ctx, z, now){
     this.anims = this.anims.filter(a => now - a.t0 < a.dur);
+    const vx0 = this.cam.x, vy0 = this.cam.y, vx1 = vx0 + this.cw/z, vy1 = vy0 + this.ch/z, mg = 220;
+    const off = (x, y) => x < vx0 - mg || x > vx1 + mg || y < vy0 - mg || y > vy1 + mg;
     for (const a of this.anims){
-      const k = (now - a.t0)/a.dur;
+      const k = Math.max(0, (now - a.t0)/a.dur);   // explosões criadas durante este laço começam em 0 (antes podiam dar raio negativo e travar o quadro)
+      // fora da tela: pula o desenho (aviões e mísseis ainda disparam o impacto quando chegam)
+      if ((a.type === 'boom' || a.type === 'ring' || a.type === 'text') && off(a.x, a.y)) continue;
+      if ((a.type === 'plane' || a.type === 'missile') && off(a.to[0], a.to[1]) && off(a.from[0], a.from[1])){
+        if (a.type === 'plane' && !a.bombed && k*1.3 >= 0.95){ a.bombed = true; const [x2, y2] = a.to; for (let i=0;i<3;i++) setTimeout(()=>this.boom(x2+rand(-5,5), y2+rand(-5,5)), i*130); if (a.sound) SFX.explosion(); }
+        if (a.type === 'missile' && !a.hit && k*1.25 >= 1){ a.hit = true; this.boom(a.to[0], a.to[1]); if (a.sound) SFX.explosion(); }
+        continue;
+      }
       ctx.save();
       if (a.type === 'boom'){
         const e = 1-Math.pow(1-k,3);
