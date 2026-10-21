@@ -128,6 +128,11 @@ const BTREE = {
     N_('comercial_c','Centro Comercial','🏬',{gdpMult:0.01, tradeMult:0.02},null,[N_('financeiro','Centro Financeiro','🏦',{gdpMult:0.025, taxEff:0.01},{tech:'telefone'},[N_('bolsa','Bolsa de Valores','📈',{gdpMult:0.03}), N_('sede_bancos','Sede de Bancos Internacionais','💼',{tradeMult:0.04, gdpMult:0.01})])]),
     N_('cultural','Capital Cultural','🎭',{approval:0.8},null,[N_('turistica','Cidade Turística','🏖️',{gdpMult:0.015, approval:0.5},null,[N_('patrimonio','Patrimônio da Humanidade','🏛️',{approval:1, relations:2})]), N_('universitaria','Cidade Universitária','🎓',{research:0.03})]),
     N_('industrial_c','Distrito Industrial','🏭',{gdpMult:0.015, unemployment:-0.3},null,[N_('metropole','Metrópole','🌆',{gdpMult:0.03, popGrowth:0.03},{tech:'eletricidade'})])],
+  plataforma:[N_('semissub','Plataforma Semissubmersível','🛢️',{gdpMult:0.015, tradeMult:0.01},null,[
+      N_('fpso','Navio-Plataforma (FPSO)','🚢',{gdpMult:0.02, navy:0.03}),
+      N_('pre_sal','Exploração do Pré-Sal','🌊',{gdpMult:0.035, tradeMult:0.02},{tech:'robotica'})]),
+    N_('eolica_mar','Parque Eólico no Mar','🌬️',{gdpMult:0.012, stability:1, approval:0.5},{tech:'eolica'},[
+      N_('hidrogenio','Hidrogênio Verde','💧',{gdpMult:0.03, approval:0.6},{tech:'renovaveis'})])],
   monumento:[N_('praca','Praça Cívica','⛲',{approval:0.6},null,[N_('museu','Museu Nacional','🖼️',{approval:0.8, research:0.01},null,[N_('memorial','Memorial da Pátria','🗿',{stability:1.5, approval:0.5})]), N_('estadio','Grande Estádio','🏟️',{approval:1.2})])]
 };
 function treeNode(t, path){
@@ -143,7 +148,7 @@ function startUpgrade(b, id){
   if (b.up) return {ok:false, why:'Esta construção já está em obras.'};
   if (opt.tech && !G.p.techs.includes(opt.tech)) return {ok:false, why:`Requer ${TECH[opt.tech].n}.`};
   const cost = upgradeCost(b); if (G.p.treasury < cost) return {ok:false, why:`Tesouro insuficiente (${fmtMoney(cost)}).`};
-  G.p.treasury -= cost; b.up = {id, due:G.turn + upgradeMonths(b)};
+  G.p.treasury -= cost; b.spent = buildingInvested(b) + cost; b.up = {id, due:G.turn + upgradeMonths(b)};
   addLog(`🏗️ Obras iniciadas: ${BUILDINGS[b.t].n} → ${opt.n} (${upgradeMonths(b)} meses).`, 'info');
   return {ok:true, msg:`Evolução para ${opt.icon} ${opt.n} iniciada. Pronta em ${upgradeMonths(b)} meses.`};
 }

@@ -40,7 +40,7 @@ const CAT_HELPERS = {
 function techCat(id){ return TECH_CAT_OF[id] || 'ind'; }
 function researchBreakdown(id){
   const p = G.p, cat = techCat(id), H = CAT_HELPERS[cat] || {b:{universidade:0.08}, laws:{}}, parts = [];
-  for (const [bt, v] of Object.entries(H.b)){ if (!BUILDINGS[bt]) continue; const n = (p.buildings||[]).filter(b=>b.t===bt && Grid.owner[b.c]===1).length; if (n){ parts.push({label:`${BUILDINGS[bt].icon} ${n} ${BUILDINGS[bt].n.toLowerCase()}${n>1?'s':''}`, v: Math.min(0.45, v*Math.sqrt(n))}); } }
+  for (const [bt, v] of Object.entries(H.b)){ if (!BUILDINGS[bt]) continue; const n = (p.buildings||[]).filter(b=>b.t===bt && bOk(b)).length; if (n){ parts.push({label:`${BUILDINGS[bt].icon} ${n} ${BUILDINGS[bt].n.toLowerCase()}${n>1?'s':''}`, v: Math.min(0.45, v*Math.sqrt(n))}); } }
   for (const [law, v] of Object.entries(H.laws)) if (p.policies[law]) parts.push({label:`📜 ${POLICY[law].n}`, v});
   const uniCity = Object.values(p.cityInfo||{}).filter(ci=>ci.voc==='universitaria').length; if (uniCity) parts.push({label:`🎓 ${uniCity} cidade(s) universitária(s)`, v:Math.min(0.15, uniCity*0.05)});
   if (p.stability < 30) parts.push({label:'🔥 Instabilidade política', v:-0.2});

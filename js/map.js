@@ -601,7 +601,7 @@ const MapView = {
     ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     const s = Math.max(4, 11/Math.sqrt(z));
     for (const b of bs){
-      if (Grid.owner[b.c] !== 1) continue;
+      if (!bOk(b)) continue;
       const [x,y] = cellXY(b.c); const B = BUILDINGS[b.t];
       ctx.fillStyle = 'rgba(245,232,200,0.9)'; ctx.strokeStyle = '#5a3d1e'; ctx.lineWidth = Math.max(0.3, 0.8/z);
       ctx.beginPath(); ctx.arc(x, y, s*0.62, 0, Math.PI*2); ctx.fill(); ctx.stroke();

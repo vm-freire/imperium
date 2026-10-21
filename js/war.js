@@ -273,7 +273,7 @@ function railNodes(){
   const p = G.p, nodes = new Set();
   if (p.capCell >= 0 && Grid.owner[p.capCell] === 1) nodes.add(p.capCell);
   (p.cityCells||[]).forEach(c=>{ if (Grid.owner[c] === 1) nodes.add(c); });
-  (p.buildings||[]).forEach(b=>{ if (Grid.owner[b.c] === 1 && ['fabrica','porto','mina','usina','base'].includes(b.t)) nodes.add(b.c); });
+  (p.buildings||[]).forEach(b=>{ if (bOk(b) && ['fabrica','porto','mina','usina','base'].includes(b.t)) nodes.add(b.c); });
   return [...nodes];
 }
 function computeRails(){

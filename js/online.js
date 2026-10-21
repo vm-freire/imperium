@@ -119,7 +119,7 @@ function unsubAll(){ ON.subs.forEach(f=>{ try { f(); } catch(e){} }); ON.subs = 
 const isOnlineNow = pl => pl && Date.now() - (pl.lastSeen||0) < 40000;
 function heartbeat(code){ const u = NET.user; NET.be.setPlayer(code, u.uid, {uid:u.uid, name:u.name, lastSeen:Date.now()}); }
 async function openLobby(code){
-  unsubAll(); ON.inGame = false; ON.players = {}; ON.playersLoaded = false; ON.evSeen = new Set(); ON.pending = []; ON.snapPower = {};
+  UI.lobbySig = null; unsubAll(); ON.inGame = false; ON.players = {}; ON.playersLoaded = false; ON.evSeen = new Set(); ON.pending = []; ON.snapPower = {};
   ON.room = await NET.be.getRoom(code); if (!ON.room){ toast('Sala não encontrada.', 'bad'); return; }
   heartbeat(code); ON.hbTimer = setInterval(()=>{ heartbeat(code); NET.be.getRoom(code).then(x=>{ if (!x) roomGone(code); }).catch(()=>{}); }, 15000);
   const render = ()=>{ if (!ON.inGame && !$('#scr-page').classList.contains('hidden') && $('#page-title').textContent.includes('Sala')) renderLobby(); };
@@ -135,6 +135,12 @@ function renderLobby(){
   const members = Object.entries(r.members).sort((a,b)=>a[1].slot-b[1].slot);
   const missing = members.filter(([uid])=>!isOnlineNow(ON.players[uid]));
   const me = ON.players[u.uid] || {};
+  // só redesenha se algo visível mudou; e mantém a rolagem onde o jogador estava
+  const sig = JSON.stringify([r.code, r.status, r.host, r.turn, r.maxPlayers, members.map(([uid, mb])=>{ const pl = ON.players[uid] || {}, c = pl.cfg; return [uid, mb.name, isOnlineNow(pl), c ? [c.name, c.gov, c.existing, JSON.stringify(c.flag)] : 0]; })]);
+  const body = $('#page-body'), same = $('#page-title').textContent.includes('Sala') && !$('#scr-page').classList.contains('hidden') && UI.lobbyCode === r.code;
+  if (same && UI.lobbySig === sig) return;
+  const keep = same ? body.scrollTop : 0;
+  UI.lobbySig = sig; UI.lobbyCode = r.code;
   showPage(`🌐 Sala: ${esc(r.name)}`, `
     <div class="flex" style="justify-content:space-between;flex-wrap:wrap;gap:12px">
       <div><div class="lbl">Código para convidar</div><div class="room-code">${r.code}</div><button class="btn xs" id="lb-copy">📋 Copiar código</button></div>
@@ -155,6 +161,7 @@ function renderLobby(){
     </div>
     ${missing.length && r.status!=='lobby' ? `<div class="tip">Faltam ${missing.length} jogador(es) online: ${missing.map(([,mb])=>esc(mb.name)).join(', ')}.</div>` : ''}`);
   $$('[data-lf]').forEach(cv=>{ const c = (ON.players[cv.dataset.lf]||{}).cfg; if (c) drawFlag(cv.getContext('2d'), c.flag, 0, 0, 66, 44); });
+  if (keep) body.scrollTop = keep;
   $('#lb-copy').onclick = ()=>{ navigator.clipboard && navigator.clipboard.writeText(r.code); toast('Código copiado: ' + r.code, 'good'); };
   const nb = $('#lb-nation'); if (nb) nb.onclick = ()=>{ SFX.page(); chooseOnlineNation(); };
   const sb = $('#lb-start'); if (sb) sb.onclick = ()=>hostStart();

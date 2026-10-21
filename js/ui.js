@@ -459,7 +459,7 @@ function cityPopSection(cell){
   const p = G.p, isCity = cell === p.capCell || p.cityCells.includes(cell);
   if (!isCity) return '';
   const ci = cityInfo(cell), v = CITY_VOC[ci.voc];
-  const near = (p.buildings||[]).filter(b=>b.t!=='cidade' && Grid.owner[b.c]===1 && cellDist(b.c, cell) <= 2).map(b=>buildingLevelName(b));
+  const near = (p.buildings||[]).filter(b=>b.t!=='cidade' && bOk(b) && cellDist(b.c, cell) <= 2).map(b=>buildingLevelName(b));
   return `<div class="box" style="margin:6px 0">
     <div style="font-family:var(--title);font-weight:700;font-size:16px">${cell===p.capCell?'⭐':'🏙️'} ${esc(ci.name)}${cell===p.capCell?' <small class="muted">(capital)</small>':''}</div>
     ${row('👥 População', '~' + fmtPop(cityPopulation(cell)))}
@@ -561,8 +561,9 @@ function openEvolve(b){
     <div class="m-date">Nível atual: ${buildingLevelName(b)}</div>
     <div class="tip">Cada evolução é um caminho sem volta: ao escolher um ramo, os outros ficam bloqueados para esta construção.</div>
     ${opts.length || b.up ? renderTree(BTREE[b.t]||[], b.path||[], 0) : '<div class="muted">Esta construção já está no nível máximo.</div>'}
-    <div class="m-actions"><button class="btn" id="evo-x">Fechar</button></div>`, {wide:true});
+    <div class="m-actions"><button class="btn" id="evo-dem">🔧 Desmontar (+${fmtMoney(bOk(b) ? dismantleValue(b) : 0)})</button><button class="btn" id="evo-x">Fechar</button></div>`, {wide:true});
   m.querySelector('#evo-x').onclick = ()=>{ SFX.click(); closeModal(); };
+  m.querySelector('#evo-dem').onclick = ()=>{ SFX.click(); closeModal(); confirmDismantle(b.c); };
   m.querySelectorAll('[data-evo]').forEach(x=> x.onclick = ()=>{ const r = startUpgrade(b, x.dataset.evo); if (r.ok){ SFX.build(); toast(r.msg, 'good'); closeModal(); refreshAll(); saveGame(); } else { SFX.error(); toast(r.why, 'bad'); } });
 }
 
@@ -660,8 +661,16 @@ function panelObras(){
   <div class="sub">✨ Sinergias ativas (${activeSynergies().length})</div>
   ${activeSynergies().map(({S})=>`<div class="row"${tip(`${S.icon} ${S.n}`, `Combina ${BUILDINGS[S.a].n} e ${BUILDINGS[S.b].n} a até ${S.r} regiões de distância.`, fxList(S.fx))}><span class="k">${S.icon} ${S.n}</span><span class="v muted">${fxList(S.fx)}</span></div>`).join('') || '<div class="muted">Construa obras complementares perto umas das outras (ex.: Fábrica + Mina, Universidade + Hospital) para ganhar bônus extras.</div>'}
   <div class="sub">Construções existentes (${bs.length})</div>
-  ${bs.length ? bs.map(b=>`<div class="row"><span class="k">${buildingLevelName(b)} <small class="muted">${b.up?'🏗️ evoluindo ('+(b.up.due-G.turn)+'m)':dateShort(b.at)}</small></span><span class="v"><button class="btn xs green" data-bevo="${b.c}" title="Evoluir">⬆️</button> <button class="btn xs" data-bfly="${b.c}">🎯</button> <button class="btn xs" data-bdem="${b.c}">🗑️</button></span></div>`).join('') : '<div class="muted">Nenhuma ainda.</div>'}
+  ${bs.length ? bs.map(b=>`<div class="row"><span class="k">${buildingLevelName(b)} <small class="muted">${b.up?'🏗️ evoluindo ('+(b.up.due-G.turn)+'m)':dateShort(b.at)}</small></span><span class="v"><button class="btn xs green" data-bevo="${b.c}" title="Evoluir">⬆️</button> <button class="btn xs" data-bfly="${b.c}">🎯</button> <button class="btn xs" data-bdem="${b.c}" title="Desmontar: recupera ${fmtMoney(dismantleValue(b))}">🔧</button></span></div>`).join('') : '<div class="muted">Nenhuma ainda.</div>'}
   <div class="tip">⬆️ Cada construção pode <b>evoluir</b> por uma árvore de caminhos: escolha um ramo, depois ele se abre em novas opções — até o nível máximo. Clique na construção no mapa ou no botão ⬆️.</div>`;
+}
+function confirmDismantle(c, back){
+  const b = (G.p.buildings||[]).find(x=>x.c===c); if (!b) return;
+  const v = bOk(b) ? dismantleValue(b) : 0;
+  confirmModal('🔧', `Desmontar ${esc(buildingLevelName(b))}?`, `Vendemos os materiais e recuperamos <b>${fmtMoney(v)}</b> (${Math.round(DISMANTLE_RATE*100)}% do que foi investido${b.up ? '; a evolução em andamento será perdida' : ''}). A manutenção mensal deixa de ser cobrada e os bônus somem.`, 'Desmontar', ()=>{
+    const got = demolish(c); SFX.build(); if (got) SFX.coin(); toast(`🔧 Estrutura desmontada${got ? `: +${fmtMoney(got)}` : ''}.`, 'good');
+    const [wx, wy] = cellXY(c); MapView.floatText(wx, wy, got ? '+' + fmtMoney(got) : '🔧', '#2d5a19'); refreshAll(); saveGame(); if (back) back();
+  }, true);
 }
 function startBuild(t){ MapView.buildMode = t; closePopover(); SFX.click(); toast(`🏗️ Clique no seu território para construir: ${BUILDINGS[t].icon} ${BUILDINGS[t].n}`); renderPanel(); }
 function cancelBuild(){ if (!MapView.buildMode) return; MapView.buildMode = null; renderPanel(); }
@@ -759,7 +768,7 @@ function bindPanel(el){
   el.querySelectorAll('[data-build]').forEach(b=> b.onclick = ()=>startBuild(b.dataset.build));
   el.querySelectorAll('[data-bcancel]').forEach(b=> b.onclick = ()=>{ SFX.click(); cancelBuild(); });
   el.querySelectorAll('[data-bfly]').forEach(b=> b.onclick = ()=>{ const [lo,la] = cellCenter(+b.dataset.bfly); MapView.flyTo(lo, la, 4); });
-  el.querySelectorAll('[data-bdem]').forEach(b=> b.onclick = ()=>{ const c = +b.dataset.bdem; confirmModal('🗑️','Demolir construção?','O dinheiro gasto não será devolvido.','Demolir', ()=>{ demolish(c); SFX.build(); refreshAll(); }, true); });
+  el.querySelectorAll('[data-bdem]').forEach(b=> b.onclick = ()=>confirmDismantle(+b.dataset.bdem));
   el.querySelectorAll('[data-reform]').forEach(b=> b.onclick = ()=>{ SFX.page(); openReformModal(b.dataset.reform); });
   el.querySelectorAll('[data-amend]').forEach(b=> b.onclick = ()=>{ const k = b.dataset.amend; const v = el.querySelector(`select[data-art="${k}"]`).value; const r = proposeAmendment(k, v); if (r.ok){ SFX.page(); toast(r.msg,'dip'); } else { SFX.error(); toast(r.why,'bad'); } refreshAll(); });
   el.querySelectorAll('[data-act]').forEach(b=> b.onclick = ()=>{ const a = b.dataset.act; if (a==='report') openLiveReport(); if (a==='home') goHome(); if (a==='capital') openCapitalModal(); });

@@ -10,7 +10,7 @@ const OBJECTIVES = [
   {id:'pop15', ch:1, icon:'👥', n:'Uma nação que cresce', d:a=>`Alcançar ${fmtPop(a.pop*1.25)} habitantes.`, prog:a=>G.p.pop/(a.pop*1.25), rw:{money:0.02, approval:3}},
   {id:'tech5', ch:1, icon:'🔬', n:'Mentes brilhantes', d:a=>`Dominar ${a.techs+4} tecnologias.`, prog:a=>G.p.techs.length/(a.techs+4), rw:{rp:0.5}},
   {id:'deals3', ch:1, icon:'⚓', n:'Portas abertas', d:()=>'Manter acordos comerciais com 3 nações ao mesmo tempo.', prog:()=>G.nations.filter(n=>n&&n.id>1&&n.alive&&dealCount(n)).length/3, rw:{money:0.03}},
-  {id:'build5', ch:1, icon:'🏗️', n:'Construtores', d:()=>'Ter 5 construções em funcionamento no território.', prog:()=>(G.p.buildings||[]).filter(b=>Grid.owner[b.c]===1).length/5, rw:{stability:4}},
+  {id:'build5', ch:1, icon:'🏗️', n:'Construtores', d:()=>'Ter 5 construções em funcionamento no território.', prog:()=>(G.p.buildings||[]).filter(b=>bOk(b)).length/5, rw:{stability:4}},
   {id:'stab24', ch:1, icon:'⚖️', n:'Ordem e paz interna', d:()=>'Manter a estabilidade acima de 65% por 24 meses seguidos.', prog:()=>(G.objStreak||0)/24, rw:{approval:4}},
   // ---- Capítulo II: Ascensão ----
   {id:'gdp10', ch:2, icon:'💰', n:'Entre os grandes', d:()=>'Estar entre as 10 maiores economias do mundo.', prog:()=>{ const r = rankings(); return r.gdp <= 10 ? 1 : 10/r.gdp; }, rw:{money:0.04}},

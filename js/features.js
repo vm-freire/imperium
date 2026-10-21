@@ -72,6 +72,7 @@ const BUILDINGS = {
   distrito_inteligente:{n:'Distrito Inteligente', icon:'🌆', cost:700, req:'cidades_inteligentes', fx:{gdpMult:0.03, approval:1, admin:0.02}, d:'+3% PIB, +apoio e administração'},
   escudo:{n:'Escudo de Lasers', icon:'🔆', cost:800, req:'escudo_laser', fx:{defense:0.04}, local:{r:5, def:1.8}, d:'+80% de defesa num raio de 5 regiões'},
   espacoporto:{n:'Espaçoporto', icon:'🚀', cost:1200, req:'base_lunar', fx:{research:0.06, tradeMult:0.05}, d:'Lançamentos espaciais: +pesquisa e +comércio'},
+  plataforma:{n:'Plataforma de Petróleo', icon:'🛢️', cost:550, req:'motor', sea:true, fx:{gdpMult:0.025, tradeMult:0.02}, d:'Construída no MAR, a até 3 regiões da nossa costa: +2,5% PIB, +comércio'},
   usina_fusao:{n:'Usina de Fusão', icon:'🌟', cost:1500, req:'fusao', fx:{gdpMult:0.06, stability:0.5}, d:'+6% PIB com energia quase ilimitada'}
 };
 function buildCount(t){ return (G.p.buildings||[]).filter(b=>b.t===t).length; }
@@ -80,8 +81,22 @@ function buildCost(t){
   return BUILDINGS[t].cost * G.costScale * (1 + 0.15*buildCount(t)) + G.p.gdp*0.002;
 }
 function buildUpkeep(){ return (G.p.buildings||[]).reduce((s,b)=>s + (BUILDINGS[b.t].cost*G.costScale*0.008), 0); }
+// a obra está ativa? (no mar: a nossa costa precisa estar perto)
+function seaNearOurCoast(cell, r){
+  r = r || 3; const cx = cell % CW, cy = (cell / CW) | 0;
+  for (let dy=-r; dy<=r; dy++) for (let dx=-r; dx<=r; dx++){ const x = cx+dx, y = cy+dy; if (x<0||y<0||x>=CW||y>=CH) continue; const j = y*CW+x; if (Grid.land[j] && Grid.owner[j] === 1) return true; }
+  return false;
+}
+function bOk(b){ return BUILDINGS[b.t] && BUILDINGS[b.t].sea ? !Grid.land[b.c] && seaNearOurCoast(b.c) : (Grid.owner[b.c] | 0) == 1; }
 function canBuildAt(t, cell){
   const B = BUILDINGS[t], p = G.p;
+  if (B.sea){
+    if (cell < 0 || Grid.land[cell]) return 'A plataforma é construída no mar: clique na água perto da nossa costa.';
+    if (!seaNearOurCoast(cell)) return 'Muito longe: a plataforma precisa ficar a até 3 regiões da nossa costa.';
+    if ((p.buildings||[]).some(b=>b.c===cell)) return 'Já existe uma plataforma aqui.';
+    if (B.req && !p.techs.includes(B.req)) return 'Requer ' + TECH[B.req].n + '.';
+    return null;
+  }
   if (cell < 0 || !Grid.land[cell] || Grid.owner[cell] !== 1) return 'Escolha uma região do seu território.';
   if ((p.buildings||[]).some(b=>b.c===cell)) return 'Já existe uma construção nesta região.';
   if (B.coastal && !isCoastal(cell)) return 'Portos só podem ser construídos no litoral.';
@@ -94,16 +109,31 @@ function buildAt(t, cell){
   p.treasury -= cost;
   p.buildings = p.buildings || [];
   if (t === 'cidade'){ p.cities++; p.cityCells.push(cell); p.cityNames.push(genPlaceName()); p.approval += 1; }
-  p.buildings.push({t, c:cell, at:G.turn});
+  p.buildings.push({t, c:cell, at:G.turn, spent:cost});
   const msg = t === 'cidade' ? `🏙️ Fundada a cidade de ${p.cityNames[p.cityNames.length-1]}!` : `${BUILDINGS[t].icon} ${BUILDINGS[t].n} construída.`;
   addLog(msg, 'good'); derive();
   return {ok:true, msg};
 }
-function demolish(cell){ const p = G.p; const i = (p.buildings||[]).findIndex(b=>b.c===cell); if (i<0) return; const b = p.buildings.splice(i,1)[0]; addLog(`${BUILDINGS[b.t].icon} ${BUILDINGS[b.t].n} demolida.`, 'info'); derive(); }
+// quanto já foi investido (obras antigas, sem registro: estimativa pelo custo base e pelos níveis)
+function buildingInvested(b){
+  if (b.spent) return b.spent;
+  const base = (BUILDINGS[b.t].cost || 150) * G.costScale; let s = base;
+  for (let l=1; l<=(b.path||[]).length; l++) s += base*(0.6 + l*0.5);
+  return s;
+}
+const DISMANTLE_RATE = 0.4;   // desmontar devolve 40% do investido (a obra em andamento é perdida)
+function dismantleValue(b){ return b.t === 'cidade' ? 0 : buildingInvested(b) * DISMANTLE_RATE; }
+function demolish(cell){
+  const p = G.p; const i = (p.buildings||[]).findIndex(b=>b.c===cell); if (i<0) return 0;
+  const b = p.buildings[i], back = bOk(b) ? dismantleValue(b) : 0;
+  p.buildings.splice(i,1); p.treasury += back;
+  addLog(`${BUILDINGS[b.t].icon} ${buildingLevelName(b).replace(/^\S+\s/, '')} desmontada${back ? ` — recuperamos ${fmtMoney(back)}` : ''}.`, 'info'); derive();
+  return back;
+}
 function buildingsMods(m){
   const cnt = {};
   for (const b of (G.p.buildings||[])){
-    if (Grid.owner[b.c] !== 1) continue;
+    if (!bOk(b)) continue;
     const B = BUILDINGS[b.t];
     const k = cnt[b.t] = (cnt[b.t]||0) + 1;
     const cm = typeof cityBuildMult === 'function' ? cityBuildMult(b.c) : 1;   // obras em cidades grandes rendem mais
@@ -116,11 +146,11 @@ function buildingsMods(m){
 function cellDist(a, b){ return Math.hypot(a%CW - b%CW, ((a/CW)|0) - ((b/CW)|0)); }
 function localDefense(cell){
   let f = 1;
-  for (const b of (G.p.buildings||[])){ if (Grid.owner[b.c]!==1) continue; const L = buildingLocal(b); if (L && cellDist(b.c, cell) <= L.r) f = Math.max(f, L.def); }
+  for (const b of (G.p.buildings||[])){ if (!bOk(b)) continue; const L = buildingLocal(b); if (L && cellDist(b.c, cell) <= L.r) f = Math.max(f, L.def); }
   return f;
 }
 function nearestAirbase(cell){
   let best = -1, bd = 1e9;
-  for (const b of (G.p.buildings||[])) if (b.t==='aeroporto' && Grid.owner[b.c]===1){ const d = cellDist(b.c, cell); if (d < bd){ bd = d; best = b.c; } }
+  for (const b of (G.p.buildings||[])) if (b.t==='aeroporto' && bOk(b)){ const d = cellDist(b.c, cell); if (d < bd){ bd = d; best = b.c; } }
   return best;
 }

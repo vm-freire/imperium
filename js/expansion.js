@@ -9,13 +9,13 @@
 const EXPED = {
   naval:{n:'Expedição naval', icon:'⛵', d:'Navios levam colonos pelo oceano. Só para terras no litoral.',
     can:(p, to)=> p.navy <= 0 ? 'Precisamos de navios (aba Militar).' : !isCoastal(to) ? 'O destino precisa estar no litoral.' : null,
-    from:(p)=>{ const ports = (p.buildings||[]).filter(b=>b.t==='porto' && Grid.owner[b.c]===1).map(b=>b.c); return ports.length ? ports : coastalOwned(); },
+    from:(p)=>{ const ports = (p.buildings||[]).filter(b=>b.t==='porto' && bOk(b)).map(b=>b.c); return ports.length ? ports : coastalOwned(); },
     speed:()=>10 + (G.p.techs.includes('canais')?5:0) + (G.p.techs.includes('motor_diesel')?3:0) + (G.p.techs.includes('turbina_vapor')?2:0), risk:0.18, range:999, cost:90},
   dirigivel:{n:'Expedição por dirigível', icon:'🎈', d:'Um dirigível leva pioneiros por cima de montanhas e desertos.', tech:'dirigivel',
     can:()=>null, from:(p)=>[p.capCell], speed:()=>14, risk:0.28, range:40, cost:160},
   aerea:{n:'Ponte aérea', icon:'✈️', d:'Aviões levam tropas e engenheiros a partir de uma Base Aérea.', tech:'aviacao',
-    can:(p)=> (p.buildings||[]).some(b=>b.t==='aeroporto' && Grid.owner[b.c]===1) ? null : 'É preciso ter uma Base Aérea (aba Obras).',
-    from:(p)=>(p.buildings||[]).filter(b=>b.t==='aeroporto' && Grid.owner[b.c]===1).map(b=>b.c),
+    can:(p)=> (p.buildings||[]).some(b=>b.t==='aeroporto' && bOk(b)) ? null : 'É preciso ter uma Base Aérea (aba Obras).',
+    from:(p)=>(p.buildings||[]).filter(b=>b.t==='aeroporto' && bOk(b)).map(b=>b.c),
     speed:()=>40, risk:0.1, range:()=>28 + (G.p.techs.includes('jato')?35:0), cost:240}
 };
 function coastalOwned(){ const r = []; for (let i=0;i<NCELLS;i++) if (Grid.land[i] && Grid.owner[i]===1 && isCoastal(i)) r.push(i); return r; }
@@ -132,7 +132,7 @@ const SYNERGIES = [
   {a:'hospital', b:'base', r:3, n:'Hospital militar', icon:'🚑', fx:{manpower:0.05}}
 ];
 function activeSynergies(){
-  const p = G.p, bs = (p.buildings||[]).filter(b=>Grid.owner[b.c]===1), out = [], used = new Set();
+  const p = G.p, bs = (p.buildings||[]).filter(b=>bOk(b)), out = [], used = new Set();
   for (const S of SYNERGIES){
     for (const a of bs.filter(b=>b.t===S.a)){
       const b = bs.find(x=>x.t===S.b && x !== a && cellDist(x.c, a.c) <= S.r && !used.has(S.n+':'+x.c));
@@ -146,6 +146,6 @@ function synergyMods(m){
   for (const {S} of activeSynergies()){ const k = cnt[S.n] = (cnt[S.n]||0) + 1; addMods(m, S.fx, 1/(1 + 0.3*(k-1))); }
 }
 function potentialSynergies(t, cell){
-  const bs = (G.p.buildings||[]).filter(b=>Grid.owner[b.c]===1);
+  const bs = (G.p.buildings||[]).filter(b=>bOk(b));
   return SYNERGIES.filter(S=>(S.a===t && bs.some(b=>b.t===S.b && cellDist(b.c, cell) <= S.r)) || (S.b===t && bs.some(b=>b.t===S.a && cellDist(b.c, cell) <= S.r)));
 }
