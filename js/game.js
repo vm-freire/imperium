@@ -1044,10 +1044,15 @@ const DIPLO = {
 // ------------------------------------------------------------
 //  Economia — ações
 // ------------------------------------------------------------
+function printInflJump(){ return 1.5 + (G.p.printRecent||0)*1.2; }
 const ECON_ACTIONS = {
   loan(f){ const p=G.p; if (creditRating()==='D') return {ok:false, why:'Nenhum credor aceita emprestar (rating D).'}; const amt = p.gdp*f; p.debt += amt; p.treasury += amt; G.stats.loansTaken++; return {ok:true, msg:`Empréstimo de ${fmtMoney(amt)} a ${fmtPct(interestRate())} ao ano.`}; },
   repay(f){ const p=G.p; const amt = Math.min(p.debt*f, p.treasury); if (amt <= 0) return {ok:false, why:'Sem recursos para pagar.'}; p.debt -= amt; p.treasury -= amt; return {ok:true, msg:`Pagamos ${fmtMoney(amt)} da dívida.`}; },
-  print(){ const p=G.p; if (p.policies.banco_central) return {ok:false, why:'O Banco Central independente proíbe a emissão.'}; const amt = p.gdp*0.03; p.treasury += amt; p.printBoost += 5; p.approval -= 1; return {ok:true, msg:`Imprimimos ${fmtMoney(amt)}. A inflação vai subir...`}; },
+  print(){ const p=G.p; if (p.policies.banco_central) return {ok:false, why:'O Banco Central independente proíbe a emissão.'};
+    // cada emissão sobe a inflação na hora — e emissões seguidas pesam cada vez mais
+    const rec = p.printRecent || 0, amt = p.gdp*0.03, before = p.inflation, jump = printInflJump();
+    p.treasury += amt; p.inflation += jump; p.printBoost += 6 + rec*2; p.printRecent = rec + 1; p.approval -= 1 + rec*0.5;
+    return {ok:true, msg:`Imprimimos ${fmtMoney(amt)}. Inflação: ${fmtPct(before)} → ${fmtPct(p.inflation)} — e continuará subindo nos próximos meses.`}; },
   default(){ const p=G.p; if (p.debt < p.gdp*0.6) return {ok:false, why:'A dívida não é alta o bastante para justificar uma moratória.'}; const cut = p.debt*0.6; p.debt -= cut; p.defaults++; p.stability -= 15; p.approval -= 8; addTemp({growth:-2}, 24, 'Pós-calote'); for (let k=2;k<G.nations.length;k++){ const n=G.nations[k]; if (n.alive){ changeRel(n,-10); } } return {ok:true, msg:`Moratória declarada! ${fmtMoney(cut)} em dívidas canceladas. Credores furiosos.`}; },
   city(){ const p=G.p; const cost = 1.2*p.gdp/100 + 30*G.costScale; if (p.treasury < cost) return {ok:false, why:'Tesouro insuficiente.'}; p.treasury -= cost; p.cities++; const c = p.homeCells.concat([]).filter(x=>Grid.owner[x]===1); if (c.length){ p.cityCells.push(pick(c)); p.cityNames.push(genPlaceName()); } p.approval += 1; return {ok:true, msg:`Uma nova cidade foi fundada: ${p.cityNames[p.cityNames.length-1]}!`}; },
   cityCost(){ return 1.2*G.p.gdp/100 + 30*G.costScale; },
@@ -1109,7 +1114,7 @@ function endTurn(){
   pg = clamp(pg, -3, 4.5); p.popGrowth = pg;
   p.pop *= 1 + pg/1200;
   // inflação, desemprego
-  p.printBoost *= 0.85;
+  p.printBoost *= 0.9; p.printRecent = (p.printRecent||0)*0.9;
   const deficit = Math.max(0, -b.bal*12/Math.max(1,p.gdp));
   const infT = clamp(2.5 + m.inflation + p.printBoost + deficit*30 + (warN?1:0), -2, 200);
   p.inflation += (infT - p.inflation)*0.15;
@@ -1201,7 +1206,7 @@ function aiTurn(){
     if (worldAuth && curMonth() === 0) n.leaderAge = (n.leaderAge||50) + 1;
     if (n.alliance && n.rel < 25 && chance(0.1)){ n.alliance = false; addLog(`${n.name} desfez a aliança conosco.`, 'dip'); }
     // declarar guerra ao jogador
-    if (!n.atWar && !n.pact && !n.alliance && G.turn > (n.claim ? 8 : 18) && n.truce < G.turn && N[1].alive && G.wars.length < 3){
+    if (!n.atWar && !n.pact && !n.alliance && !(typeof blocMember === 'function' && blocMember(id)) && G.turn > (n.claim ? 8 : 18) && n.truce < G.turn && N[1].alive && G.wars.length < 3){
       const adj = adjacent(1, id) || (n.navy > p.navy*1.2 && capDist(n) < 55);
       const opportunist = n.ag >= 0.55 && n.power > p.def*3 && n.rel < -5;
       if (adj && (n.rel < -25 || opportunist) && n.power > p.def*0.75){

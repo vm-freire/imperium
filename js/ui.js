@@ -236,7 +236,7 @@ function panelEconomia(){
   const dr = p.debt/Math.max(1,p.gdp)*100;
   const sl = (key, label, val, max, step, help, fmtv) => `<div class="slider-row"><div class="top"><span>${label}</span><b id="sv-${key}">${fmtv(val)}</b></div>
     <input type="range" min="0" max="${max}" step="${step}" value="${val}" data-slider="${key}"><div class="help">${help}</div></div>`;
-  const incNames = {impostos:'🏛️ Impostos', comercio:'⚓ Comércio exterior', recursos:'⛏️ Recursos naturais', tributos:'👑 Tributos recebidos'};
+  const incNames = {impostos:'🏛️ Impostos', comercio:'⚓ Comércio exterior', recursos:'⛏️ Recursos naturais', tributos:'👑 Tributos recebidos', bloco:'🌐 Mercado comum (bloco)'};
   const expNames = {edu:'📚 Educação', health:'⚕️ Saúde', infra:'🏗️ Infraestrutura', social:'🤲 Bem-estar', research:'🔬 Ciência', police:'👮 Segurança', leis:'📜 Leis e programas', administracao:'🏛️ Administração', militar:'⚔️ Manutenção militar', juros:'🏦 Juros da dívida'};
   const partners = G.nations.filter(n=>n && n.id>1 && n.alive && dealCount(n));
   return `
@@ -265,7 +265,7 @@ function panelEconomia(){
   <div class="btn-grid">
     <button class="btn sm" data-econ="loan" data-f="0.05">🏦 Empréstimo 5% PIB</button><button class="btn sm" data-econ="loan" data-f="0.15">🏦 Empréstimo 15% PIB</button>
     <button class="btn sm" data-econ="repay" data-f="0.25">💵 Pagar 25% dívida</button><button class="btn sm" data-econ="repay" data-f="1">💵 Quitar dívida</button>
-    <button class="btn sm" data-econ="print" ${p.policies.banco_central?'disabled':''}>🖨️ Imprimir dinheiro</button><button class="btn sm" data-econ="default" ${dr<60?'disabled':''}>⚠️ Moratória</button>
+    <button class="btn sm" data-econ="print" ${p.policies.banco_central?'disabled':''} title="+${fmtMoney(p.gdp*0.03)} no tesouro · inflação +${fmtNum(printInflJump(),1)} pp na hora e mais nos meses seguintes">🖨️ Imprimir dinheiro <small>(+${fmtNum(printInflJump(),1)} pp inflação)</small></button><button class="btn sm" data-econ="default" ${dr<60?'disabled':''}>⚠️ Moratória</button>
   </div>
   <div class="sub">Desenvolvimento</div>
   <div class="btn-grid">
@@ -278,7 +278,7 @@ function panelEconomia(){
   ${partners.length ? partners.map(n=>`<div class="row" data-nation="${n.id}" style="cursor:pointer"><span class="k">${flagImg(n,18,12)} ${esc(n.name)} <small>${Object.keys(n.deals).map(t=>DEALS[t].icon).join(' ')}</small></span><span class="v up">+${fmtMoney(Object.keys(n.deals).reduce((s,t)=>s+dealIncome(n,t),0)*(1+m.tradeMult))}</span></div>`).join('') : '<div class="muted">Nenhum acordo. Negocie na aba Diplomacia (leva alguns meses).</div>'}`;
 }
 function budgetHTML(b, incNames, expNames){
-  incNames = incNames || {impostos:'🏛️ Impostos', comercio:'⚓ Comércio exterior', recursos:'⛏️ Recursos naturais', tributos:'👑 Tributos recebidos'};
+  incNames = incNames || {impostos:'🏛️ Impostos', comercio:'⚓ Comércio exterior', recursos:'⛏️ Recursos naturais', tributos:'👑 Tributos recebidos', bloco:'🌐 Mercado comum (bloco)'};
   expNames = expNames || {edu:'📚 Educação', health:'⚕️ Saúde', infra:'🏗️ Infraestrutura', social:'🤲 Bem-estar', research:'🔬 Ciência', police:'👮 Segurança', leis:'📜 Leis e programas', administracao:'🏛️ Administração', militar:'⚔️ Manutenção militar', juros:'🏦 Juros da dívida'};
   return `<div class="lbl" style="color:var(--green)">Receitas</div>` +
     Object.entries(b.inc).filter(([k,v])=>v>0.01).map(([k,v])=>row(incNames[k]||k, '+'+fmtMoney(v), 'up')).join('') +

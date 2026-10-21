@@ -99,6 +99,8 @@ const GLOSSARIO = [
   ['Moeda fiduciária','Dinheiro que vale pela confiança no governo que o emite, e não por estar ligado ao ouro. É o caso de quase todas as moedas desde 1971.'],
   ['Padrão-ouro','Sistema em que a moeda vale uma quantidade fixa de ouro e pode ser trocada por ele. Vigorou de cerca de 1870 até a Primeira Guerra e, de forma parcial, até 1971.'],
   ['Banco central','A instituição que emite a moeda, controla os juros e cuida da inflação. O primeiro moderno foi o Banco da Inglaterra (1694); o do Brasil foi criado em 1964.'],
+  ['Bloco econômico','Grupo de países que derrubam barreiras ao comércio entre si, como o Mercosul (1991) e a União Europeia (1993). Alguns blocos também são militares, como a OTAN (1949), em que um ataque a um membro é um ataque a todos. No jogo, funde um bloco na aba Diplomacia e convide nações: o mercado comum traz renda, comércio e crescimento; a versão militar faz os membros entrarem nas suas guerras.'],
+  ['Emissão de moeda','Imprimir dinheiro paga as contas na hora, mas espalha mais dinheiro pelos mesmos produtos, e os preços sobem. Foi o que levou a Alemanha de 1923 e o Zimbábue de 2008 à hiperinflação. No jogo, cada emissão sobe a inflação na hora e emissões seguidas pesam cada vez mais.'],
   ['Mercantilismo','Política econômica dos séculos XVI a XVIII: acumular ouro e prata, exportar mais do que importar e usar colônias como fonte de riqueza exclusiva da metrópole.'],
   ['Pacto colonial','A regra de que a colônia só podia comerciar com a sua metrópole. O Brasil só pôde comerciar com outros países a partir de 1808 (Abertura dos Portos).'],
   ['Estabilidade','No jogo, mede quanto o país está em ordem. Estabilidade baixa leva a golpes, revoltas e, abaixo de 10% por muito tempo, a revoluções.'],

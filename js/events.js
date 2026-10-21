@@ -351,9 +351,9 @@ const EVENTS = {
   hiperinflacao:{icon:'💸', title:'Inflação Descontrolada', special:true,
     text:()=>`A inflação chegou a ${fmtPct(G.p.inflation)} ao ano. Os preços mudam de manhã para a tarde.`,
     choices:()=>[
-      {t:'Choque de juros', h:'-2% crescimento por 1 ano, inflação despenca', f:()=>{addTemp({growth:-2},12,'Juros altos'); G.p.inflation*=0.5; G.p.printBoost=0;}},
+      {t:'Choque de juros', h:'-2% crescimento por 1 ano, inflação despenca', f:()=>{addTemp({growth:-2},12,'Juros altos'); G.p.inflation*=0.5; G.p.printBoost=0; G.p.printRecent=0;}},
       {t:'Congelar preços', h:'+3 apoio, efeito temporário', f:()=>{app(3); G.p.inflation*=0.75; addTemp({growth:-1},12,'Preços congelados');}},
-      {t:'Lançar nova moeda', h:'-5 apoio, -5 estabilidade, inflação zerada', f:()=>{app(-5); stab(-5); G.p.inflation=4; G.p.printBoost=0; G.p.currency='Novo '+G.p.currency.replace(/^Novo /,'');}}
+      {t:'Lançar nova moeda', h:'-5 apoio, -5 estabilidade, inflação zerada', f:()=>{app(-5); stab(-5); G.p.inflation=4; G.p.printBoost=0; G.p.printRecent=0; G.p.currency='Novo '+G.p.currency.replace(/^Novo /,'');}}
     ]},
   crise_divida:{icon:'🏦', title:'Crise da Dívida', special:true,
     text:()=>`Credores internacionais duvidam da nossa capacidade de pagar ${fmtMoney(G.p.debt)} (${fmtPct(G.p.debt/G.p.gdp*100,0)} do PIB).`,
