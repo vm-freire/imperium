@@ -134,3 +134,74 @@ create table if not exists public.user_saves (
 alter table public.user_saves enable row level security;
 drop policy if exists "saves da conta: dono" on public.user_saves;
 create policy "saves da conta: dono" on public.user_saves for all to authenticated using (uid = auth.uid()) with check (uid = auth.uid());
+
+-- ---------------- Multiplayer: operações atômicas ----------------
+-- Evitam que duas gravações ao mesmo tempo apaguem dados (ex.: a nação escolhida sumir).
+
+-- mescla dois JSONs em profundidade (objetos são combinados; o resto é substituído)
+create or replace function public.jsonb_deep_merge(a jsonb, b jsonb) returns jsonb
+language plpgsql immutable as $$
+declare k text; out jsonb;
+begin
+  if a is null or jsonb_typeof(a) <> 'object' or jsonb_typeof(b) <> 'object' then return b; end if;
+  out := a;
+  for k in select jsonb_object_keys(b) loop
+    out := jsonb_set(out, array[k], public.jsonb_deep_merge(a->k, b->k), true);
+  end loop;
+  return out;
+end $$;
+
+-- altera campos da sala sem sobrescrever o resto
+create or replace function public.room_patch(p_code text, p_patch jsonb) returns void
+language plpgsql security invoker as $$
+begin
+  update public.rooms set data = public.jsonb_deep_merge(data, p_patch), updated_at = now() where code = p_code;
+end $$;
+
+-- entra na sala reservando uma vaga de forma segura (duas pessoas não pegam a mesma vaga)
+create or replace function public.room_join(p_code text, p_name text) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare r public.rooms; d jsonb; s int := 0; used int[]; me uuid := auth.uid();
+begin
+  if me is null then raise exception 'login necessário'; end if;
+  select * into r from public.rooms where code = p_code for update;
+  if not found then return jsonb_build_object('error', 'notfound'); end if;
+  d := r.data;
+  if (d->'members') ? me::text then return d; end if;
+  if d->>'status' <> 'lobby' then return jsonb_build_object('error', 'started'); end if;
+  select coalesce(array_agg((v->>'slot')::int), '{}') into used from jsonb_each(d->'members') as e(k, v);
+  if coalesce(array_length(used, 1), 0) >= (d->>'maxPlayers')::int then return jsonb_build_object('error', 'full'); end if;
+  while s = any(used) loop s := s + 1; end loop;
+  d := jsonb_set(d, array['members', me::text], jsonb_build_object('name', p_name, 'slot', s, 'joinedAt', (extract(epoch from now()) * 1000)::bigint));
+  d := jsonb_set(d, '{memberUids}', coalesce(d->'memberUids', '[]'::jsonb) || to_jsonb(me::text));
+  d := jsonb_set(d, '{updatedAt}', to_jsonb((extract(epoch from now()) * 1000)::bigint));
+  update public.rooms set data = d, member_uids = array_append(member_uids, me), updated_at = now() where code = p_code;
+  return d;
+end $$;
+
+-- grava os dados públicos do jogador mesclando com o que já existe
+create or replace function public.room_player_patch(p_code text, p_patch jsonb) returns void
+language plpgsql security invoker as $$
+begin
+  insert into public.room_players (code, uid, data) values (p_code, auth.uid(), p_patch)
+  on conflict (code, uid) do update set data = public.room_players.data || excluded.data;
+end $$;
+
+-- se o anfitrião sumir por mais de 90 s, outro jogador da sala assume o comando do mundo
+create or replace function public.room_take_host(p_code text) returns boolean
+language plpgsql security definer set search_path = public as $$
+declare r public.rooms; me uuid := auth.uid(); seen bigint;
+begin
+  select * into r from public.rooms where code = p_code for update;
+  if not found or not (me = any(r.member_uids)) then return false; end if;
+  if r.host = me then return true; end if;
+  select coalesce((data->>'lastSeen')::bigint, 0) into seen from public.room_players where code = p_code and uid = r.host;
+  if coalesce(seen, 0) > (extract(epoch from now()) * 1000)::bigint - 90000 then return false; end if;
+  update public.rooms set host = me, data = jsonb_set(data, '{host}', to_jsonb(me::text)), updated_at = now() where code = p_code;
+  return true;
+end $$;
+
+grant execute on function public.room_patch(text, jsonb) to authenticated;
+grant execute on function public.room_join(text, text) to authenticated;
+grant execute on function public.room_player_patch(text, jsonb) to authenticated;
+grant execute on function public.room_take_host(text) to authenticated;

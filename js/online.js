@@ -7,7 +7,7 @@
 'use strict';
 
 const SPEEDS = {20:'Relâmpago (20 s por mês)', 45:'Rápida (45 s por mês)', 60:'Normal (1 min por mês)', 120:'Calma (2 min por mês)', 300:'Estratégica (5 min por mês)'};
-const ON = { room:null, players:{}, subs:[], timer:null, hbTimer:null, pending:[], evSeen:new Set(), snapPower:{}, applying:false, inGame:false, lastSave:-1 };
+const ON = { room:null, players:{}, subs:[], timer:null, hbTimer:null, pending:[], evSeen:new Set(), snapPower:{}, applying:false, inGame:false, lastSave:0, entering:false, hostTry:0 };
 
 // ------------------------------------------------------------
 //  Login e cadastro
@@ -68,7 +68,7 @@ async function openOnlineHub(){
       Anfitrião: ${esc((r.members[r.host]||{}).name||'?')} ${r.turn?`· mês ${r.turn}`:''}<br>${Object.values(r.members||{}).map(x=>esc(x.name)).join(', ')}</div></div></div>`).join('')}</div>`
       : '<div class="muted" style="padding:20px 0">Você ainda não participa de nenhuma sala. Crie uma ou entre com o código que um amigo te passou.</div>'}
     <div class="section-title">Como funciona</div>
-    <div class="help-sec"><section><p>Até <b>5 jogadores</b> no mesmo mapa. O <b>anfitrião</b> cria a sala e compartilha o código. A sala fica guardada com os mesmos jogadores: na próxima vez, o anfitrião só começa quando todos estiverem presentes — ou decide começar sem os que faltam.</p>
+    <div class="help-sec"><section><p>Até <b>10 jogadores</b> no mesmo mapa. O <b>anfitrião</b> cria a sala e compartilha o código. A sala fica guardada com os mesmos jogadores: na próxima vez, o anfitrião só começa quando todos estiverem presentes — ou decide começar sem os que faltam.</p>
     <p>No online <b>não há pausa</b>: o mês avança sozinho no ritmo escolhido pelo anfitrião. Cada jogador toma suas decisões, pode se aliar, negociar ou guerrear com os outros. Regimes diferentes atrapalham os acordos (comércio rende menos entre regimes opostos).</p></section></div>`);
   $('#oh-new').onclick = ()=>{ SFX.page(); openCreateRoom(); };
   $('#oh-code').onclick = ()=>{ SFX.page(); openJoinRoom(); };
@@ -79,7 +79,7 @@ function openCreateRoom(){
   const m = openModal(`<div class="m-icon">➕</div><div class="m-title">Criar sala</div>
     <div class="field"><label>Nome da sala</label><input type="text" id="cr-name" maxlength="30" value="Mundo de ${esc(NET.user.name)}"></div>
     <div class="grid2" style="gap:10px">
-      <div class="field"><label>Jogadores</label><select id="cr-max">${[2,3,4,5].map(n=>`<option ${n===4?'selected':''}>${n}</option>`).join('')}</select></div>
+      <div class="field"><label>Jogadores</label><select id="cr-max">${[2,3,4,5,6,7,8,9,10].map(n=>`<option ${n===4?'selected':''}>${n}</option>`).join('')}</select></div>
       <div class="field"><label>Época</label><select id="cr-era">${Object.entries(ERAS).map(([k,e])=>`<option value="${k}" ${k==='1914'?'selected':''}>${e.year} — ${e.name}</option>`).join('')}</select></div>
       <div class="field"><label>Modo</label><select id="cr-mode"><option value="objetivos">🎯 Com objetivos</option><option value="livre">🕊️ Livre</option></select></div>
       <div class="field"><label>Velocidade</label><select id="cr-speed">${Object.entries(SPEEDS).map(([k,v])=>`<option value="${k}" ${k==='60'?'selected':''}>${v}</option>`).join('')}</select></div>
@@ -103,15 +103,11 @@ function openJoinRoom(){
   m.querySelector('#jr-x').onclick = ()=>{ SFX.click(); closeModal(); };
   m.querySelector('#jr-ok').onclick = async ()=>{
     const code = m.querySelector('#jr-code').value.trim().toUpperCase(), err = m.querySelector('#jr-err');
-    const r = await NET.be.getRoom(code); const u = NET.user;
-    if (!r){ err.textContent = 'Sala não encontrada.'; SFX.error(); return; }
-    if (!r.members[u.uid]){
-      if (r.status !== 'lobby'){ err.textContent = 'Esta partida já começou e só aceita os jogadores originais.'; SFX.error(); return; }
-      const used = Object.values(r.members).map(x=>x.slot);
-      if (used.length >= r.maxPlayers){ err.textContent = 'A sala está cheia.'; SFX.error(); return; }
-      let slot = 0; while (used.includes(slot)) slot++;
-      await NET.be.updateRoom(code, {members:{[u.uid]:{name:u.name, slot, joinedAt:Date.now()}}, memberUids:r.memberUids.concat([u.uid]), updatedAt:Date.now()});
-    }
+    if (!/^[A-Z0-9]{6}$/.test(code)){ err.textContent = 'O código tem 6 letras/números.'; SFX.error(); return; }
+    const u = NET.user; let r;
+    try { r = await NET.be.joinRoom(code, u.uid, u.name); } catch(e){ err.textContent = e.message; SFX.error(); return; }
+    const E = {notfound:'Sala não encontrada.', started:'Esta partida já começou e só aceita os jogadores originais.', full:'A sala está cheia.'};
+    if (!r || r.error){ err.textContent = E[(r||{}).error] || 'Não foi possível entrar.'; SFX.error(); return; }
     closeModal(); SFX.fanfare(); openLobby(code);
   };
 }
@@ -123,12 +119,15 @@ function unsubAll(){ ON.subs.forEach(f=>{ try { f(); } catch(e){} }); ON.subs = 
 const isOnlineNow = pl => pl && Date.now() - (pl.lastSeen||0) < 40000;
 function heartbeat(code){ const u = NET.user; NET.be.setPlayer(code, u.uid, {uid:u.uid, name:u.name, lastSeen:Date.now()}); }
 async function openLobby(code){
-  unsubAll(); ON.inGame = false;
+  unsubAll(); ON.inGame = false; ON.players = {}; ON.playersLoaded = false; ON.evSeen = new Set(); ON.pending = []; ON.snapPower = {};
   ON.room = await NET.be.getRoom(code); if (!ON.room){ toast('Sala não encontrada.', 'bad'); return; }
   heartbeat(code); ON.hbTimer = setInterval(()=>heartbeat(code), 15000);
   const render = ()=>{ if (!ON.inGame && !$('#scr-page').classList.contains('hidden') && $('#page-title').textContent.includes('Sala')) renderLobby(); };
-  ON.subs.push(NET.be.watchRoom(code, r=>{ ON.room = r; if (!r) return; render(); maybeEnterGame(); }));
-  ON.subs.push(NET.be.watchPlayers(code, pl=>{ ON.players = pl; if (ON.inGame) syncHumans(); render(); }));
+  ON.subs.push(NET.be.watchRoom(code, r=>{ if (!r) return; ON.room = r;
+    // o anfitrião pode mudar durante a partida (se o original cair)
+    if (ON.inGame && G && G.online && G.online.code === code){ const was = G.online.host; G.online.host = r.host === NET.user.uid; if (G.online.host && !was) toast('👑 O anfitrião saiu: agora você comanda o relógio do mundo.', 'good'); }
+    render(); maybeEnterGame(); }));
+  ON.subs.push(NET.be.watchPlayers(code, pl=>{ ON.players = pl; ON.playersLoaded = true; if (ON.inGame) syncHumans(); render(); maybeEnterGame(); }));
   renderLobby();
 }
 function renderLobby(){
@@ -181,7 +180,13 @@ async function saveOnlineCfg(cfg){
   toast('Nação registrada na sala!', 'good'); openLobby(code);
 }
 async function hostStart(){
+  try { ON.players = await NET.be.getPlayers(ON.room.code); } catch(e){}
   const r = ON.room, members = Object.entries(r.members);
+  if (r.status === 'lobby'){
+    const ex = members.map(([uid])=>((ON.players[uid]||{}).cfg||{}).existing).filter(Boolean);
+    const dup = ex.find((x,i)=>ex.indexOf(x) !== i);
+    if (dup){ SFX.error(); toast(`Dois jogadores escolheram ${esc(dup)}. Um deles precisa trocar de país.`, 'bad'); return; }
+  }
   const noCfg = members.filter(([uid])=>!(ON.players[uid]||{}).cfg);
   if (r.status === 'lobby' && noCfg.length){
     if (noCfg.some(([uid])=>uid===r.host)){ SFX.error(); toast('Escolha sua nação antes de iniciar.', 'bad'); return; }
@@ -195,8 +200,10 @@ async function hostStart(){
 async function doHostStart(exclude){
   const r = ON.room;
   if (r.status === 'lobby'){
-    const humans = Object.entries(r.members).filter(([uid])=>!exclude.includes(uid) && (ON.players[uid]||{}).cfg).map(([uid, mb])=>({uid, name:mb.name, slot:mb.slot}));
-    await NET.be.updateRoom(r.code, {status:'running', seed:(Date.now() % 2147483647) || 77, turn:0, humans, startedAt:Date.now(), nextTick:Date.now() + r.speed*1000 + 8000, updatedAt:Date.now()});
+    // as configurações de todos ficam congeladas na sala: todo computador gera exatamente o mesmo mundo
+    const humans = Object.entries(r.members).filter(([uid])=>!exclude.includes(uid) && (ON.players[uid]||{}).cfg).map(([uid, mb])=>({uid, name:mb.name, slot:mb.slot, cfg:ON.players[uid].cfg}));
+    const world = (ON.players[r.host].cfg || {}).world || null;
+    await NET.be.updateRoom(r.code, {status:'running', seed:(Date.now() % 2147483647) || 77, turn:0, humans, world, startedAt:Date.now(), nextTick:Date.now() + r.speed*1000 + 8000, updatedAt:Date.now()});
   } else await NET.be.updateRoom(r.code, {status:'running', nextTick:Date.now() + r.speed*1000 + 5000, updatedAt:Date.now()});
   SFX.fanfare();
 }
@@ -204,32 +211,48 @@ async function doHostStart(exclude){
 // ------------------------------------------------------------
 //  Entrar no mundo
 // ------------------------------------------------------------
+// configurações congeladas na sala (salas antigas: busca nos dados dos jogadores)
+function roomHumans(r){ return (r.humans||[]).map(h=>({uid:h.uid, name:h.name, slot:h.slot, cfg:h.cfg || (ON.players[h.uid]||{}).cfg})); }
+const backupKey = (code, uid) => `imperium_onbak_${code}_${uid}`;
 async function maybeEnterGame(force){
-  const r = ON.room; if (!r || r.status !== 'running' || ON.inGame) return;
+  const r = ON.room; if (!r || r.status !== 'running' || ON.inGame || ON.entering) return;
   if (!(r.humans||[]).some(h=>h.uid === NET.user.uid)){ if (force) toast('Você não faz parte desta partida.', 'bad'); return; }
-  ON.inGame = true;
+  ON.entering = true;
+  try { await enterGame(r); } finally { ON.entering = false; }
+}
+async function enterGame(r){
   const code = r.code, uid = NET.user.uid;
-  let loaded = false;
-  const save = await NET.be.getSave(code, uid);
-  if (save){
-    try { const data = JSON.parse(save); G = data; G.pendingEvents = G.pendingEvents || []; loaded = true; } catch(e){ console.warn(e); }
-  }
-  if (!loaded){
-    const humans = r.humans.map(h=>({uid:h.uid, name:h.name, slot:h.slot, cfg:(ON.players[h.uid]||{}).cfg})).filter(h=>h.cfg);
+  // garante a lista de jogadores desta sala antes de montar o mundo
+  if (!ON.playersLoaded || roomHumans(r).some(h=>!h.cfg)){ try { ON.players = await NET.be.getPlayers(code); ON.playersLoaded = true; } catch(e){} }
+  const humans = roomHumans(r);
+  if (humans.some(h=>!h.cfg)){ toast('Não foi possível carregar as nações de todos os jogadores. Tente de novo em instantes.', 'bad'); return; }
+  // salvamento: nuvem e cópia local — usa o mais recente; erro de rede NÃO cria nação nova
+  let cloud = null, cloudErr = null;
+  for (let i=0;i<3;i++){ try { cloud = await NET.be.getSave(code, uid); cloudErr = null; break; } catch(e){ cloudErr = e; await new Promise(res=>setTimeout(res, 1200)); } }
+  let local = null; try { local = localStorage.getItem(backupKey(code, uid)); } catch(e){}
+  const parse = t => { try { return t ? JSON.parse(t) : null; } catch(e){ return null; } };
+  const a = parse(cloud), b = parse(local);
+  const data = a && b ? (b.turn > a.turn ? b : a) : (a || b);
+  if (!data && cloudErr && (r.turn||0) > 0){ SFX.error(); toast('Sem conexão para carregar sua nação. Tente entrar de novo.', 'bad'); return; }
+  ON.inGame = true;
+  if (data){
+    G = data; G.pendingEvents = G.pendingEvents || [];
+    // reconstrói o mapa base (terras dos jogadores) a partir das configurações
+    Grid.buildLand(humans.map(h=>h.cfg.homePoly).filter(Boolean));
+  } else {
     const me = humans.find(h=>h.uid === uid);
     const cfg = Object.assign({}, JSON.parse(JSON.stringify(me.cfg)), {online:{code, slot:me.slot, host:r.host===uid, humans, seed:r.seed}});
+    if (r.world) cfg.world = JSON.parse(JSON.stringify(r.world));
+    else { const hc = (humans.find(h=>h.uid === r.host)||{}).cfg; if (hc && hc.world) cfg.world = JSON.parse(JSON.stringify(hc.world)); }
     newGame(cfg);
-  } else {
-    // reconstrói o mapa base (terras dos jogadores) a partir das configurações
-    const polys = r.humans.map(h=>((ON.players[h.uid]||{}).cfg||{}).homePoly).filter(Boolean);
-    Grid.buildLand(polys);
   }
+  ON.lastSave = 0;
   G.online.host = r.host === uid; G.online.code = code; G.online.uid = uid;
   if (!G.online.lastEvTs) G.online.lastEvTs = r.startedAt || Date.now();
   const p = G.p;
   p.flagCanvas = flagCanvas(p.flag, 120, 80);
   Object.keys(flagCache).forEach(k=>delete flagCache[k]);
-  const extra = [p.homePoly].concat(r.humans.map(h=>((ON.players[h.uid]||{}).cfg||{}).homePoly)).filter(Boolean);
+  const extra = [p.homePoly].concat(humans.map(h=>h.cfg.homePoly)).filter(Boolean);
   MapView.buildPaths(extra); MapView.buildBase(extra);
   const w = await NET.be.getWorld(code);
   if (w){ applyWorld(w, true); if (!G.online.host && w.turn > G.turn) setTimeout(()=>onWorld(w), 600); } else { recount(); computeAdjacency(); }
@@ -239,7 +262,7 @@ async function maybeEnterGame(force){
   ON.subs.push(NET.be.watchWorld(code, wd=>onWorld(wd)));
   ON.subs.push(NET.be.watchEvents(code, evs=>onEvents(evs)));
   clearInterval(ON.timer); ON.timer = setInterval(onlineTick, 1000);
-  syncHumans(); publishPlayer(); unlock('online_primeira');
+  syncHumans(); publishPlayer(); onlineSave(true); unlock('online_primeira');
   setTimeout(()=>{ goHome(); toast(`🌐 Você entrou no mundo da sala ${code}.`, 'good'); }, 500);
 }
 function leaveOnline(){
@@ -257,6 +280,14 @@ function onlineTick(){
   if (r.status !== 'running') return;
   if (G.online.host && Date.now() >= (r.nextTick||0) && !UI.busy){
     hostTurn();
+  }
+  // anfitrião sumiu há mais de 90 s: o jogador online de menor vaga assume (o banco confere)
+  if (!G.online.host && Date.now() - ON.hostTry > 20000){
+    const hp = ON.players[r.host], gone = !hp || Date.now() - (hp.lastSeen||0) > 90000;
+    if (gone){
+      const next = roomHumans(r).filter(h=>h.uid !== r.host && (h.uid === NET.user.uid || isOnlineNow(ON.players[h.uid]))).sort((a,b)=>a.slot-b.slot)[0];
+      if (next && next.uid === NET.user.uid){ ON.hostTry = Date.now(); NET.be.takeHost(r.code, NET.user.uid).catch(()=>{}); }
+    }
   }
 }
 async function hostTurn(){
@@ -292,7 +323,7 @@ function encodeCanon(){ let s = ''; for (let i=0;i<NCELLS;i++) s += String.fromC
 async function publishWorld(){
   const N = G.nations, nations = [];
   for (let id=2; id<N.length; id++){ const n = N[id]; if (!n || n.human || n.empty || n.playerOrigin) continue; nations.push([id, +n.pop.toFixed(3), Math.round(n.pc), +n.power.toFixed(1), +n.navy.toFixed(1), +n.tech.toFixed(2), n.alive?1:0, n.cap, n.capital, n.leader, n.leaderAge, +(n.histMil||1).toFixed(3), n.leaderTitle||null, n.realLeader?1:0]); }
-  const w = {turn:G.turn, owner:encodeCanon(), nations, aiWars:G.aiWars, news:G.news.slice(0,6), ts:Date.now()};
+  const w = {turn:G.turn, owner:encodeCanon(), nations, aiWars:G.aiWars, aiBlocs:G.aiBlocs||[], news:G.news.slice(0,6), ts:Date.now()};
   ON.lastWorld = w;
   await NET.be.setWorld(G.online.code, w);
 }
@@ -328,6 +359,7 @@ function applyWorld(w, initial){
       ON.snapPower[id] = power;
     }
     G.aiWars = w.aiWars || [];
+    G.aiBlocs = w.aiBlocs || [];
     if (w.news && w.news.length) G.news = w.news.slice();
     recount(); computeAdjacency(); MapView.dirty = true;
   } finally { ON.applying = false; }
@@ -431,15 +463,23 @@ function syncHumans(){
     if (pl.alive === false && n.alive && !n.cells){ n.alive = false; }
   }
 }
-async function onlineSave(force){
-  if (!G || !G.online) return;
-  if (!force && G.turn - ON.lastSave < 3) return;
-  ON.lastSave = G.turn;
+function onlineSaveJSON(){
   const data = Object.assign({}, G); const p = Object.assign({}, G.p); delete p.flagCanvas; delete p.mods; data.p = p;
   data.hist = G.hist.slice(-600); data.log = G.log.slice(-200);
-  try { await NET.be.setSave(G.online.code, NET.user.uid, JSON.stringify(data)); } catch(e){ console.warn('online save', e); }
-  try { await NET.be.saveTrophies(NET.user.uid, getTrophies()); } catch(e){}
+  return JSON.stringify(data);
 }
+async function onlineSave(force){
+  if (!G || !G.online || !ON.inGame) return;
+  if (!force && Date.now() - ON.lastSave < 15000) return;
+  ON.lastSave = Date.now();
+  const json = onlineSaveJSON(), code = G.online.code, uid = NET.user.uid;
+  try { localStorage.setItem(backupKey(code, uid), json); } catch(e){}
+  try { await NET.be.setSave(code, uid, json); } catch(e){ console.warn('online save', e); ON.lastSave = 0; }
+  if (force || G.turn % 6 === 0){ try { await NET.be.saveTrophies(uid, getTrophies()); } catch(e){} }
+}
+// fechar/recarregar a aba: grava a cópia local na hora e tenta a nuvem
+window.addEventListener('pagehide', ()=>{ if (G && G.online && ON.inGame){ try { localStorage.setItem(backupKey(G.online.code, NET.user.uid), onlineSaveJSON()); } catch(e){} onlineSave(true); } });
+document.addEventListener('visibilitychange', ()=>{ if (document.hidden && G && G.online && ON.inGame) onlineSave(true); });
 
 // ------------------------------------------------------------
 //  Barra online e painel de jogadores

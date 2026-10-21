@@ -301,7 +301,9 @@ function limitNations(list, cfg){
   const score = d => Math.sqrt(d.pop||1) * Math.pow((d.pc||1) + 1, 0.3) * Math.pow(d.cellsEst||1, 0.35) * (LEGACY_BY_KEY[d.key] ? 1.6 : 1);
   const sorted = list.slice().sort((a, b) => score(b) - score(a));
   const chosen = new Set(sorted.slice(0, max));
-  for (const d of list) if (d.name === cfg.existing || keep.has(d.a3)) chosen.add(d);
+  // no online, os países de TODOS os jogadores entram (a lista precisa ser idêntica em todos os computadores)
+  const humansEx = new Set(cfg.online ? cfg.online.humans.map(h => h.cfg && h.cfg.existing).filter(Boolean) : [cfg.existing]);
+  for (const d of list) if (humansEx.has(d.name) || keep.has(d.a3)) chosen.add(d);
   const out = list.filter(d => chosen.has(d)); out._boxes = list._boxes; out._dropped = list.filter(d => !chosen.has(d));
   return out;
 }

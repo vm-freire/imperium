@@ -20,6 +20,7 @@ const ECOBLOC = {
   foundCost(){ return G.p.gdp*0.004 + 20*G.costScale; },
   found(name, icon, mil){
     const p = G.p; if (ecoBloc()) return {ok:false, why:'Já lideramos um bloco.'};
+    if (p.aiBloc) return {ok:false, why:'Saia do bloco do qual fazemos parte antes de fundar o seu.'};
     name = String(name || '').trim().slice(0, 40); if (name.length < 3) return {ok:false, why:'Dê um nome ao bloco (mínimo 3 letras).'};
     const c = this.foundCost(); if (p.treasury < c) return {ok:false, why:'Tesouro insuficiente.'};
     p.treasury -= c;
@@ -41,6 +42,7 @@ const ECOBLOC = {
     const b = ecoBloc(), p = G.p;
     let c = 0.35 + (n.rel - 25)/90 + (n.alliance ? 0.2 : 0) + Math.min(0.15, dealCount(n)*0.05);
     if (n.bloc && n.bloc !== p.bloc) c -= 0.25;
+    if (typeof aiBlocOf === 'function' && aiBlocOf(n.id)) c -= 0.3;   // já está em outro bloco
     if (b && b.mil && !n.alliance) c -= 0.15;
     if (b && b.mil && n.ag < 0.25) c -= 0.1;   // nações pacíficas relutam em entrar num pacto militar
     return clamp(c, 0.05, 0.92);
@@ -115,6 +117,7 @@ endTurn = function(){
     const n = G.nations[iv.n]; if (!n || !n.alive || n.atWar) continue;
     if (chance(ECOBLOC.chance(n))){
       b.members.push(n.id); changeRel(n, 8);
+      const old = typeof aiBlocOf === 'function' && aiBlocOf(n.id); if (old){ old.members = old.members.filter(x => x !== n.id); addLog(`${n.name} trocou o "${old.name}" pelo nosso bloco.`, 'dip'); }
       const msg = `${b.icon} ${n.name} aceitou entrar no bloco "${b.name}"!`; addLog(msg, 'dip'); addNews(`${n.name} adere ao bloco "${b.name}"`);
       if (typeof onNegotiation === 'function') onNegotiation(msg, true);
     } else {
@@ -133,6 +136,7 @@ nationTags = function(n){ return _ebTags(n) + (blocMember(n.id) ? `<span class="
 
 function ecoBlocPanelHTML(){
   const b = ecoBloc();
+  if (!b && G.p.aiBloc) return '';   // já somos sócios de um bloco da IA (aparece em "Blocos do mundo")
   if (!b) return `<div class="sub">🌐 Bloco econômico</div><div class="box">
     <div class="muted">Una nações num mercado comum (como o Mercosul ou a União Europeia): comércio sem barreiras, mais crescimento e relações melhores. Pode ser também militar, com defesa mútua.</div>
     <button class="btn sm green" style="width:100%;margin-top:6px" data-blocact="found">🌐 Fundar um bloco (${fmtMoney(ECOBLOC.foundCost())})</button></div>`;

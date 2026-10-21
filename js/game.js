@@ -380,6 +380,7 @@ function addMods(m, fx, k){ if (!fx) return; k = k===undefined?1:k; for (const k
 // ------------------------------------------------------------
 //  Criação do mundo e do país
 // ------------------------------------------------------------
+const MAX_HUMANS = 10;   // vagas do multiplayer
 function newGame(cfg){
   // no multiplayer todos os jogadores geram o mesmo mundo (mesma semente)
   const _rnd = Math.random; if (cfg.online) Math.random = makeRng(cfg.online.seed);
@@ -410,10 +411,10 @@ function newGameInner(cfg){
       capital: d.capital || CAPITALS[d.key] || genPlaceName(), relMod:0, rel:0, atWar:false, pact:false, alliance:false, trade:false, truce:-1, claim:0,
       tech: era.techs.length + (d.pc>30?2:d.pc<5?-3:0) + rand(-1,1), techOff:(d.pc>30?2:d.pc>10?0:d.pc<3?-4:-2) + rand(-1,1), treasury:0, power:0, navy:0, lastWar:-99});
   });
-  // vagas para jogadores humanos com nações novas (sempre 5, iguais em todos os computadores)
+  // vagas para jogadores humanos com nações novas (sempre MAX_HUMANS, iguais em todos os computadores)
   if (ON){
     G.humanBase = G.nations.length;
-    for (let s2=0; s2<5; s2++) G.nations.push({id:G.humanBase+s2, name:'—', key:'humano'+s2, cult:'luso', res:[], exp:[], likes:[], dislikes:[], leader:'', leaderAge:40, deals:{}, flag:randomFlag(), color:'#888888', gov:'republica', relig:'laico', seeds:[[0,0,1]], w:1, pop:1, pc:1000, ag:0, bloc:null, alive:false, cells:0, area:0, cap:-1, capital:'', relMod:0, rel:0, atWar:false, pact:false, alliance:false, trade:false, truce:-1, claim:0, tech:0, techOff:0, treasury:0, power:0, navy:0, lastWar:-99, histMil:1, human:true, empty:true});
+    for (let s2=0; s2<MAX_HUMANS; s2++) G.nations.push({id:G.humanBase+s2, name:'—', key:'humano'+s2, cult:'luso', res:[], exp:[], likes:[], dislikes:[], leader:'', leaderAge:40, deals:{}, flag:randomFlag(), color:'#888888', gov:'republica', relig:'laico', seeds:[[0,0,1]], w:1, pop:1, pc:1000, ag:0, bloc:null, alive:false, cells:0, area:0, cap:-1, capital:'', relMod:0, rel:0, atWar:false, pact:false, alliance:false, trade:false, truce:-1, claim:0, tech:0, techOff:0, treasury:0, power:0, navy:0, lastWar:-99, histMil:1, human:true, empty:true});
   }
   // terras reais (Natural Earth); sem os dados, Voronoi ponderado
   const N = G.nations;

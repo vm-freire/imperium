@@ -46,7 +46,18 @@ class LocalBackend {
   async updateRoom(code, patch){ const r = this._get('mp_room_' + code, null); if (!r) throw new Error('Sala não encontrada.'); this._set('mp_room_' + code, deepMerge(r, patch)); }
   watchRoom(code, cb){ return this._sub({key:'mp_room_' + code, cb:()=>cb(this._get('mp_room_' + code, null))}); }
   async listMyRooms(uid){ const out = []; for (let i=0;i<localStorage.length;i++){ const k = localStorage.key(i); if (k.startsWith('mp_room_')){ const r = this._get(k); if (r && r.memberUids && r.memberUids.includes(uid)) out.push(r); } } return out; }
+  async joinRoom(code, uid, name){
+    const r = this._get('mp_room_' + code, null); if (!r) return {error:'notfound'};
+    if (r.members[uid]) return r;
+    if (r.status !== 'lobby') return {error:'started'};
+    const used = Object.values(r.members).map(x=>x.slot); if (used.length >= r.maxPlayers) return {error:'full'};
+    let slot = 0; while (used.includes(slot)) slot++;
+    r.members[uid] = {name, slot, joinedAt:Date.now()}; r.memberUids = (r.memberUids||[]).concat([uid]); r.updatedAt = Date.now();
+    this._set('mp_room_' + code, r); return r;
+  }
+  async takeHost(code, uid){ const r = this._get('mp_room_' + code, null); if (!r || !r.members[uid]) return false; r.host = uid; this._set('mp_room_' + code, r); return true; }
   async setPlayer(code, uid, data){ const k = 'mp_players_' + code, m = this._get(k, {}); m[uid] = Object.assign(m[uid]||{}, data); this._set(k, m); }
+  async getPlayers(code){ return this._get('mp_players_' + code, {}); }
   watchPlayers(code, cb){ return this._sub({key:'mp_players_' + code, cb:()=>cb(this._get('mp_players_' + code, {}))}); }
   async setWorld(code, w){ this._set('mp_world_' + code, w); }
   async getWorld(code){ return this._get('mp_world_' + code, null); }
@@ -79,7 +90,15 @@ class SupabaseBackend {
   constructor(cfg){
     this.kind = 'supabase';
     this.sb = supabase.createClient(cfg.url, cfg.anonKey, {auth:{persistSession:true, autoRefreshToken:true}});
-    this.chan = 0;
+    this.chan = 0; this.rpcOk = true; this.evLast = {};
+  }
+  // funções atômicas do setup.sql; se ainda não existirem no banco, cai no modo antigo
+  async _rpc(fn, args){
+    if (!this.rpcOk) return {missing:true};
+    const r = await this.sb.rpc(fn, args);
+    if (r.error && /function|schema cache|PGRST202|42883/i.test(r.error.message + ' ' + (r.error.code||''))){ this.rpcOk = false; console.warn('Rode o supabase/setup.sql para ativar as funções atômicas.'); return {missing:true}; }
+    if (r.error) throw new Error(supaErr(r.error.message));
+    return {data:r.data};
   }
   async _uid(){ const {data} = await this.sb.auth.getSession(); return data.session ? data.session.user.id : null; }
   _chk(r){ if (r.error) throw new Error(supaErr(r.error.message)); return r.data; }
@@ -119,6 +138,7 @@ class SupabaseBackend {
   }
   async getRoom(code){ const r = await this.sb.from('rooms').select('data').eq('code', code).maybeSingle(); return r.data ? r.data.data : null; }
   async updateRoom(code, patch){
+    const rp = await this._rpc('room_patch', {p_code:code, p_patch:patch}); if (!rp.missing) return;
     const cur = await this.getRoom(code); if (!cur) throw new Error('Sala não encontrada.');
     const next = deepMerge(cur, patch);
     this._chk(await this.sb.from('rooms').update({data:next, member_uids:next.memberUids, updated_at:new Date().toISOString()}).eq('code', code));
@@ -132,25 +152,47 @@ class SupabaseBackend {
   }
   watchRoom(code, cb){ return this._watch('rooms', `code=eq.${code}`, ()=>this.getRoom(code), cb); }
   async listMyRooms(uid){ const r = await this.sb.from('rooms').select('data').contains('member_uids', [uid]); return (r.data||[]).map(x=>x.data); }
+  async joinRoom(code, uid, name){
+    const rp = await this._rpc('room_join', {p_code:code, p_name:name}); if (!rp.missing) return rp.data;
+    const r = await this.getRoom(code); if (!r) return {error:'notfound'};
+    if (r.members[uid]) return r;
+    if (r.status !== 'lobby') return {error:'started'};
+    const used = Object.values(r.members).map(x=>x.slot); if (used.length >= r.maxPlayers) return {error:'full'};
+    let slot = 0; while (used.includes(slot)) slot++;
+    await this.updateRoom(code, {members:{[uid]:{name, slot, joinedAt:Date.now()}}, memberUids:(r.memberUids||[]).concat([uid]), updatedAt:Date.now()});
+    return this.getRoom(code);
+  }
+  async takeHost(code, uid){
+    const rp = await this._rpc('room_take_host', {p_code:code}); if (!rp.missing) return !!rp.data;
+    return false;   // sem a função do banco não dá para trocar o anfitrião com segurança
+  }
   async setPlayer(code, uid, data){
+    const rp = await this._rpc('room_player_patch', {p_code:code, p_patch:data}); if (!rp.missing) return;
     const cur = await this.sb.from('room_players').select('data').eq('code', code).eq('uid', uid).maybeSingle();
     const next = Object.assign({}, cur.data ? cur.data.data : {}, data);
     await this.sb.from('room_players').upsert({code, uid, data:next});
   }
   async _players(code){ const r = await this.sb.from('room_players').select('uid,data').eq('code', code); const m = {}; for (const x of (r.data||[])) m[x.uid] = x.data; return m; }
+  async getPlayers(code){ return this._players(code); }
   watchPlayers(code, cb){ return this._watch('room_players', `code=eq.${code}`, ()=>this._players(code), cb); }
   async setWorld(code, w){ this._chk(await this.sb.from('room_world').upsert({code, data:w, turn:w.turn})); }
   async getWorld(code){ const r = await this.sb.from('room_world').select('data').eq('code', code).maybeSingle(); return r.data ? r.data.data : null; }
   watchWorld(code, cb){ return this._watch('room_world', `code=eq.${code}`, ()=>this.getWorld(code), w=>{ if (w) cb(w); }); }
-  async setSave(code, uid, json){ await this.sb.from('room_saves').upsert({code, uid, json, saved_at:new Date().toISOString()}); }
-  async getSave(code, uid){ const r = await this.sb.from('room_saves').select('json').eq('code', code).eq('uid', uid).maybeSingle(); return r.data ? r.data.json : null; }
+  async setSave(code, uid, json){ this._chk(await this.sb.from('room_saves').upsert({code, uid, json, saved_at:new Date().toISOString()})); }
+  async getSave(code, uid){ const r = await this.sb.from('room_saves').select('json').eq('code', code).eq('uid', uid).maybeSingle(); if (r.error) throw new Error(supaErr(r.error.message)); return r.data ? r.data.json : null; }
   // ---- dados da conta (salvamentos solo, histórico, conquistas) ----
   async getUserData(uid){ const r = await this.sb.from('user_saves').select('key,value').eq('uid', uid); if (r.error) throw new Error(r.error.message); const m = {}; for (const x of r.data) m[x.key] = x.value; return m; }
   async setUserData(uid, key, value){ this._chk(await this.sb.from('user_saves').upsert({uid, key, value, updated_at:new Date().toISOString()})); }
   async delUserData(uid, key){ this._chk(await this.sb.from('user_saves').delete().eq('uid', uid).eq('key', key)); }
   async pushEvent(code, ev){ ev.ts = Date.now(); const r = await this.sb.from('room_events').insert({code, ts:ev.ts, from_uid:ev.from, data:ev}).select('id').single(); return r.data && r.data.id; }
-  async _events(code){ const r = await this.sb.from('room_events').select('id,data').eq('code', code).gt('ts', Date.now() - 7*24*3600*1000).order('id'); return (r.data||[]).map(x=>Object.assign({}, x.data, {id:String(x.id)})); }
-  watchEvents(code, cb){ return this._watch('room_events', `code=eq.${code}`, ()=>this._events(code), cb); }
+  async _events(code){
+    let q = this.sb.from('room_events').select('id,data').eq('code', code);
+    q = this.evLast[code] ? q.gt('id', this.evLast[code]) : q.gt('ts', Date.now() - 7*24*3600*1000);
+    const r = await q.order('id').limit(500); const rows = r.data || [];
+    if (rows.length) this.evLast[code] = Math.max(this.evLast[code]||0, rows[rows.length-1].id);
+    return rows.map(x=>Object.assign({}, x.data, {id:String(x.id)}));
+  }
+  watchEvents(code, cb){ delete this.evLast[code]; return this._watch('room_events', `code=eq.${code}`, ()=>this._events(code), cb); }
 }
 
 // ------------------------------------------------------------

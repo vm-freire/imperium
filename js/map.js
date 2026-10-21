@@ -61,6 +61,7 @@ const Grid = {
 };
 
 // ------------------------------------------------------------
+const MAP_NB8 = [1,0, -1,0, 0,1, 0,-1, 1,1, -1,-1, 1,-1, -1,1];
 const MapView = {
   canvas:null, ctx:null, dpr:1, cw:0, ch:0,
   cam:{x:0, y:0, z:1}, minZ:0.5, maxZ:30,
@@ -79,7 +80,18 @@ const MapView = {
     this.resize(); this.fit();
     // o relógio das animações de fundo para quando o jogo está pausado
     let last = 0; this.t = 0;
-    const loop = (ts)=>{ const dt = last ? Math.min(0.1, (ts - last)/1000) : 0; last = ts; this.paused = this.isPaused(); if (!this.paused) this.t += dt; this.frame(); requestAnimationFrame(loop); };
+    // pausado e sem nada mudando, o quadro é idêntico ao anterior: não redesenha
+    this.kick = 30; let lastSig = '', lastDraw = 0;
+    const kick = ()=>{ this.kick = 30; };
+    ['pointerdown','pointermove','pointerup','wheel','keydown','touchstart','touchmove'].forEach(ev=>window.addEventListener(ev, kick, {passive:true}));
+    window.addEventListener('resize', kick);
+    const loop = (ts)=>{
+      const dt = last ? Math.min(0.1, (ts - last)/1000) : 0; last = ts; this.paused = this.isPaused(); if (!this.paused) this.t += dt;
+      const sig = this.cam.x + ',' + this.cam.y + ',' + this.cam.z + ',' + this.hoverCell + ',' + this.hoverOwner + ',' + this.selCell + ',' + this.mode + ',' + this.canvas.width + 'x' + this.canvas.height + ',' + (typeof G !== 'undefined' && G ? G.turn : -1);
+      const busy = !this.paused || this.menuMode || this.dirty || this.anims.length || this.shake || this.placement || this.buildMode || this.kick > 0 || sig !== lastSig || ts - lastDraw > 500;
+      if (busy){ this.frame(); lastSig = sig; lastDraw = ts; if (this.kick > 0) this.kick--; }
+      requestAnimationFrame(loop);
+    };
     requestAnimationFrame(loop);
   },
 
@@ -318,13 +330,13 @@ const MapView = {
       }
       cols[o] = c; return c;
     };
-    const lands = Grid.land, own = Grid.owner;
+    const lands = Grid.land, own = Grid.owner, NB = MAP_NB8;
     for (let i=0;i<NCELLS;i++){
       let o = lands[i] ? own[i] : -1;
       if (o < 0){ // dilatação: herda cor de vizinho terrestre
         const x = i%CW, y = (i/CW)|0;
-        for (const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]]){
-          const nx=x+dx, ny=y+dy; if (nx<0||ny<0||nx>=CW||ny>=CH) continue; const j=ny*CW+nx;
+        for (let k=0;k<16;k+=2){
+          const nx=x+NB[k], ny=y+NB[k+1]; if (nx<0||ny<0||nx>=CW||ny>=CH) continue; const j=ny*CW+nx;
           if (lands[j]){ o = own[j]; break; }
         }
       }
@@ -332,9 +344,12 @@ const MapView = {
       if (c){ d[i*4]=c[0]; d[i*4+1]=c[1]; d[i*4+2]=c[2]; d[i*4+3]=255; }
     }
     this.cellCanvas.getContext('2d').putImageData(img,0,0);
-    this.borderPath = this.marching((a,b)=> a!==b);
-    this.playerBorder = this.marching((a,b)=> (a===1)!==(b===1));
-    this.warBorder = this.marching((a,b)=> a!==b && ((a===1 && G.nations[b] && G.nations[b].atWar) || (b===1 && G.nations[a] && G.nations[a].atWar)));
+    const atWar = new Uint8Array(G.nations.length); G.nations.forEach((n, k)=>{ if (n && n.atWar) atWar[k] = 1; });
+    [this.borderPath, this.playerBorder, this.warBorder] = this.marchingMulti([
+      (a,b)=> a!==b,
+      (a,b)=> (a===1)!==(b===1),
+      (a,b)=> a!==b && ((a===1 && atWar[b]===1) || (b===1 && atWar[a]===1))]);
+    this.hoverCache = new Map();
     this.hoverPath = this.hoverOwner > 0 ? this.nationPath(this.hoverOwner) : null;
     this.dirty = false;
   },
@@ -356,7 +371,33 @@ const MapView = {
     }
     return p;
   },
-  nationPath(o){ return this.marchingOwner(o); },
+  // mesmo traçado de marching(), mas várias fronteiras numa única varredura do mapa
+  marchingMulti(diffs){
+    const ps = diffs.map(()=>new Path2D()), L = Grid.land, O = Grid.owner, h = DEG/2;
+    for (let y=0;y<CH-1;y++) for (let x=0;x<CW-1;x++){
+      const i=y*CW+x;
+      const tl = L[i] ? O[i] : -9, tr = L[i+1] ? O[i+1] : -9, bl = L[i+CW] ? O[i+CW] : -9, br = L[i+CW+1] ? O[i+CW+1] : -9;
+      if (tl === tr && tr === br && br === bl) continue;   // nenhuma fronteira passa aqui
+      const X=(x+1)*DEG, Y=(y+1)*DEG;
+      for (let k=0;k<diffs.length;k++){
+        const diff = diffs[k], act = (a,b)=> a!==-9 && b!==-9 && diff(a,b), e = [];
+        if (act(tl,tr)) e.push([X, Y-h]);
+        if (act(tr,br)) e.push([X+h, Y]);
+        if (act(br,bl)) e.push([X, Y+h]);
+        if (act(bl,tl)) e.push([X-h, Y]);
+        const p = ps[k];
+        if (e.length === 2){ p.moveTo(e[0][0],e[0][1]); p.lineTo(e[1][0],e[1][1]); }
+        else if (e.length){ for (const q of e){ p.moveTo(q[0],q[1]); p.lineTo(X,Y); } }
+      }
+    }
+    return ps;
+  },
+  nationPath(o){
+    // contorno de passar o mouse: guardado até o mapa mudar
+    if (!this.hoverCache) this.hoverCache = new Map();
+    let p = this.hoverCache.get(o); if (!p){ p = this.marchingOwner(o); this.hoverCache.set(o, p); if (this.hoverCache.size > 40) this.hoverCache.delete(this.hoverCache.keys().next().value); }
+    return p;
+  },
   marchingOwner(o){
     const p = new Path2D(), L = Grid.land, O = Grid.owner;
     const isO = i => L[i] && O[i]===o;
