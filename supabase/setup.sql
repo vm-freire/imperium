@@ -205,3 +205,8 @@ grant execute on function public.room_patch(text, jsonb) to authenticated;
 grant execute on function public.room_join(text, text) to authenticated;
 grant execute on function public.room_player_patch(text, jsonb) to authenticated;
 grant execute on function public.room_take_host(text) to authenticated;
+
+-- ---------------- Excluir sala (só o anfitrião) ----------------
+-- Mundo, jogadores, salvamentos e eventos da sala são apagados junto (on delete cascade).
+drop policy if exists "salas: anfitrião exclui" on public.rooms;
+create policy "salas: anfitrião exclui" on public.rooms for delete to authenticated using (host = auth.uid());

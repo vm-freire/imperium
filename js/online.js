@@ -121,9 +121,9 @@ function heartbeat(code){ const u = NET.user; NET.be.setPlayer(code, u.uid, {uid
 async function openLobby(code){
   unsubAll(); ON.inGame = false; ON.players = {}; ON.playersLoaded = false; ON.evSeen = new Set(); ON.pending = []; ON.snapPower = {};
   ON.room = await NET.be.getRoom(code); if (!ON.room){ toast('Sala não encontrada.', 'bad'); return; }
-  heartbeat(code); ON.hbTimer = setInterval(()=>heartbeat(code), 15000);
+  heartbeat(code); ON.hbTimer = setInterval(()=>{ heartbeat(code); NET.be.getRoom(code).then(x=>{ if (!x) roomGone(code); }).catch(()=>{}); }, 15000);
   const render = ()=>{ if (!ON.inGame && !$('#scr-page').classList.contains('hidden') && $('#page-title').textContent.includes('Sala')) renderLobby(); };
-  ON.subs.push(NET.be.watchRoom(code, r=>{ if (!r) return; ON.room = r;
+  ON.subs.push(NET.be.watchRoom(code, r=>{ if (!r){ roomGone(code); return; } ON.room = r;
     // o anfitrião pode mudar durante a partida (se o original cair)
     if (ON.inGame && G && G.online && G.online.code === code){ const was = G.online.host; G.online.host = r.host === NET.user.uid; if (G.online.host && !was) toast('👑 O anfitrião saiu: agora você comanda o relógio do mundo.', 'good'); }
     render(); maybeEnterGame(); }));
@@ -151,6 +151,7 @@ function renderLobby(){
       ${isHost ? `<button class="btn primary" id="lb-start">${r.status==='lobby'?'▶ Iniciar partida':'▶ Retomar partida'}</button>` : `<span class="muted">${r.status==='lobby'?'Aguardando o anfitrião iniciar...':r.status==='running'?'Partida em andamento — entrando...':'Aguardando o anfitrião retomar a partida.'}</span>`}
       ${r.status!=='lobby' && r.status==='running' ? `<button class="btn green" id="lb-enter">🌍 Entrar no mundo</button>` : ''}
       <button class="btn" id="lb-back">← Minhas salas</button>
+      ${isHost ? `<button class="btn danger" id="lb-del" style="margin-left:auto">🗑️ Excluir sala</button>` : ''}
     </div>
     ${missing.length && r.status!=='lobby' ? `<div class="tip">Faltam ${missing.length} jogador(es) online: ${missing.map(([,mb])=>esc(mb.name)).join(', ')}.</div>` : ''}`);
   $$('[data-lf]').forEach(cv=>{ const c = (ON.players[cv.dataset.lf]||{}).cfg; if (c) drawFlag(cv.getContext('2d'), c.flag, 0, 0, 66, 44); });
@@ -159,6 +160,30 @@ function renderLobby(){
   const sb = $('#lb-start'); if (sb) sb.onclick = ()=>hostStart();
   const eb = $('#lb-enter'); if (eb) eb.onclick = ()=>maybeEnterGame(true);
   $('#lb-back').onclick = ()=>{ unsubAll(); SFX.click(); openOnlineHub(); };
+  const db = $('#lb-del'); if (db) db.onclick = ()=>confirmDeleteRoom(r);
+}
+// o anfitrião exclui a sala (mundo, jogadores, salvamentos e mensagens vão junto)
+function confirmDeleteRoom(r){
+  SFX.click();
+  confirmModal('🗑️', `Excluir a sala "${esc(r.name)}"?`, `O mundo, as nações de todos os jogadores (${Object.keys(r.members||{}).length}) e as mensagens serão apagados para sempre. Quem estiver na sala será desconectado. <b>Não dá para desfazer.</b>`, 'Excluir para sempre', async ()=>{
+    try {
+      ON.deleting = r.code;
+      await NET.be.deleteRoom(r.code);
+      clearRoomBackups(r.code); unsubAll(); ON.inGame = false; ON.room = null; document.body.classList.remove('online');
+      SFX.bell(); toast(`Sala ${r.code} excluída.`, 'good');
+      if (G && G.online && G.online.code === r.code){ G = null; showMenu(); }
+      openOnlineHub();
+    } catch(e){ SFX.error(); toast(esc(e.message), 'bad'); }
+    finally { ON.deleting = null; }
+  }, true);
+}
+function clearRoomBackups(code){ try { Object.keys(localStorage).filter(k=>k.startsWith(`imperium_onbak_${code}_`)).forEach(k=>localStorage.removeItem(k)); } catch(e){} }
+function roomGone(code){
+  if (ON.deleting === code || !ON.room || ON.room.code !== code) return;
+  const inGame = ON.inGame; unsubAll(); ON.inGame = false; ON.room = null; document.body.classList.remove('online'); clearRoomBackups(code);
+  if (inGame){ G = null; }
+  closeModal(); showMenu(); SFX.error();
+  setTimeout(()=>{ toast(`A sala ${code} foi excluída pelo anfitrião.`, 'bad'); openOnlineHub(); }, 150);
 }
 function takenNations(){ return Object.entries(ON.players).filter(([uid, pl])=>uid !== NET.user.uid && pl.cfg && pl.cfg.existing).map(([,pl])=>pl.cfg.existing); }
 function chooseOnlineNation(){

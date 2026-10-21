@@ -55,6 +55,7 @@ class LocalBackend {
     r.members[uid] = {name, slot, joinedAt:Date.now()}; r.memberUids = (r.memberUids||[]).concat([uid]); r.updatedAt = Date.now();
     this._set('mp_room_' + code, r); return r;
   }
+  async deleteRoom(code){ for (const k of Object.keys(localStorage)) if (k === 'mp_room_' + code || k === 'mp_players_' + code || k === 'mp_world_' + code || k === 'mp_events_' + code || k.startsWith('mp_save_' + code + '_')) localStorage.removeItem(k); this._fire('mp_room_' + code); }
   async takeHost(code, uid){ const r = this._get('mp_room_' + code, null); if (!r || !r.members[uid]) return false; r.host = uid; this._set('mp_room_' + code, r); return true; }
   async setPlayer(code, uid, data){ const k = 'mp_players_' + code, m = this._get(k, {}); m[uid] = Object.assign(m[uid]||{}, data); this._set(k, m); }
   async getPlayers(code){ return this._get('mp_players_' + code, {}); }
@@ -161,6 +162,11 @@ class SupabaseBackend {
     let slot = 0; while (used.includes(slot)) slot++;
     await this.updateRoom(code, {members:{[uid]:{name, slot, joinedAt:Date.now()}}, memberUids:(r.memberUids||[]).concat([uid]), updatedAt:Date.now()});
     return this.getRoom(code);
+  }
+  async deleteRoom(code){
+    const r = await this.sb.from('rooms').delete().eq('code', code).select('code');
+    if (r.error) throw new Error(supaErr(r.error.message));
+    if (!r.data || !r.data.length) throw new Error('Não foi possível excluir. Rode o supabase/setup.sql atualizado (permissão de exclusão).');
   }
   async takeHost(code, uid){
     const rp = await this._rpc('room_take_host', {p_code:code}); if (!rp.missing) return !!rp.data;

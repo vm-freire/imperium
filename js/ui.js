@@ -1209,6 +1209,7 @@ function openGameMenu(){
       <button class="choice" id="og-opt"><b>⚙️ Opções de som</b><span>Volume, música e efeitos</span></button>
       <button class="choice" id="og-leave"><b>🚪 Sair para o menu</b><span>${isHost ? 'Como anfitrião, o mundo para de avançar enquanto você estiver fora' : 'Sua nação fica parada; o mundo continua'}</span></button>
       ${isHost ? '<button class="choice danger" id="og-stop"><b>⏹ Encerrar a sessão</b><span>Para o relógio para todos. Retome depois pelo lobby da sala.</span></button>' : ''}
+      ${isHost ? '<button class="choice danger" id="og-del"><b>🗑️ Excluir a sala</b><span>Apaga o mundo e as nações de todos. Não dá para desfazer.</span></button>' : ''}
       <div class="m-actions"><button class="btn" id="og-x">Voltar ao jogo</button></div>`);
     m.querySelector('#og-x').onclick = ()=>{ SFX.click(); closeModal(); };
     m.querySelector('#og-pl').onclick = ()=>{ closeModal(); openPlayersPanel(); };
@@ -1216,6 +1217,7 @@ function openGameMenu(){
     m.querySelector('#og-tro').onclick = ()=>{ closeModal(); openTrophies(); };
     m.querySelector('#og-opt').onclick = ()=>{ closeModal(); openOptions(); };
     m.querySelector('#og-leave').onclick = ()=>{ closeModal(); leaveOnline(); };
+    const dl = m.querySelector('#og-del'); if (dl) dl.onclick = ()=>{ closeModal(); onlineSave(true); confirmDeleteRoom(ON.room); };
     const st = m.querySelector('#og-stop'); if (st) st.onclick = ()=>{ closeModal(); confirmModal('⏹', 'Encerrar a sessão?', 'O mundo para de avançar para todos os jogadores. A sala fica salva e você pode retomar pelo lobby.', 'Encerrar sessão', async ()=>{ await NET.be.updateRoom(G.online.code, {status:'stopped', updatedAt:Date.now()}); leaveOnline(); }, true); };
     return;
   }
