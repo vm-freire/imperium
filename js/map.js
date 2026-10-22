@@ -518,10 +518,11 @@ const MapView = {
       ctx.globalAlpha = 1;
       // hachura do jogador
       if (G.p && G.p.homePoly && G.nations[1].alive){
-        ctx.save(); const hp = new Path2D(); this.polyPath(G.p.homePoly, hp); ctx.clip(hp);
+        ctx.save(); const hp = new Path2D(); this.polyPath(G.p.homePoly, hp); for (const pp of (G.p.homeParts||[])) this.polyPath(pp, hp); ctx.clip(hp);
         ctx.strokeStyle = hexA(G.nations[1].color, 0.35); ctx.lineWidth = 1/z*1.2;
         const [ax, ay] = proj(G.p.homePoly[0][0], G.p.homePoly[0][1]);
-        ctx.beginPath(); for (let k=-300;k<300;k+=4) { ctx.moveTo(ax+k-150, ay-150); ctx.lineTo(ax+k+150, ay+150); } ctx.stroke();   // 150 traços paralelos num só desenho
+        ctx.beginPath(); for (let k=-300;k<300;k+=4) { ctx.moveTo(ax+k-150, ay-150); ctx.lineTo(ax+k+150, ay+150); } ctx.stroke();
+        for (const pp of (G.p.homeParts||[])){ const [bx, by] = proj(pp[0][0], pp[0][1]); if (Math.abs(bx-ax) < 140 && Math.abs(by-ay) < 140) continue; ctx.beginPath(); for (let k=-150;k<150;k+=4){ ctx.moveTo(bx+k-80, by-80); ctx.lineTo(bx+k+80, by+80); } ctx.stroke(); }   // 150 traços paralelos num só desenho
         ctx.restore();
       }
       ctx.restore();
@@ -640,7 +641,8 @@ const MapView = {
     const pl = this.placement; if (!this.mouseLonLat) return;
     const poly = placementPoly(pl.shape, this.mouseLonLat[0], this.mouseLonLat[1], pl.area, pl.rot);
     pl.current = poly;
-    const p = new Path2D(); this.polyPath(poly, p);
+    pl.currentParts = (pl.shape.parts || []).map(pp => placementPoly({pts:pp, area:pl.shape.area}, this.mouseLonLat[0], this.mouseLonLat[1], pl.area, pl.rot));
+    const p = new Path2D(); this.polyPath(poly, p); for (const pp of pl.currentParts) this.polyPath(pp, p);
     ctx.fillStyle = hexA(pl.color, 0.45 + 0.1*Math.sin(this.t*4)); ctx.fill(p);
     ctx.save(); ctx.setLineDash([4/z+1, 3/z+1]); ctx.lineDashOffset = -this.t*20; ctx.strokeStyle='#3d2812'; ctx.lineWidth = 2/z+0.3; ctx.stroke(p); ctx.restore();
     const [x,y] = proj(this.mouseLonLat[0], this.mouseLonLat[1]);

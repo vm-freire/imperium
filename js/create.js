@@ -6,7 +6,7 @@
 const MOTTOS = ['Ordem e Progresso','Unidos Venceremos','Pela Glória e pela Pátria','Força na União','Liberdade ou Morte','Do Mar às Montanhas','Fé, Trabalho e Coragem','Sempre Avante','A Terra é de Quem a Trabalha','Paz pela Força'];
 const AREA_REF = [[20000,'El Salvador'],[30000,'Bélgica'],[92000,'Portugal'],[132000,'Grécia'],[243000,'Reino Unido'],[357000,'Alemanha'],[550000,'França'],[783000,'Turquia'],[1.22e6,'África do Sul'],[1.96e6,'México'],[2.78e6,'Argentina'],[3.29e6,'Índia'],[7.7e6,'Austrália'],[8.5e6,'Brasil'],[9.8e6,'EUA'],[17.1e6,'Rússia']];
 
-const C = { step:0, cfg:null, shapePts:[], drawing:false, titleEdited:false, mode:'new' };
+const C = { step:0, cfg:null, shapePts:[], shapeParts:[], drawing:false, titleEdited:false, mode:'new' };
 const STEP_DEF = {
   nation:{n:'Nação', r:()=>stepNation(), b:x=>bindNation(x)},
   ident:{n:'Identidade', r:()=>stepIdent(), b:x=>bindIdent(x)},
@@ -62,7 +62,7 @@ function chooseGameMode(){
   m.querySelector('#gm-x').onclick = ()=>{ SFX.click(); closeModal(); chooseMode(); };
 }
 function openCreate(keep){
-  if (!keep || !C.cfg){ C.cfg = defaultCfg(); C.shapePts = []; C.step = 0; C.titleEdited = false; if (C.mode === 'existing'){ C.cfg.existing = null; } }
+  if (!keep || !C.cfg){ C.cfg = defaultCfg(); C.shapePts = []; C.shapeParts = []; C.step = 0; C.titleEdited = false; if (C.mode === 'existing'){ C.cfg.existing = null; } }
   C.cfg.gameMode = C.gameMode || 'livre';
   C.cfg.world = Object.assign({}, C.world || (typeof defaultWorld === 'function' ? defaultWorld() : {}));
   hideAllScreens(); $('#scr-create').classList.remove('hidden');
@@ -103,7 +103,11 @@ function stepNation(){
   const c = C.cfg, e = ERAS[c.era];
   return `<div class="section-title" ${C.onlineRoom?'style="display:none"':''}>Época</div>
     <div class="cards" ${C.onlineRoom?'style="display:none"':''}>${Object.entries(ERAS).map(([k,x])=>`<div class="card ${+k===+c.era?'sel':''}" data-era2="${k}"><b>${x.year} — ${x.name}</b><span>${x.desc}</span></div>`).join('')}</div>
-    <div class="section-title">Escolha a nação que você vai governar <button class="btn sm" id="pick-rand" style="margin-left:10px">🎲 Sortear uma nação</button></div>
+    ${c.existing ? `<div class="box" style="margin:10px 0;border-color:var(--red)">
+      <div class="flex" style="gap:10px;align-items:center"><canvas width="54" height="36" id="pick-curflag"></canvas><div><b style="font-size:17px">${esc(c.existing)}</b><div class="muted">Escolha o partido e, se quiser, um político real dele para ser o líder. Na próxima aba você vê o visual do líder.</div></div>
+      <div style="margin-left:auto;text-align:center">${avatarSVG(ensureCfgAvatar(), null, 64)}<div><small><b>${esc(c.leader)}</b></small></div></div></div>
+      <div id="pg-root1">${partyPickerHTML(c, createKey(), ERAS[c.era].year, c.gov)}</div></div>` : ''}
+    <div class="section-title">${c.existing ? 'Trocar de nação' : 'Escolha a nação que você vai governar'} <button class="btn sm" id="pick-rand" style="margin-left:10px">🎲 Sortear uma nação</button></div>
     <div class="muted">Depois você pode mudar nome, líder, regime, bandeira, religião e o que mais quiser.</div>
     <input type="text" id="pick-search" class="pick-search" placeholder="🔎 Buscar país (ex.: Portugal, Japão, Quênia...)" autocomplete="off">
     <div class="nation-pick">${eraNations(c.era).filter(d=>!C.onlineRoom || !takenNations().includes(d.name)).map(d=>{ const H = d.hist || (HIST[d.key] && HIST[d.key][c.era]); return `<div class="npick ${c.existing===d.name?'sel':''}" data-pick="${esc(d.name)}"><canvas width="42" height="28" data-pf="${esc(d.name)}"></canvas>
@@ -116,6 +120,9 @@ function bindNation(b){
   b.querySelectorAll('[data-pick]').forEach(x=>x.onclick=()=>{ SFX.click(); applyExisting(x.dataset.pick); C.cfg.randomPick = false; renderStep(); });
   const ps = b.querySelector('#pick-search'); if (ps){ const norm = t => t.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase(); ps.oninput = ()=>{ const q = norm(ps.value.trim()); b.querySelectorAll('.nation-pick .npick').forEach(el=>{ el.style.display = !q || norm(el.textContent).includes(q) ? '' : 'none'; }); }; }
   b.querySelector('#pick-rand').onclick = ()=>{ SFX.bell(); const L = eraNations(C.cfg.era); applyExisting(pick(L).name); C.cfg.randomPick = true; renderStep(); };
+  const cf = b.querySelector('#pick-curflag'); if (cf) drawFlag(cf.getContext('2d'), C.cfg.flag, 0, 0, 54, 36);
+  const pg1 = b.querySelector('#pg-root1');
+  if (pg1) bindPartyPicker(pg1, C.cfg, createKey(), ERAS[C.cfg.era].year, C.cfg.gov, ()=>{ const y = b.scrollTop; renderStep(); $('#create-body').scrollTop = y; });
 }
 function applyExisting(name){
   const c = C.cfg, e = ERAS[c.era], d = eraNations(c.era).find(x=>x.name===name), pr = PROFILES[d.key] || {cult:'luso', res:[]};
@@ -189,7 +196,9 @@ function stepIdent(){
    </div>
    <div>
     <div class="section-title">Regime político</div>${cards(typeof filterByYear === 'function' ? filterByYear(GOVS, govOk, ERAS[c.era].year) : GOVS, c.gov, 'gov')}
-    <div id="pg-root">${partyPickerHTML(c, createKey(), ERAS[c.era].year, c.gov)}</div>
+    ${C.mode === 'existing' && c.party && c.party.kind === powerKind(c.gov)
+      ? `<div class="section-title">${POWER_KINDS[c.party.kind].icon} ${POWER_KINDS[c.party.kind].label}</div><div class="box"><b>${partyLabel(c.party)}</b>${c.realLeader ? `<br><small>👤 Líder: ${esc(c.leader)}</small>` : ''}<br><button class="btn xs" id="pg-change" style="margin-top:6px">✏️ Trocar partido ou político (aba 1)</button></div>`
+      : `<div id="pg-root">${partyPickerHTML(c, createKey(), ERAS[c.era].year, c.gov)}</div>`}
     <div class="section-title">Sistema econômico</div>${cards(typeof filterByYear === 'function' ? filterByYear(ECONS, econOk, ERAS[c.era].year) : ECONS, c.econ, 'econ')}
     <div class="section-title">Perfil do líder</div>${cards(TRAITS, c.trait, 'trait')}
    </div></div>`;
@@ -207,6 +216,9 @@ function bindIdent(b){
   b.querySelectorAll('[data-gov]').forEach(x=>x.onclick=()=>{ SFX.click(); c.gov = x.dataset.gov; if (!C.titleEdited) c.title = GOVS[c.gov].title; renderStep(); });
   b.querySelectorAll('[data-econ]').forEach(x=>x.onclick=()=>{ SFX.click(); c.econ = x.dataset.econ; renderStep(); });
   const pg = b.querySelector('#pg-root'); if (pg) bindPartyPicker(pg, c, createKey(), ERAS[c.era].year, c.gov, ()=>renderStep());
+  const pch = b.querySelector('#pg-change'); if (pch) pch.onclick = ()=>{ SFX.page(); C.step = 0; renderStep(); };
+  // digitar outro nome de líder deixa de ser o político real
+  b.querySelector('#f-leader').addEventListener('input', ()=>{ c.realLeader = false; });
   b.querySelectorAll('[data-trait]').forEach(x=>x.onclick=()=>{ SFX.click(); c.trait = x.dataset.trait; renderStep(); });
 }
 
@@ -326,10 +338,11 @@ function stepShape(){
     <div class="draw-side">
       <div class="section-title">Desenhe as fronteiras</div>
       <div class="tip">🖱️ <b>Segure o botão do mouse e desenhe</b> o contorno do seu país. Ao soltar, a forma fecha automaticamente.</div>
+      <div class="tip">🏝️ <b>Continue desenhando</b> para acrescentar mais partes: ilhas, arquipélagos ou territórios separados. A maior parte fica com a capital.</div>
       <div class="tip">📏 O tamanho do desenho não importa: ele será escalado para <b>${fmtArea(C.cfg.area)}</b> no mapa.</div>
       <div class="tip">🌊 Se você posicionar o país no oceano, ele vira uma ilha nova. Sobre outra nação, você toma terras dela (e ganha um inimigo).</div>
       <div class="btn-grid">
-        <button class="btn" id="sh-clear">🧽 Limpar</button><button class="btn" id="sh-rand">🎲 Forma aleatória</button>
+        <button class="btn" id="sh-clear">🧽 Limpar tudo</button><button class="btn" id="sh-undo">↩️ Desfazer última parte</button><button class="btn" id="sh-rand">🎲 Forma aleatória</button><button class="btn" id="sh-isle">🏝️ Ilha aleatória</button>
         <button class="btn" id="sh-smooth">〰️ Suavizar bordas</button><button class="btn" id="sh-rough">⛰️ Bordas irregulares</button>
       </div>
       <div class="box" id="sh-info"></div>
@@ -342,31 +355,45 @@ function bindShape(b){
     ctx.strokeStyle = 'rgba(110,75,40,0.15)'; ctx.lineWidth = 1;
     for (let k=0;k<=480;k+=40){ ctx.beginPath(); ctx.moveTo(k,0); ctx.lineTo(k,480); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0,k); ctx.lineTo(480,k); ctx.stroke(); }
     MapView.drawCompass(ctx, 430, 430, 30);
-    const pts = C.shapePts; if (!pts.length) { ctx.fillStyle='rgba(90,61,30,.5)'; ctx.font='italic 20px "IM Fell English", Georgia'; ctx.textAlign='center'; ctx.fillText('Desenhe aqui o seu país', 240, 240); return; }
-    ctx.beginPath(); pts.forEach(([x,y],i)=> i?ctx.lineTo(x,y):ctx.moveTo(x,y)); if (!live) ctx.closePath();
-    if (!live){ ctx.fillStyle = hexA(C.cfg.color, 0.55); ctx.fill();
-      ctx.save(); ctx.clip(); ctx.strokeStyle = hexA(C.cfg.color, 0.6); for (let k=-480;k<480;k+=7){ ctx.beginPath(); ctx.moveTo(k,0); ctx.lineTo(k+480,480); ctx.stroke(); } ctx.restore(); }
-    ctx.strokeStyle = '#3d2812'; ctx.lineWidth = 2.5; ctx.lineJoin='round'; ctx.stroke();
-    if (!live){
+    const parts = C.shapeParts, pts = C.shapePts;
+    if (!parts.length && !(live && C.livePts && C.livePts.length)) { ctx.fillStyle='rgba(90,61,30,.5)'; ctx.font='italic 20px "IM Fell English", Georgia'; ctx.textAlign='center'; ctx.fillText('Desenhe aqui o seu país', 240, 240); return; }
+    // partes já fechadas
+    for (const pp of parts){
+      ctx.beginPath(); pp.forEach(([x,y],i)=> i?ctx.lineTo(x,y):ctx.moveTo(x,y)); ctx.closePath();
+      ctx.fillStyle = hexA(C.cfg.color, 0.55); ctx.fill();
+      ctx.save(); ctx.clip(); ctx.strokeStyle = hexA(C.cfg.color, 0.6); for (let k=-480;k<480;k+=7){ ctx.beginPath(); ctx.moveTo(k,0); ctx.lineTo(k+480,480); ctx.stroke(); } ctx.restore();
+      ctx.strokeStyle = '#3d2812'; ctx.lineWidth = 2.5; ctx.lineJoin='round'; ctx.stroke();
+    }
+    // traço sendo desenhado agora
+    if (live && C.livePts && C.livePts.length){ ctx.beginPath(); C.livePts.forEach(([x,y],i)=> i?ctx.lineTo(x,y):ctx.moveTo(x,y)); ctx.strokeStyle = '#3d2812'; ctx.lineWidth = 2.5; ctx.lineJoin='round'; ctx.stroke(); }
+    if (pts.length){
       const [cx, cy] = centroid(pts);
       ctx.fillStyle = '#8b1a1a'; starPath(ctx, cx, cy, 9, 5, 0.45); ctx.fill();
       ctx.font = 'bold 16px Cinzel, Georgia'; ctx.textAlign = 'center'; ctx.fillStyle = '#3d2812'; ctx.fillText((C.cfg.name||'').toUpperCase(), cx, cy + 26);
     }
     const info = b.querySelector('#sh-info');
-    if (info) info.innerHTML = `Pontos do contorno: <b>${pts.length}</b><br>Área no mapa: <b>${fmtArea(C.cfg.area)}</b>`;
+    if (info) info.innerHTML = `Partes: <b>${parts.length}</b>${parts.length > 1 ? ' (a maior fica com a capital)' : ''}<br>Pontos do contorno: <b>${parts.reduce((s,p)=>s+p.length,0)}</b><br>Área total no mapa: <b>${fmtArea(C.cfg.area)}</b>`;
   };
   const pos = e => { const r = cv.getBoundingClientRect(); return [(e.clientX-r.left)*480/r.width, (e.clientY-r.top)*480/r.height]; };
-  cv.onpointerdown = e=>{ cv.setPointerCapture(e.pointerId); C.drawing = true; C.shapePts = [pos(e)]; SFX.click(); draw(true); };
-  cv.onpointermove = e=>{ if (!C.drawing) return; const p = pos(e), l = C.shapePts[C.shapePts.length-1]; if (Math.hypot(p[0]-l[0], p[1]-l[1]) > 4){ C.shapePts.push(p); draw(true); } };
+  if (!C.shapeParts.length && C.shapePts.length) C.shapeParts = [C.shapePts];
+  const sync = ()=>{ C.shapePts = mainPart(C.shapeParts); };
+  cv.onpointerdown = e=>{ cv.setPointerCapture(e.pointerId); C.drawing = true; C.livePts = [pos(e)]; SFX.click(); draw(true); };
+  cv.onpointermove = e=>{ if (!C.drawing) return; const p = pos(e), l = C.livePts[C.livePts.length-1]; if (Math.hypot(p[0]-l[0], p[1]-l[1]) > 4){ C.livePts.push(p); draw(true); } };
   cv.onpointerup = ()=>{ if (!C.drawing) return; C.drawing = false;
-    if (C.shapePts.length < 8 || Math.abs(polyArea(C.shapePts)) < 1500){ C.shapePts = []; $('#c-hint').textContent = 'Forma muito pequena — desenhe um contorno maior.'; SFX.error(); }
-    else { C.shapePts = simplify(C.shapePts, 140); SFX.build(); $('#c-hint').textContent = ''; }
-    draw(); };
-  b.querySelector('#sh-clear').onclick = ()=>{ C.shapePts = []; SFX.click(); draw(); };
-  b.querySelector('#sh-rand').onclick = ()=>{ C.shapePts = randomShape(); SFX.click(); draw(); };
-  b.querySelector('#sh-smooth').onclick = ()=>{ if (C.shapePts.length){ C.shapePts = simplify(chaikin(C.shapePts), 160); SFX.click(); draw(); } };
-  b.querySelector('#sh-rough').onclick = ()=>{ if (C.shapePts.length){ C.shapePts = roughen(C.shapePts); SFX.click(); draw(); } };
-  draw();
+    const lp = C.livePts || []; C.livePts = null;
+    // a primeira parte precisa ser grande; ilhas extras podem ser pequenas
+    const min = C.shapeParts.length ? 250 : 1500;
+    if (lp.length < (C.shapeParts.length ? 5 : 8) || Math.abs(polyArea(lp)) < min){ $('#c-hint').textContent = C.shapeParts.length ? 'Parte muito pequena — desenhe uma ilha um pouco maior.' : 'Forma muito pequena — desenhe um contorno maior.'; SFX.error(); }
+    else if (C.shapeParts.length >= 12){ $('#c-hint').textContent = 'Máximo de 12 partes.'; SFX.error(); }
+    else { C.shapeParts.push(simplify(lp, 140)); SFX.build(); $('#c-hint').textContent = ''; }
+    sync(); draw(); };
+  b.querySelector('#sh-clear').onclick = ()=>{ C.shapeParts = []; sync(); SFX.click(); draw(); };
+  b.querySelector('#sh-undo').onclick = ()=>{ C.shapeParts.pop(); sync(); SFX.click(); draw(); };
+  b.querySelector('#sh-rand').onclick = ()=>{ C.shapeParts = [randomShape()]; sync(); SFX.click(); draw(); };
+  b.querySelector('#sh-isle').onclick = ()=>{ if (C.shapeParts.length >= 12) return; C.shapeParts.push(randomIsle()); sync(); SFX.click(); draw(); };
+  b.querySelector('#sh-smooth').onclick = ()=>{ if (C.shapeParts.length){ C.shapeParts = C.shapeParts.map(pp=>simplify(chaikin(pp), 160)); sync(); SFX.click(); draw(); } };
+  b.querySelector('#sh-rough').onclick = ()=>{ if (C.shapeParts.length){ C.shapeParts = C.shapeParts.map(roughen); sync(); SFX.click(); draw(); } };
+  sync(); draw();
 }
 function polyArea(pts){ let a = 0; for (let i=0,j=pts.length-1;i<pts.length;j=i++) a += pts[j][0]*pts[i][1] - pts[i][0]*pts[j][1]; return a/2; }
 function centroid(pts){ let x=0,y=0,a=0; for (let i=0,j=pts.length-1;i<pts.length;j=i++){ const f = pts[j][0]*pts[i][1]-pts[i][0]*pts[j][1]; x += (pts[j][0]+pts[i][0])*f; y += (pts[j][1]+pts[i][1])*f; a += f; } if (Math.abs(a)<1e-6){ const s = pts.reduce((s,p)=>[s[0]+p[0],s[1]+p[1]],[0,0]); return [s[0]/pts.length, s[1]/pts.length]; } return [x/(3*a), y/(3*a)]; }
@@ -384,6 +411,27 @@ function randomShape(){
     pts.push([240 + Math.cos(a)*r*150*sx, 240 + Math.sin(a)*r*150*sy]);
   }
   return pts;
+}
+// a maior parte é a principal (fica com a capital)
+function mainPart(parts){ let best = [], ba = 0; for (const pp of parts){ const a = Math.abs(polyArea(pp)); if (a > ba){ ba = a; best = pp; } } return best; }
+// ilha aleatória num canto livre do quadro
+function randomIsle(){
+  const make = () => { const r = rand(25, 50), cx = rand(55, 425), cy = rand(55, 425), n = 26, out = [];
+    for (let i=0;i<n;i++){ const a = i/n*Math.PI*2, k = r*(1 + 0.18*Math.sin(a*3 + cx) + rand(-0.08, 0.08)); out.push([cx + Math.cos(a)*k*rand(0.8,1.2), cy + Math.sin(a)*k]); }
+    return out; };
+  // procura um lugar do quadro que não encoste nas partes já desenhadas
+  const hits = isle => C.shapeParts.some(pp => isle.some(([x,y]) => pointInPoly(x, y, pp)) || pp.some(([x,y]) => pointInPoly(x, y, isle)));
+  let best = make();
+  for (let t=0; t<60 && hits(best); t++) best = make();
+  return best;
+}
+// normaliza todas as partes juntas (mesma escala e mesmo centro): a área total vira 1
+function normalizeParts(parts){
+  const main = mainPart(parts);
+  let A = 0, sx = 0, sy = 0;
+  for (const pp of parts){ const a = Math.abs(polyArea(pp)), [cx, cy] = centroid(pp); A += a; sx += cx*a; sy += cy*a; }
+  const cx = sx/A, cy = sy/A, s = Math.sqrt(A), nz = pp => pp.map(([x,y])=>[(x-cx)/s, (y-cy)/s]);
+  return {pts: nz(main), parts: parts.filter(pp=>pp !== main).map(nz), area:1};
 }
 function normalizeShape(pts){
   const A = Math.abs(polyArea(pts)); const [cx, cy] = centroid(pts); const s = Math.sqrt(A);
@@ -437,10 +485,10 @@ function stepSummary(){
 function bindSummary(b){
   drawFlag(b.querySelector('#sum-flag').getContext('2d'), C.cfg.flag, 0, 0, 300, 200);
   const cv = b.querySelector('#sum-shape'); if (!cv) return; const ctx = cv.getContext('2d');
-  const sh = normalizeShape(C.shapePts);
-  const mx = Math.max(...sh.pts.map(p=>Math.max(Math.abs(p[0]),Math.abs(p[1])))); const s = 90/mx;
-  ctx.beginPath(); sh.pts.forEach(([x,y],i)=> i?ctx.lineTo(100+x*s,100+y*s):ctx.moveTo(100+x*s,100+y*s)); ctx.closePath();
-  ctx.fillStyle = hexA(C.cfg.color,0.6); ctx.fill(); ctx.strokeStyle='#3d2812'; ctx.lineWidth=2; ctx.stroke();
+  const sh = normalizeParts(C.shapeParts.length ? C.shapeParts : [C.shapePts]), all = [sh.pts].concat(sh.parts);
+  const mx = Math.max(...all.flat().map(p=>Math.max(Math.abs(p[0]),Math.abs(p[1])))); const s = 90/mx;
+  for (const pp of all){ ctx.beginPath(); pp.forEach(([x,y],i)=> i?ctx.lineTo(100+x*s,100+y*s):ctx.moveTo(100+x*s,100+y*s)); ctx.closePath();
+    ctx.fillStyle = hexA(C.cfg.color,0.6); ctx.fill(); ctx.strokeStyle='#3d2812'; ctx.lineWidth=2; ctx.stroke(); }
 }
 
 // ---------------- posicionamento no mapa ----------------
@@ -448,7 +496,7 @@ function enterPlacement(){
   const c = C.cfg;
   c.official = c.official.trim() || autoOfficial(c.gov, c.name);
   c.name = c.name.trim();
-  c.shape = normalizeShape(C.shapePts);
+  c.shape = normalizeParts(C.shapeParts.length ? C.shapeParts : [C.shapePts]);
   hideAllScreens();
   $('#place-banner').classList.remove('hidden'); $('#pb-name').textContent = c.name;
   drawFlag($('#pb-flag').getContext('2d'), c.flag, 0, 0, 60, 40);
@@ -465,11 +513,11 @@ document.addEventListener('keydown', e=>{ if (MapView.placement && (e.key==='r'|
 
 function placementClick(lon, lat){
   const pl = MapView.placement; if (!pl || !pl.current) return;
-  const poly = pl.current;
-  if (poly.some(([lo,la])=>la>82 || la<-64 || lo<-179 || lo>179)){ SFX.error(); toast('Muito perto da borda do mapa. Escolha outro lugar.', 'bad'); return; }
+  const poly = pl.current, extraParts = pl.currentParts || [];
+  if (poly.concat(...extraParts).some(([lo,la])=>la>82 || la<-64 || lo<-179 || lo>179)){ SFX.error(); toast('Muito perto da borda do mapa. Escolha outro lugar.', 'bad'); return; }
   // quanto do território cai sobre terra já existente
   let land = 0, tot = 0;
-  for (let i=0;i<NCELLS;i++){ const [lo,la] = cellCenter(i); if (Math.abs(lo-lon)>40 || Math.abs(la-lat)>40) continue; if (pointInPoly(lo,la,poly)){ tot++; if (Grid.land[i]) land++; } }
+  for (let i=0;i<NCELLS;i++){ const [lo,la] = cellCenter(i); if (Math.abs(lo-lon)>40 || Math.abs(la-lat)>40) continue; if (pointInPoly(lo,la,poly) || extraParts.some(pp=>pointInPoly(lo,la,pp))){ tot++; if (Grid.land[i]) land++; } }
   const pct = tot ? Math.round(land/tot*100) : 0;
   SFX.click();
   const msg = pct < 10 ? `Sua nação surgirá como uma <b>nova ilha</b> no oceano. Isolada e segura, mas dependente de uma marinha para expandir.`
@@ -477,7 +525,7 @@ function placementClick(lon, lat){
     : `Sua nação terá litoral e ocupará parcialmente terras existentes (${pct}% sobre continente). As nações afetadas ficarão hostis.`;
   confirmModal('🏰', `Fundar ${esc(C.cfg.name)} aqui?`, `${msg}<br><br><b>${climateVerdict(C.cfg.climate, lat).text}</b><br><br>Coordenadas: ${Math.abs(lat).toFixed(1)}°${lat>=0?'N':'S'}, ${Math.abs(lon).toFixed(1)}°${lon>=0?'L':'O'}.`, 'Fundar nação!', ()=>{
     const c = C.cfg;
-    const cfg = Object.assign({}, c, {isIsland: pct < 10, homePoly: poly.map(p=>[+p[0].toFixed(3), +p[1].toFixed(3)]), center:[lon, lat], flag:Object.assign({}, c.flag)});
+    const cfg = Object.assign({}, c, {isIsland: pct < 10, homePoly: poly.map(p=>[+p[0].toFixed(3), +p[1].toFixed(3)]), homeParts: extraParts.map(pp=>pp.map(p=>[+p[0].toFixed(3), +p[1].toFixed(3)])), center:[lon, lat], flag:Object.assign({}, c.flag)});
     MapView.placement = null;
     if (C.onlineRoom){ saveOnlineCfg(cfg); return; }
     launchGame(cfg);

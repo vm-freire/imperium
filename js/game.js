@@ -380,7 +380,10 @@ function addMods(m, fx, k){ if (!fx) return; k = k===undefined?1:k; for (const k
 // ------------------------------------------------------------
 //  Criação do mundo e do país
 // ------------------------------------------------------------
-const MAX_HUMANS = 10;   // vagas do multiplayer
+const MAX_HUMANS = 10;
+// contornos desenhados pelo jogador: parte principal + ilhas/partes extras
+function cfgPolys(cfg){ return cfg && cfg.homePoly ? [cfg.homePoly].concat(cfg.homeParts || []) : []; }
+function inCfgPolys(lo, la, cfg){ return cfgPolys(cfg).some(pp => pointInPoly(lo, la, pp)); }   // vagas do multiplayer
 function newGame(cfg){
   // no multiplayer todos os jogadores geram o mesmo mundo (mesma semente)
   const _rnd = Math.random; if (cfg.online) Math.random = makeRng(cfg.online.seed);
@@ -396,7 +399,7 @@ function newGameInner(cfg){
     achievements:[], over:false, victory:false, warHistory:[], pendingEvents:[], speed:0, negs:[], slot:freeSlot(), rankHist:{}, world: cfg.world || (typeof defaultWorld === 'function' ? defaultWorld() : null)
   };
   // terra (inclui ilha do jogador se no mar)
-  Grid.buildLand(ON ? humans.map(h=>h.cfg.homePoly).filter(Boolean) : [cfg.homePoly].filter(Boolean));
+  Grid.buildLand(ON ? humans.flatMap(h=>cfgPolys(h.cfg)) : cfgPolys(cfg));
   Grid.owner.fill(0);
   // nação do jogador (id 1)
   G.nations.push({id:1, name:cfg.name, color:cfg.color, alive:true, cells:0, cap:-1});
@@ -449,7 +452,7 @@ function newGameInner(cfg){
         if (me){ exN = ex; } else { Object.assign(ex, {human:true, slot:h.slot, uid:h.uid, name:hc.name, color:hc.color, flag:hc.flag, gov:hc.gov, relig:hc.religion, capital:hc.capital, leader:hc.leader}); } }
       else { id = G.humanBase + h.slot; const hn = N[id];
         if (!me) Object.assign(hn, {alive:true, empty:false, slot:h.slot, uid:h.uid, name:hc.name, color:hc.color, flag:hc.flag, gov:hc.gov, relig:hc.religion, capital:hc.capital, leader:hc.leader, pop:hc.pop, seeds:[[hc.center[0], hc.center[1], 0.5]]});
-        for (let i=0;i<NCELLS;i++){ if (!Grid.land[i]) continue; const [lo,la]=cellCenter(i); if (pointInPoly(lo,la,hc.homePoly)) Grid.owner[i] = me ? 1 : id; }
+        for (let i=0;i<NCELLS;i++){ if (!Grid.land[i]) continue; const [lo,la]=cellCenter(i); if (inCfgPolys(lo,la,hc)) Grid.owner[i] = me ? 1 : id; }
         if (me){ let any = false; for (let i=0;i<NCELLS;i++) if (Grid.owner[i]===1){ any = true; break; } if (!any){ const c = cellOf(hc.center[0], hc.center[1]); Grid.land[c] = 1; Grid.owner[c] = 1; } } }
       G.online.canon[h.slot] = id;
     }
@@ -469,7 +472,7 @@ function newGameInner(cfg){
     cfg.pop = exN.pop;
     if (cfg.statesAuto) cfg.states = clamp(Math.round(cfg.area/180000), 3, 70);
   } else {
-    for (let i=0;i<NCELLS;i++){ if (!Grid.land[i]) continue; const [lo,la]=cellCenter(i); if (pointInPoly(lo,la,cfg.homePoly)) home.push(i); }
+    for (let i=0;i<NCELLS;i++){ if (!Grid.land[i]) continue; const [lo,la]=cellCenter(i); if (inCfgPolys(lo,la,cfg)) home.push(i); }
     if (!home.length){ const c = cellOf(cfg.center[0], cfg.center[1]); Grid.land[c]=1; home.push(c); }
     for (const c of home){ const o = Grid.owner[c]; if (o>1) displaced[o] = (displaced[o]||0)+1; Grid.owner[c] = 1; }
   }
@@ -499,7 +502,7 @@ function newGameInner(cfg){
     name:cfg.name, official:cfg.official, leader:cfg.leader, title:cfg.title, age:cfg.age, trait:cfg.trait, gov:cfg.gov, econ:cfg.econ,
     religion:cfg.religion, capital:cfg.capital, currency:cfg.currency, currencySym:cfg.currencySym||'$', language:cfg.language, motto:cfg.motto,
     flag:cfg.flag, color:cfg.color, climate:cfg.climate, terrain:cfg.terrain, focus:cfg.focus, resources:cfg.resources.slice(),
-    baseArea:cfg.area, homeCells:home, homeTotal:home.length, homeArea, homePoly:cfg.homePoly, shape:cfg.shape,
+    baseArea:cfg.area, homeCells:home, homeTotal:home.length, homeArea, homePoly:cfg.homePoly, homeParts:cfg.homeParts||[], shape:cfg.shape,
     pop:cfg.pop, basePc, gdpPc:basePc, gdp:cfg.pop*basePc, treasury:0, debt:0,
     tax:0.22, spend:{edu:3, health:3, infra:3, social:3, research:1, police:1.5},
     inflation:3, unemployment:7, approval:58, stability:62, corruption:0.08, warWeary:0, morale:1, occupied:0,

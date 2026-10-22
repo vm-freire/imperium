@@ -1378,14 +1378,14 @@ function startNewGame(cfg){
   p.flagCanvas = flagCanvas(p.flag, 120, 80);
   p.attacksLeft = maxAttacks();
   Object.keys(flagCache).forEach(k=>delete flagCache[k]);
-  const extra = [p.homePoly].filter(Boolean); MapView.buildPaths(extra); MapView.buildBase(extra);
+  const extra = cfgPolys(p); MapView.buildPaths(extra); MapView.buildBase(extra);
   MapView.dirty = true;
   MapView.rails = computeRails(); UI.selCorps = null; MapView.selCorps = null;
   showHUD();
   UI.speed = 0; UI.tab = 'geral'; $$('#tabs button').forEach(x=>x.classList.toggle('active', x.dataset.tab==='geral'));
   setTimeout(()=>{
     MapView.flyTo(cfg.center[0], cfg.center[1], 3);
-    if (p.homePoly){ const path = new Path2D(); MapView.polyPath(p.homePoly, path); MapView.addAnim({type:'found', path, color:p.color, dur:2600}); }
+    if (p.homePoly){ const path = new Path2D(); for (const pp of cfgPolys(p)) MapView.polyPath(pp, path); MapView.addAnim({type:'found', path, color:p.color, dur:2600}); }
     else MapView.flashCells(p.homeCells.slice(0, 400), p.color);
     SFX.fanfare(); bigBanner(esc(p.name), p.existing ? `${esc(p.title)} ${esc(p.leader)} assume o governo` : `Fundada em ${dateStr()}`);
   }, 600);
@@ -1413,7 +1413,7 @@ function continueGame(slot){
   p.flagCanvas = flagCanvas(p.flag, 120, 80);
   if (p.attacksLeft === undefined) p.attacksLeft = maxAttacks();
   Object.keys(flagCache).forEach(k=>delete flagCache[k]);
-  const extra = [p.homePoly].filter(Boolean); MapView.buildPaths(extra); MapView.buildBase(extra);
+  const extra = cfgPolys(p); MapView.buildPaths(extra); MapView.buildBase(extra);
   MapView.dirty = true; UI.selCorps = null; MapView.selCorps = null;
   UI.speed = 0;
   showHUD();

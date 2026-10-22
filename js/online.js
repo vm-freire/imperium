@@ -270,7 +270,7 @@ async function enterGame(r){
   if (data){
     G = data; G.pendingEvents = G.pendingEvents || [];
     // reconstrói o mapa base (terras dos jogadores) a partir das configurações
-    Grid.buildLand(humans.map(h=>h.cfg.homePoly).filter(Boolean));
+    Grid.buildLand(humans.flatMap(h=>cfgPolys(h.cfg)));
   } else {
     const me = humans.find(h=>h.uid === uid);
     const cfg = Object.assign({}, JSON.parse(JSON.stringify(me.cfg)), {online:{code, slot:me.slot, host:r.host===uid, humans, seed:r.seed}});
@@ -284,7 +284,7 @@ async function enterGame(r){
   const p = G.p;
   p.flagCanvas = flagCanvas(p.flag, 120, 80);
   Object.keys(flagCache).forEach(k=>delete flagCache[k]);
-  const extra = [p.homePoly].concat(humans.map(h=>h.cfg.homePoly)).filter(Boolean);
+  const extra = cfgPolys(p).concat(humans.flatMap(h=>cfgPolys(h.cfg)));
   MapView.buildPaths(extra); MapView.buildBase(extra);
   const w = await NET.be.getWorld(code);
   if (w){ applyWorld(w, true); if (!G.online.host && w.turn > G.turn) setTimeout(()=>onWorld(w), 600); } else { recount(); computeAdjacency(); }
