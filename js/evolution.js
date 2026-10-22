@@ -99,7 +99,7 @@ const BTREE = {
       N_('arsenal','Arsenal da Marinha','🔧',{navy:0.1, unitCost:-0.02},null,[N_('submarinos','Base de Submarinos','🌊',{navy:0.12})]),
       N_('desembarque','Escola de Fuzileiros','🎖️',{navy:0.05, military:0.03})])],
   base:[
-    N_('quartel','Quartel de Infantaria','🪖',{manpower:0.08},null,[
+    N_('quartel','Quartel de Infantaria','💂',{manpower:0.08},null,[
       N_('academia','Academia Militar','🎓',{military:0.04},null,[N_('estado_maior','Estado-Maior','⭐',{military:0.05, defense:0.03}), N_('forcas_especiais','Forças Especiais','🗡️',{military:0.06})]),
       N_('reservistas','Centro de Reservistas','👥',{manpower:0.15},null,[N_('milicia','Milícia Nacional','🛡️',{defense:0.05, manpower:0.1})])]),
     N_('blindada','Base Blindada','🛡️',{military:0.04},{tech:'blindados', local:{r:5, def:1.35}},[

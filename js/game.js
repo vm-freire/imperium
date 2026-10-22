@@ -285,7 +285,7 @@ for (const k in ERAS) ERAS[k].techs = TECHS.filter(t=>t.year <= ERAS[k].year - 5
 const TECH = Object.fromEntries(TECHS.map(t=>[t.id,t]));
 
 const UNITS = [
-  {id:'inf', n:'Infantaria', icon:'🪖', cost:40, up:2.2, atk:1, def:1.3, nav:0, man:10},
+  {id:'inf', n:'Infantaria', icon:'💂', cost:40, up:2.2, atk:1, def:1.3, nav:0, man:10},
   {id:'cav', n:'Cavalaria', icon:'🐎', cost:55, up:3, atk:1.6, def:0.8, nav:0, man:5},
   {id:'art', n:'Artilharia', icon:'💣', cost:85, up:4.5, atk:2.2, def:1.8, nav:0, man:6, req:'metalurgia'},
   {id:'tanque', n:'Divisão Blindada', icon:'🛡️', cost:240, up:11, atk:5, def:3.5, nav:0, man:8, req:'blindados'},

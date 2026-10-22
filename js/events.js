@@ -330,7 +330,7 @@ const EVENTS = {
       const sex = Math.random()<0.5?'m':'f', nm = genNameBySex(G.p.cult||'luso', sex); addLog(d.party ? `${G.p.leader} deixa o cargo. ${nm} assume o governo.` : `${G.p.title} ${G.p.leader} morreu. ${nm} assume o poder.`,'info');
       G.p.leader = nm; G.p.age = Math.round(rand(35,60)); G.p.avatar = randomAvatar(sex, null, G.p.gov); stab(d.party?0:(GOVS[G.p.gov].succession?-5:-8)); setTimeout(()=>openLeaderEditor(), 350); }}])
   },
-  golpe:{icon:'🪖', title:'Tentativa de Golpe!', special:true,
+  golpe:{icon:'💂', title:'Tentativa de Golpe!', special:true,
     text:()=>`Generais descontentes cercaram o palácio em ${G.p.capital}! Tanques nas ruas. Estabilidade: ${Math.round(G.p.stability)}.`,
     choices:()=>[
       {t:'Resistir com a guarda leal', h:`Chance de sucesso: ${Math.round(clamp(0.45+G.p.stability/150+G.p.spend.police*0.04,0.1,0.95)*100)}%`, f:()=>{

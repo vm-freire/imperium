@@ -15,6 +15,15 @@ function ecoBloc(){ return G && G.myBloc || null; }
 function ecoMembers(){ const b = ecoBloc(); return b ? b.members.map(id => G.nations[id]).filter(n => n && n.alive) : []; }
 function blocMember(id){ const b = ecoBloc(); return !!(b && b.members.includes(id)); }
 function ecoInviting(id){ const b = ecoBloc(); return !!(b && b.invites.some(x => x.n === id)); }
+// sócios do bloco em que estamos (o nosso ou, no online, o de outro jogador): nações da IA + jogadores humanos
+function blocInfo(){ return ecoBloc() || (G && G.hBloc) || null; }
+function blocAINations(){ return ecoBloc() ? ecoMembers() : (G && G.hBloc) ? (G.hBloc.ai||[]).map(id => G.nations[id]).filter(n => n && n.alive && !n.human) : []; }
+function blocHumanNations(){
+  if (!G || !G.online || typeof humanByUid !== 'function') return [];
+  const me = NET.user && NET.user.uid, uids = ecoBloc() ? (ecoBloc().humans||[]) : G.hBloc ? G.hBloc.uids.filter(u => u !== me) : [];
+  return uids.map(humanByUid).filter(n => n && !n.empty && n.alive !== false);
+}
+function blocPartners(){ return blocAINations().concat(blocHumanNations()); }
 
 const ECOBLOC = {
   foundCost(){ return G.p.gdp*0.004 + 20*G.costScale; },
@@ -23,8 +32,9 @@ const ECOBLOC = {
     if (p.aiBloc) return {ok:false, why:'Saia do bloco do qual fazemos parte antes de fundar o seu.'};
     name = String(name || '').trim().slice(0, 40); if (name.length < 3) return {ok:false, why:'Dê um nome ao bloco (mínimo 3 letras).'};
     const c = this.foundCost(); if (p.treasury < c) return {ok:false, why:'Tesouro insuficiente.'};
+    if (G.hBloc) return {ok:false, why:'Saia do bloco do qual fazemos parte antes de fundar o seu.'};
     p.treasury -= c;
-    G.myBloc = {name, icon: icon || '🌐', mil: !!mil, members: [], invites: [], since: G.turn};
+    G.myBloc = {name, icon: icon || '🌐', mil: !!mil, members: [], invites: [], humans: [], humanInvites: [], since: G.turn};
     G.stats.blocs = (G.stats.blocs||0) + 1;
     return {ok:true, msg:`${icon||'🌐'} Fundamos o bloco "${name}"${mil ? ' (econômico e militar)' : ''}. Convide nações pela janela de diplomacia de cada uma.`};
   },
@@ -65,7 +75,7 @@ const ECOBLOC = {
   // renda mensal do mercado comum (cada sócio rende conforme o tamanho da economia dele)
   income(){
     const p = G.p; let s = 0;
-    for (const n of ecoMembers()) if (!n.atWar) s += Math.min(p.gdp, n.pop*n.pc)/12 * 0.006;
+    for (const n of blocPartners()) if (!n.atWar) s += Math.min(p.gdp, n.pop*n.pc)/12 * 0.006;
     return s;
   }
 };
@@ -74,13 +84,13 @@ const ECOBLOC = {
 const _ebBudget = budget;
 budget = function(m){
   const r = _ebBudget(m);
-  if (ecoBloc() && ecoMembers().length){ const v = ECOBLOC.income(); r.inc.bloco = v; r.tIn += v; r.bal += v; }
+  if (blocPartners().length){ const v = ECOBLOC.income(); r.inc.bloco = v; r.tIn += v; r.bal += v; }
   return r;
 };
 const _ebMods = calcMods;
 calcMods = function(){
-  const m = _ebMods(); const k = ecoMembers().length;
-  if (k){ m.tradeMult += Math.min(0.3, k*0.04); m.growth += Math.min(0.5, k*0.08); if (ecoBloc().mil) m.defense += Math.min(0.2, k*0.025); }
+  const m = _ebMods(); const k = blocPartners().length;
+  if (k){ m.tradeMult += Math.min(0.3, k*0.04); m.growth += Math.min(0.5, k*0.08); if (blocInfo().mil) m.defense += Math.min(0.2, k*0.025); }
   return m;
 };
 const _ebRelBase = relBase;
@@ -137,13 +147,16 @@ nationTags = function(n){ return _ebTags(n) + (blocMember(n.id) ? `<span class="
 function ecoBlocPanelHTML(){
   const b = ecoBloc();
   if (!b && G.p.aiBloc) return '';   // já somos sócios de um bloco da IA (aparece em "Blocos do mundo")
+  if (!b && G.hBloc && typeof hBlocMemberHTML === 'function') return hBlocMemberHTML();   // bloco de outro jogador
   if (!b) return `<div class="sub">🌐 Bloco econômico</div><div class="box">
     <div class="muted">Una nações num mercado comum (como o Mercosul ou a União Europeia): comércio sem barreiras, mais crescimento e relações melhores. Pode ser também militar, com defesa mútua.</div>
     <button class="btn sm green" style="width:100%;margin-top:6px" data-blocact="found">🌐 Fundar um bloco (${fmtMoney(ECOBLOC.foundCost())})</button></div>`;
-  const mem = ecoMembers();
-  const k = mem.length;
+  const mem = ecoMembers(), hum = blocHumanNations();
+  const k = mem.length + hum.length;
   return `<div class="sub">${b.icon} ${esc(b.name)} <small class="muted">${b.mil ? 'econômico e militar' : 'econômico'} · ${k} membro${k===1?'':'s'}</small></div><div class="box">
-    ${mem.map(n => `<div class="row"><span class="k">${flagImg(n,18,12)} ${esc(n.name)}</span><span class="v">${n.rel>0?'+':''}${n.rel} <button class="btn xs" data-blocact="kick" data-n="${n.id}" title="Expulsar">✖</button></span></div>`).join('') || '<div class="muted">Nenhum membro ainda. Abra a janela de uma nação e clique em “Convidar para o bloco”.</div>'}
+    ${hum.map(n => `<div class="row"><span class="k">${flagImg(n,18,12)} ${esc(n.name)} <small class="badge">jogador</small></span><span class="v"><button class="btn xs" data-hbloc="kick" data-u="${n.uid}" title="Expulsar">✖</button></span></div>`).join('')}
+    ${(b.humanInvites||[]).map(u => { const n = typeof humanByUid === 'function' && humanByUid(u); return n ? `<div class="row"><span class="k">✉️ Convite — ${esc(n.name)} <small class="badge">jogador</small></span><span class="v">aguardando</span></div>` : ''; }).join('')}
+    ${mem.map(n => `<div class="row"><span class="k">${flagImg(n,18,12)} ${esc(n.name)}</span><span class="v">${n.rel>0?'+':''}${n.rel} <button class="btn xs" data-blocact="kick" data-n="${n.id}" title="Expulsar">✖</button></span></div>`).join('') || (hum.length ? '' : `<div class="muted">Nenhum membro ainda. Abra a janela de uma nação e clique em “Convidar para o bloco”${G.online ? ' — ou convide outros jogadores pelo painel 👥 Jogadores' : ''}.</div>`)}
     ${b.invites.map(x => `<div class="row"><span class="k">✉️ Convite — ${esc(G.nations[x.n].name)}</span><span class="v">${Math.max(1, x.due-G.turn)} m</span></div>`).join('')}
     ${k ? `<div class="row"><span class="k">💰 Renda do mercado comum</span><span class="v up">+${fmtMoney(ECOBLOC.income())}/mês</span></div>
     <div class="row"><span class="k">📈 Efeitos</span><span class="v">+${Math.round(Math.min(0.3,k*0.04)*100)}% comércio · +${fmtNum(Math.min(0.5,k*0.08),2)} pp crescimento${b.mil?` · +${Math.round(Math.min(0.2,k*0.025)*100)}% defesa`:''}</span></div>` : ''}
