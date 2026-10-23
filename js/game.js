@@ -1057,7 +1057,7 @@ const ECON_ACTIONS = {
     const rec = p.printRecent || 0, amt = p.gdp*0.03, before = p.inflation, jump = printInflJump();
     p.treasury += amt; p.inflation += jump; p.printBoost += 6 + rec*2; p.printRecent = rec + 1; p.approval -= 1 + rec*0.5;
     return {ok:true, msg:`Imprimimos ${fmtMoney(amt)}. Inflação: ${fmtPct(before)} → ${fmtPct(p.inflation)} — e continuará subindo nos próximos meses.`}; },
-  default(){ const p=G.p; if (p.debt < p.gdp*0.6) return {ok:false, why:'A dívida não é alta o bastante para justificar uma moratória.'}; const cut = p.debt*0.6; p.debt -= cut; p.defaults++; p.stability -= 15; p.approval -= 8; addTemp({growth:-2}, 24, 'Pós-calote'); for (let k=2;k<G.nations.length;k++){ const n=G.nations[k]; if (n.alive){ changeRel(n,-10); } } return {ok:true, msg:`Moratória declarada! ${fmtMoney(cut)} em dívidas canceladas. Credores furiosos.`}; },
+  default(){ const p=G.p; if (p.debt < p.gdp*0.6) return {ok:false, why:'A dívida não é alta o bastante para justificar uma moratória.'}; const cut = p.debt*0.6; p.debt -= cut; p.defaults++; p.lastDefault = G.turn; p.stability -= 15; p.approval -= 8; addTemp({growth:-2}, 24, 'Pós-calote'); for (let k=2;k<G.nations.length;k++){ const n=G.nations[k]; if (n.alive){ changeRel(n,-10); } } return {ok:true, msg:`Moratória declarada! ${fmtMoney(cut)} em dívidas canceladas. Credores furiosos.`}; },
   city(){ const p=G.p; const cost = 1.2*p.gdp/100 + 30*G.costScale; if (p.treasury < cost) return {ok:false, why:'Tesouro insuficiente.'}; p.treasury -= cost; p.cities++; const c = p.homeCells.concat([]).filter(x=>Grid.owner[x]===1); if (c.length){ p.cityCells.push(pick(c)); p.cityNames.push(genPlaceName()); } p.approval += 1; return {ok:true, msg:`Uma nova cidade foi fundada: ${p.cityNames[p.cityNames.length-1]}!`}; },
   cityCost(){ return 1.2*G.p.gdp/100 + 30*G.costScale; },
   addState(){ const p=G.p; const cost = 0.4*p.gdp/100; if (p.treasury < cost) return {ok:false, why:'Tesouro insuficiente.'}; p.treasury -= cost; p.states++; p.stateNames.push(genPlaceName()); return {ok:true, msg:`Novo estado criado: ${p.stateNames[p.stateNames.length-1]}.`}; },
@@ -1118,10 +1118,10 @@ function endTurn(){
   pg = clamp(pg, -3, 4.5); p.popGrowth = pg;
   p.pop *= 1 + pg/1200;
   // inflação, desemprego
-  p.printBoost *= 0.9; p.printRecent = (p.printRecent||0)*0.9;
+  p.printBoost *= 0.94; p.printRecent = (p.printRecent||0)*0.93;
   const deficit = Math.max(0, -b.bal*12/Math.max(1,p.gdp));
   const infT = clamp(2.5 + m.inflation + p.printBoost + deficit*30 + (warN?1:0), -2, 200);
-  p.inflation += (infT - p.inflation)*0.15;
+  p.inflation += (infT - p.inflation)*(infT > p.inflation ? 0.18 : 0.06);   // inflação inercial: cai devagar
   const unT = clamp(7 + m.unemployment - g*0.4 - p.spend.infra*0.3 - (warN?1:0), 1, 45);
   p.unemployment += (unT - p.unemployment)*0.1;
   // corrupção
@@ -1133,11 +1133,18 @@ function endTurn(){
   p.warWeary = clamp(p.warWeary, 0, 100);
   const apT = clamp(43 + m.approval - Math.max(0, debtR-0.8)*6 + (p.spend.social-3)*2.2 + (p.spend.health-3)*1.6 + (p.spend.edu-3)*0.8
         - (p.tax*100-20)*0.9 - (p.unemployment-6)*1.1 - Math.max(0,p.inflation-4)*1.0 - p.warWeary*0.35
-        + clamp(g,-5,5)*0.8 - p.corruption*30 + (p.treasury<0?-5:0), 0, 100);
-  p.approval += (apT - p.approval)*0.12;
-  const stT = clamp(45 + m.stability + (p.approval-50)*0.45 + p.spend.police*3 + (p.admin-0.85)*40
-        - p.corruption*25 - p.warWeary*0.25 - p.occupied*0.6 - (p.inflation>20?(p.inflation-20)*0.3:0), 0, 100);
-  p.stability += (stT - p.stability)*0.1;
+        + clamp(g,-5,5)*0.8 - p.corruption*30 + (p.treasury<0?-5:0)
+        - Math.max(0,p.inflation-15)*0.6 - (p.discontent||0)*0.5
+        - Math.min(12, G.turn/12*0.8), 0, 100);   // desgaste natural de quem está há muito tempo no poder
+  p.approval += (apT - p.approval)*(apT > p.approval ? 0.05 : 0.15);   // confiança se perde rápido e volta devagar
+  const stT = clamp(40 + m.stability + (p.approval-50)*0.45 - Math.min(8, G.turn/12*0.5) + p.spend.police*3 + (p.admin-0.85)*40
+        - p.corruption*25 - p.warWeary*0.25 - p.occupied*0.6 - (p.inflation>20?(p.inflation-20)*0.3:0) - (p.discontent||0)*0.4, 0, 100);
+  p.stability += (stT - p.stability)*(stT > p.stability ? 0.04 : 0.12);
+  // insatisfação acumulada: o povo não esquece uma crise em dois meses
+  const pain = Math.max(0, p.inflation-8)*0.25 + Math.max(0, p.unemployment-10)*0.3 + (p.treasury < 0 ? 1.5 : 0) + Math.max(0, 40-p.approval)*0.05
+        + (p.printRecent||0)*0.8 + Math.max(0, p.corruption-0.2)*10 + (p.defaults && G.turn - (p.lastDefault||-99) < 24 ? 1 : 0)
+        + Math.max(0, p.tax*100-35)*0.12 + ['social','health','edu'].reduce((s,k)=>s + (p.spend[k] < 1.5 ? 0.4 : 0), 0);
+  p.discontent = clamp((p.discontent||0)*0.97 + pain, 0, 60);
   p.approval = clamp(p.approval, 0, 100); p.stability = clamp(p.stability, 0, 100);
   p.morale = clamp(0.5 + p.stability/200 + p.approval/400 - p.warWeary/250 + m.military*0.2, 0.3, 1.3);
   // ---------- pesquisa ----------
@@ -1275,16 +1282,20 @@ function politicalChecks(){
   if (p.age > 58 && chance((p.age-58)*0.0009)) queueOnce('sucessao');
   // golpe
   if (gov.coup && p.stability < 30){
-    const pr = (30-p.stability)*0.0022*(1 + (p.mods?p.mods.coup:0)) * (p.morale<0.7?1.8:1);
+    const pr = (30-p.stability)*0.0022*(1 + (p.mods?p.mods.coup:0)) * (p.morale<0.7?1.8:1) * (1 + (p.discontent||0)/30);
     if (chance(pr)) queueOnce('golpe');
   }
   // revolução
-  if (p.stability < 8) p.revolt++; else p.revolt = Math.max(0, p.revolt-1);
+  if (p.stability < 15 || (p.approval < 12 && p.stability < 25)) p.revolt++; else p.revolt = Math.max(0, p.revolt-1);
+  // queda do governo: meses seguidos sem apoio nem estabilidade
+  if (p.approval < 12 && p.stability < 20) p.crisisMonths = (p.crisisMonths||0) + 1; else p.crisisMonths = Math.max(0, (p.crisisMonths||0) - 1);
+  if (p.crisisMonths === 3){ addLog(`⚠️ O governo de ${p.leader} está por um fio: sem apoio e sem estabilidade. Mais alguns meses assim e ele cai.`, 'bad'); if (typeof onNegotiation === 'function') onNegotiation('⚠️ O governo está por um fio! Recupere o apoio ou a estabilidade.', false); }
+  if (p.crisisMonths >= 6) p.govFall = true;
   if (p.revolt >= 3){ p.revolt = 0; queueOnce('revolucao'); }
   // colapso econômico
-  if (p.debt > p.gdp*3 && p.treasury <= 0) p.collapse++; else p.collapse = Math.max(0, p.collapse-1);
+  if ((p.debt > p.gdp*3 && p.treasury <= 0) || p.inflation > 80) p.collapse++; else p.collapse = Math.max(0, p.collapse-1);
   if (p.collapse === 3) addLog('⚠️ A economia está à beira do colapso! Reduza a dívida imediatamente.', 'bad');
-  if (p.inflation > 25 && chance(0.1)) queueOnce('hiperinflacao');
+  if (p.inflation > 25 && chance(0.3)) queueOnce('hiperinflacao');
   if (p.debt > p.gdp*1.2 && chance(0.05)) queueOnce('crise_divida');
 }
 
@@ -1292,7 +1303,8 @@ function checkGameOver(){
   const p = G.p;
   if (G.over) return;
   if (!G.nations[1].alive || G.nations[1].cells <= 0) return gameOver(`${p.name} foi totalmente conquistado e riscado do mapa.`, 'conquista');
-  if (p.collapse >= 6) return gameOver('Colapso econômico total: o Estado faliu e o governo se dissolveu.', 'falencia');
+  if (p.collapse >= 6) return gameOver(p.inflation > 80 ? 'Hiperinflação descontrolada: a moeda virou pó e o governo se dissolveu.' : 'Colapso econômico total: o Estado faliu e o governo se dissolveu.', 'falencia');
+  if (p.govFall) return gameOver(GOVS[p.gov].family === 'dem' ? `O Congresso aprovou o impeachment de ${p.leader}: meses sem apoio popular e sem estabilidade.` : `O governo de ${p.leader} caiu: o país ficou ingovernável, sem apoio e sem ordem.`, 'queda');
 }
 
 function gameOver(reason, kind){

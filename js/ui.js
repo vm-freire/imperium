@@ -204,6 +204,7 @@ function panelGeral(){
     ${row('Regime', GOVS[p.gov].name)}${row('Economia', ECONS[p.econ].name)}${row('Religião', RELIGIONS[p.religion])}
     ${row('Capital', `⭐ ${esc(p.capital)}`)}${row('Moeda', `${esc(p.currency)} (${esc(p.currencySym)})`)}${row('Idioma', esc(p.language))}
     ${GOVS[p.gov].elections && p.nextElection>0 ? row('Próxima eleição', `em ${p.nextElection-G.turn} meses`) : ''}
+    ${(p.discontent||0) > 3 ? row('😠 Insatisfação acumulada', `<span class="down">${Math.round(p.discontent)}</span> <small class="muted">(derruba apoio e estabilidade; passa devagar)</small>`) : ''}${(p.crisisMonths||0) >= 2 ? row('⚠️ Governo por um fio', `<span class="down">${p.crisisMonths}/6 meses</span>`) : ''}
   </div>
   <div class="sub">Posição mundial</div>
   <div class="btn-grid" style="grid-template-columns:repeat(3,1fr);text-align:center">

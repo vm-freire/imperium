@@ -345,7 +345,7 @@ const EVENTS = {
       {t:'Esmagar a revolução', h:`Chance: ${Math.round(clamp(0.3+G.p.atk/Math.max(1,G.p.pop*3)*0.2+G.p.spend.police*0.04,0.1,0.8)*100)}%. Brutal.`, f:()=>{
         if (chance(clamp(0.3+G.p.atk/Math.max(1,G.p.pop*3)*0.2+G.p.spend.police*0.04,0.1,0.8))){ G.stats.repressed = (G.stats.repressed||0) + 1; stab(25); app(-20); G.p.pop*=0.99; addLog('A revolução foi esmagada a ferro e fogo.','bad'); }
         else gameOver('O regime foi derrubado por uma revolução popular.', 'revolucao'); }},
-      {t:'Reformas radicais', h:`-${mny(0.05)}, +20 apoio, +20 estabilidade`, f:()=>{pay(0.05); app(20); stab(20); G.p.corruption*=0.6; addLog('Reformas radicais acalmaram as ruas.','good');}},
+      {t:'Reformas radicais', h:`-${mny(0.05)}, +10 apoio, +12 estabilidade`, f:()=>{pay(0.05); app(10); stab(12); G.p.corruption*=0.6; G.p.discontent = (G.p.discontent||0)*0.6; addLog('Reformas radicais acalmaram as ruas — por enquanto.','good');}},
       {t:'Abdicar do poder', h:'FIM DE JOGO', f:()=>{gameOver(`${G.p.leader} abdicou diante da revolução.`, 'revolucao');}}
     ]},
   hiperinflacao:{icon:'💸', title:'Inflação Descontrolada', special:true,
