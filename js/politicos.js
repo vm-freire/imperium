@@ -12,7 +12,9 @@
 
 // partidos que faltavam (somados à lista de parties.js)
 (PARTIES['Brasil'] = PARTIES['Brasil'] || []).push(
-  [1995,2100,'Progressistas','PP','cdir'], [2005,2100,'Republicanos','REP','cdir'], [2011,2100,'Partido Social Democrático','PSD','cen'], [2024,2100,'Missão','MISSÃO','dir']);
+  [1995,2100,'Progressistas','PP','cdir'], [2005,2100,'Republicanos','REP','cdir'], [2011,2100,'Partido Social Democrático','PSD','cen'], [2024,2100,'Missão','MISSÃO','dir'],
+  [1989,2006,'Partido de Reedificação da Ordem Nacional','PRONA','dir'], [1985,2100,'Partido Comunista do Brasil','PCdoB','esq'], [1992,2100,'Cidadania (ex-PPS)','CID','cen'],
+  [1986,2100,'Partido Verde','PV','cesq'], [2015,2100,'Rede Sustentabilidade','REDE','cesq'], [1981,2023,'Partido Trabalhista Brasileiro','PTB','cdir']);
 
 const POLITICOS = {
   'Brasil':{
@@ -24,7 +26,7 @@ const POLITICOS = {
     'Partido Social Democrático':[['Eurico Gaspar Dutra','m',1883,1945,1966,'Presidente (1946–1951)'],['Juscelino Kubitschek','m',1902,1945,1966,'Presidente (1956–1961), construiu Brasília'],['Tancredo Neves','m',1910,1945,1966,'Primeiro-ministro (1961–1962)'],['Ulysses Guimarães','m',1916,1950,1966,'Deputado federal (SP)'],
       ['Gilberto Kassab','m',1960,2011,2100,'Fundador e presidente do partido'],['Eduardo Paes','m',1969,2021,2100,'Prefeito do Rio de Janeiro'],['Ratinho Júnior','m',1981,2011,2100,'Governador do Paraná']],
     'União Democrática Nacional':[['Carlos Lacerda','m',1914,1945,1966,'Governador da Guanabara'],['Eduardo Gomes','m',1896,1945,1966,'Brigadeiro, candidato a presidente'],['Afonso Arinos','m',1905,1945,1966,'Autor da lei contra o racismo (1951)'],['Juracy Magalhães','m',1905,1945,1966,'Governador da Bahia']],
-    'Partido Trabalhista Brasileiro':[['Getúlio Vargas','m',1882,1945,1954,'Presidente (1951–1954)'],['João Goulart','m',1918,1945,1966,'Presidente (1961–1964)'],['Leonel Brizola','m',1922,1950,1966,'Governador do Rio Grande do Sul']],
+    'Partido Trabalhista Brasileiro':[['Roberto Jefferson','m',1953,1981,2023,'Ex-deputado federal (RJ)','cdir'],['Getúlio Vargas','m',1882,1945,1954,'Presidente (1951–1954)'],['João Goulart','m',1918,1945,1966,'Presidente (1961–1964)'],['Leonel Brizola','m',1922,1950,1966,'Governador do Rio Grande do Sul']],
     'Partido dos Trabalhadores':[['Luiz Inácio Lula da Silva','m',1945,1980,2100,'Presidente (2003–2010 e desde 2023)'],['Dilma Rousseff','f',1947,2001,2100,'Presidenta (2011–2016)'],['Fernando Haddad','m',1963,2001,2100,'Ministro da Fazenda'],['Gleisi Hoffmann','f',1965,2000,2100,'Ex-presidente nacional do partido'],['Eduardo Suplicy','m',1941,1980,2100,'Senador por São Paulo']],
     'Movimento Democrático Brasileiro':[['Ulysses Guimarães','m',1916,1980,1992,'Presidente da Constituinte (1987–1988)'],['José Sarney','m',1930,1985,2100,'Presidente (1985–1990)'],['Michel Temer','m',1940,1980,2100,'Presidente (2016–2018)'],['Renan Calheiros','m',1955,1980,2100,'Senador por Alagoas'],['Simone Tebet','f',1970,2010,2100,'Ministra do Planejamento']],
     'Partido Democrático Trabalhista':[['Leonel Brizola','m',1922,1980,2004,'Governador do Rio de Janeiro'],['Ciro Gomes','m',1957,2015,2100,'Ex-governador do Ceará'],['Carlos Lupi','m',1957,1980,2100,'Presidente nacional do partido']],
@@ -36,7 +38,12 @@ const POLITICOS = {
     'União Brasil':[['Ronaldo Caiado','m',1949,2022,2100,'Governador de Goiás'],['Sergio Moro','m',1972,2022,2100,'Senador pelo Paraná'],['Luciano Bivar','m',1944,2022,2100,'Deputado federal (PE)']],
     'Progressistas':[['Paulo Maluf','m',1931,1995,2018,'Ex-prefeito de São Paulo'],['Arthur Lira','m',1969,2010,2100,'Presidente da Câmara (2021–2025)'],['Ciro Nogueira','m',1968,1995,2100,'Senador pelo Piauí']],
     'Republicanos':[['Tarcísio de Freitas','m',1975,2022,2100,'Governador de São Paulo']],
-    'Missão':[['Renan Santos','m',null,2024,2100,'Fundador do Missão e coordenador do MBL'],['Kim Kataguiri','m',1996,2024,2100,'Deputado federal (SP), cofundador do MBL']]
+    'Missão':[['Renan Santos','m',null,2024,2100,'Fundador do Missão e coordenador do MBL'],['Kim Kataguiri','m',1996,2024,2100,'Deputado federal (SP), cofundador do MBL']],
+    'Partido de Reedificação da Ordem Nacional':[['Enéas Carneiro','m',1938,1989,2007,'Médico; deputado federal mais votado do país (2002)']],
+    'Partido Comunista do Brasil':[['Aldo Rebelo','m',1956,1985,2017,'Presidente da Câmara (2005–2007)'],['Manuela d\'Ávila','f',1981,2004,2100,'Ex-deputada federal (RS)'],['Flávio Dino','m',1968,2006,2021,'Ex-governador do Maranhão']],
+    'Cidadania (ex-PPS)':[['Roberto Freire','m',1942,1992,2100,'Presidente nacional do partido'],['Ciro Gomes','m',1957,1997,2005,'Candidato a presidente (1998 e 2002)','cesq']],
+    'Partido Verde':[['Fernando Gabeira','m',1941,1986,2014,'Ex-deputado federal (RJ)'],['Marina Silva','f',1958,2009,2011,'Candidata a presidente (2010)']],
+    'Rede Sustentabilidade':[['Marina Silva','f',1958,2015,2100,'Ministra do Meio Ambiente'],['Randolfe Rodrigues','m',1972,2015,2023,'Senador pelo Amapá']]
   },
   'Estados Unidos':{
     'Partido Democrata':[['Woodrow Wilson','m',1856,1905,1921,'Presidente (1913–1921)'],['Franklin D. Roosevelt','m',1882,1910,1945,'Presidente (1933–1945), New Deal'],['John F. Kennedy','m',1917,1946,1963,'Presidente (1961–1963)'],['Lyndon B. Johnson','m',1908,1937,1969,'Presidente (1963–1969)'],['Jimmy Carter','m',1924,1962,1981,'Presidente (1977–1981)'],
@@ -114,14 +121,14 @@ function upcomingParties(key, year, gov){
 function polAge(pol, year){ if (!pol.born) return null; const a = year - pol.born; return a >= 25 ? clamp(a, 25, 80) : clamp(new Date().getFullYear() - pol.born, 25, 80); }
 
 const _polHTML = partyPickerHTML;
-partyPickerHTML = function(obj, key, year, gov){
+partyPickerHTML = function(obj, key, year, gov, opts){
   let h = _polHTML(obj, key, year, gov);
   const up = upcomingParties(key, year, gov);
   if (up.length){
     const cur = obj.party;
     h += `<div class="lbl" style="margin-top:6px">⏩ Partidos que surgem depois (escolha fora de época)</div><div class="cards">${up.map((g, i) => `<div class="card ${cur && cur.name === g.name ? 'sel' : ''}" data-pgu="${i}"><b>${esc(g.name)} <small>(${esc(g.abbr)})</small></b><span>Fundado em ${g.future} · ${IDEOS[g.ideo].n}</span></div>`).join('')}</div>`;
   }
-  const pols = politiciansFor(key, obj.party, year);
+  const pols = (opts && opts.noPols) ? [] : politiciansFor(key, obj.party, year);
   if (pols.length){
     h += `<div class="section-title" style="margin-top:8px">👤 Políticos do ${esc(obj.party.abbr || obj.party.name)} <small class="muted">(opcional: vira o seu líder)</small></div>
       <div class="cards">${pols.map((pl, i) => { const age = polAge(pl, year);
@@ -141,9 +148,60 @@ bindPartyPicker = function(root, obj, key, year, gov, onChange){
     obj.leader = pl.name; obj.realLeader = true;
     const age = polAge(pl, year); if (age) obj.age = age;
     if (pl.ideo && obj.party) obj.party.ideo = pl.ideo;
-    obj.avatar = randomAvatar(pl.sex === 'f' ? 'f' : 'm', seededRng(pl.name), obj.gov);
-    if (!obj.avatar.height) obj.avatar.height = pl.sex === 'f' ? 165 : 175;
+    obj.avatar = polAvatar(pl, obj.gov, year);
     if (G && G.p === obj && old !== pl.name) addLog(`👤 ${pl.name} (${obj.party.abbr || obj.party.name}) assume a liderança da nação.`, 'info');
     onChange();
   });
 };
+
+// ------------------------------------------------------------
+//  Aparência aproximada dos políticos mais conhecidos (cabelo, barba,
+//  óculos, pele...). Os demais ganham um visual fixo, com a idade certa.
+// ------------------------------------------------------------
+const POL_LOOK = {
+  'Luiz Inácio Lula da Silva':{skin:'s2', face:'redondo', hair:'curto', hairColor:'grisalho', beard:'cheia', age:'idoso'},
+  'Jair Bolsonaro':{skin:'s1', face:'quadrado', hair:'lateral', hairColor:'grisalho', beard:'nenhuma', age:'maduro'},
+  'Fernando Henrique Cardoso':{skin:'s1', hair:'lateral', hairColor:'branco', beard:'nenhuma', age:'idoso'},
+  'Dilma Rousseff':{skin:'s1', hair:'chanel', hairColor:'castanho', age:'maduro'},
+  'Michel Temer':{skin:'s1', face:'fino', hair:'lateral', hairColor:'branco', beard:'nenhuma', age:'idoso'},
+  'José Sarney':{skin:'s2', hair:'lateral', hairColor:'branco', beard:'bigode', age:'idoso'},
+  'Enéas Carneiro':{skin:'s2', face:'oval', hair:'calvo', hairColor:'preto', beard:'longa', glasses:'quadrado', brows:'grossa', mouth:'bravo', age:'maduro'},
+  'Renan Santos':{skin:'s1', hair:'curto', hairColor:'castanho', beard:'curta', age:'adulto'},
+  'Kim Kataguiri':{skin:'s2', hair:'curto', hairColor:'preto', beard:'nenhuma', age:'jovem'},
+  'Fernando Haddad':{skin:'s2', hair:'curto', hairColor:'grisalho', beard:'nenhuma', age:'maduro'},
+  'Ciro Gomes':{skin:'s2', hair:'curto', hairColor:'grisalho', beard:'nenhuma', age:'maduro'},
+  'Geraldo Alckmin':{skin:'s1', hair:'calvo', hairColor:'grisalho', beard:'nenhuma', age:'idoso'},
+  'Tarcísio de Freitas':{skin:'s1', hair:'raspado', hairColor:'castanho', beard:'nenhuma', age:'adulto'},
+  'Romeu Zema':{skin:'s1', hair:'calvo', hairColor:'grisalho', beard:'nenhuma', glasses:'redondo', age:'maduro'},
+  'Sergio Moro':{skin:'s1', hair:'curto', hairColor:'castanho', beard:'nenhuma', age:'adulto'},
+  'Guilherme Boulos':{skin:'s1', hair:'curto', hairColor:'castanho', beard:'curta', age:'adulto'},
+  'Marina Silva':{skin:'s4', hair:'coque', hairColor:'preto', age:'maduro'},
+  'Michelle Bolsonaro':{skin:'s1', hair:'longo', hairColor:'castanho', age:'adulto'},
+  'Nikolas Ferreira':{skin:'s1', hair:'topete', hairColor:'castanho', beard:'nenhuma', age:'jovem'},
+  'Simone Tebet':{skin:'s1', hair:'medio', hairColor:'castanho', age:'adulto'},
+  'Getúlio Vargas':{skin:'s2', face:'redondo', hair:'calvo', hairColor:'grisalho', beard:'nenhuma', age:'idoso'},
+  'Juscelino Kubitschek':{skin:'s2', hair:'lateral', hairColor:'preto', beard:'nenhuma', age:'maduro'},
+  'Leonel Brizola':{skin:'s1', hair:'calvo', hairColor:'grisalho', beard:'nenhuma', age:'idoso'},
+  'Ulysses Guimarães':{skin:'s1', hair:'calvo', hairColor:'branco', glasses:'quadrado', age:'idoso'},
+  'Dom Pedro II':{skin:'s1', hair:'medio', hairColor:'branco', beard:'longa', age:'idoso'},
+  'Barack Obama':{skin:'s5', hair:'raspado', hairColor:'grisalho', beard:'nenhuma', age:'maduro'},
+  'Donald Trump':{skin:'s1', hair:'topete', hairColor:'loiro', beard:'nenhuma', age:'idoso'},
+  'Abraham Lincoln':{skin:'s2', face:'fino', hair:'medio', hairColor:'preto', beard:'imperial', age:'maduro'},
+  'Winston Churchill':{skin:'s1', face:'redondo', hair:'calvo', hairColor:'claro', beard:'nenhuma', age:'idoso'},
+  'Margaret Thatcher':{skin:'s1', hair:'chanel', hairColor:'loiro', age:'maduro'},
+  'Angela Merkel':{skin:'s1', hair:'chanel', hairColor:'loiro', age:'maduro'},
+  'Javier Milei':{skin:'s1', hair:'medio', hairColor:'castanho', beard:'costeletas', age:'maduro'},
+  'Nelson Mandela':{skin:'s6', hair:'raspado', hairColor:'branco', beard:'nenhuma', age:'idoso'},
+  'Charles de Gaulle':{skin:'s1', face:'fino', hair:'curto', hairColor:'grisalho', beard:'bigode', age:'idoso'},
+  'Emmanuel Macron':{skin:'s1', hair:'curto', hairColor:'castanho', beard:'nenhuma', age:'adulto'}
+};
+function ageBucket(a){ return a == null ? null : a < 36 ? 'jovem' : a < 50 ? 'adulto' : a < 66 ? 'maduro' : 'idoso'; }
+function polAvatar(pl, gov, year){
+  const av = randomAvatar(pl.sex === 'f' ? 'f' : 'm', seededRng(pl.name), gov);
+  const age = polAge(pl, year), b = ageBucket(age);
+  if (b){ av.age = b; if (b === 'idoso' && !['branco','grisalho'].includes(av.hairColor)) av.hairColor = 'grisalho'; }
+  Object.assign(av, POL_LOOK[pl.name] || {});
+  if (gov && GOVS[gov] && GOVS[gov].family === 'dem'){ av.hat = 'nenhum'; if (av.outfit === 'uniforme' || av.outfit === 'manto') av.outfit = pl.sex === 'f' ? 'vestido' : 'terno'; }
+  if (!av.height) av.height = pl.sex === 'f' ? 165 : 175;
+  return av;
+}

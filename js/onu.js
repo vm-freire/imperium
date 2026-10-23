@@ -10,13 +10,15 @@
 
 const UN_YEAR = 1945;
 function unActive(){ return G && G.p && curYear() >= UN_YEAR; }
-function unState(){ if (!G.un) G.un = {next: G.turn + randInt(3, 8), history: [], nukeBan: false, nukeSeen: G.stats.nukesUsed || 0, proposed: -99}; return G.un; }
+function unState(){ if (!G.un) G.un = {next: G.turn + randInt(3, 8), history: [], nukeBan: false, nukeSeen: G.stats.nukesUsed || 0, proposed: -99, out: G.p && G.p.unMember === false, leftAt: -99}; return G.un; }
+// estamos fora da ONU? (não votamos, não vetamos, não fazemos propostas)
+function unOut(){ return !!(G && G.un && G.un.out); }
 function sanctioned(){ return G && G.p && (G.p.sanctionUntil||0) > G.turn; }
 
 // as 5 maiores potências (poder militar) formam o Conselho de Segurança
 function unCouncil(){
   const list = G.nations.filter(n => n && n.id > 1 && n.alive && !n.empty).map(n => ({id:n.id, pow:n.power||0}));
-  list.push({id:1, pow:G.p.atk||0});
+  if (!unOut()) list.push({id:1, pow:G.p.atk||0});
   return list.sort((a, b) => b.pow - a.pow).slice(0, 5).map(x => x.id);
 }
 
@@ -81,7 +83,7 @@ function unTally(res, myVote, campaign){
     votes[n.id] = v; if (v > 0) yes++; else if (v < 0) no++; else abs++;
     if (v < 0 && council.includes(n.id) && res.type !== 'fundo' && res.type !== 'clima' && !veto) veto = n.id;
   }
-  if (myVote > 0) yes++; else if (myVote < 0) no++; else abs++;
+  if (!unOut()){ if (myVote > 0) yes++; else if (myVote < 0) no++; else abs++; }
   if (myVote < 0 && council.includes(1) && res.type !== 'fundo' && res.type !== 'clima' && !veto) veto = 1;
   const passed = yes > no && !veto;
   return {votes, yes, no, abs, veto, passed, council};
@@ -146,7 +148,8 @@ EVENTS.onu_sessao = {icon:'🏛️', title:'Assembleia Geral da ONU', special:tr
     ]; }};
 EVENTS.onu_fundacao = {icon:'🏛️', title:'Nasce a ONU', special:true,
   text:() => 'Depois da Segunda Guerra, as nações criam a Organização das Nações Unidas (1945) para evitar novas guerras. Todo ano haverá uma Assembleia: sanções, missões de paz e tratados. As 5 maiores potências formam o Conselho de Segurança e podem vetar resoluções.',
-  choices:() => [{t:'Entrar na ONU', h:'+3 relações com todos', f:()=>{ for (const n of G.nations) if (n && n.id > 1 && n.alive) changeRel(n, 3); }}]};
+  choices:() => [{t:'Entrar na ONU', h:'+3 relações com todos', f:()=>{ unState().out = false; for (const n of G.nations) if (n && n.id > 1 && n.alive) changeRel(n, 3); }},
+    {t:'Ficar de fora', h:'Sem votos nem compromissos · −3 relações com todos', f:()=>{ const un = unState(); un.out = true; un.leftAt = G.turn; for (const n of G.nations) if (n && n.id > 1 && n.alive) changeRel(n, -3); addLog('🏛️ Decidimos não entrar na ONU.', 'dip'); }}]};
 
 // ---------- efeitos das sanções sobre nós ----------
 const _unMods = calcMods;
@@ -162,23 +165,49 @@ endTurn = function(){
   _unEnd.apply(this, arguments);
   if (!G || G.over || !unActive()) return;
   const un = unState();
-  if (!un.welcomed){ un.welcomed = true; if (G.startYear < UN_YEAR) queueEvent('onu_fundacao'); }
+  if (!un.welcomed){ un.welcomed = true; if (G.startYear < UN_YEAR && !un.out) queueEvent('onu_fundacao'); }
   // usar bomba com o tratado em vigor = sanções automáticas
   if (un.nukeBan && (G.stats.nukesUsed||0) > un.nukeSeen){ un.nukeSeen = G.stats.nukesUsed; G.p.sanctionUntil = G.turn + 36; for (const n of G.nations) if (n && n.id > 1 && n.alive) changeRel(n, -20); addLog('☢️ Violamos o tratado nuclear: o mundo inteiro impõe sanções por 3 anos.', 'bad'); }
-  if (G.turn >= un.next){ un.next = G.turn + randInt(11, 13); queueEvent('onu_sessao', {res:unPickResolution()}); }
+  if (G.turn >= un.next){ un.next = G.turn + randInt(11, 13); if (un.out) unSilentSession(); else queueEvent('onu_sessao', {res:unPickResolution()}); }
 };
+
+// fora da ONU: a assembleia acontece sem o nosso voto (e ainda pode nos sancionar)
+function unSilentSession(){
+  const res = unPickResolution(), t = unTally(res, 0, false); unApply(res, t, 0);
+  const un = unState(), T = UN_TYPES[res.type];
+  un.history.unshift({turn:G.turn, type:res.type, target:res.target||null, passed:t.passed, yes:t.yes, no:t.no, veto:t.veto||null}); un.history = un.history.slice(0, 20);
+  addLog(`🏛️ ONU (sem a nossa participação) — ${T.n}${res.target ? ' (' + (res.target === 1 ? G.p.name : G.nations[res.target].name) + ')' : ''}: ${t.passed ? 'aprovada' : t.veto ? 'vetada' : 'rejeitada'}.`, res.target === 1 && t.passed ? 'bad' : 'info');
+}
+function unLeave(){
+  const un = unState(); if (un.out) return {ok:false, why:'Já estamos fora da ONU.'};
+  un.out = true; un.leftAt = G.turn;
+  for (const n of G.nations) if (n && n.id > 1 && n.alive) changeRel(n, GOVS[n.gov] && GOVS[n.gov].family === 'dem' ? -8 : -3);
+  if (GOVS[G.p.gov].family === 'dem') G.p.approval -= 2; else G.p.stability += 1;
+  return {ok:true, msg:'🚪 Saímos da ONU. Não votamos mais nas assembleias — mas elas continuam decidindo sobre o mundo.'};
+}
+function unJoin(){
+  const un = unState(); if (!un.out) return {ok:false, why:'Já fazemos parte da ONU.'};
+  if (G.turn - un.leftAt < 12) return {ok:false, why:`Saímos há pouco tempo. Podemos pedir para voltar em ${12 - (G.turn - un.leftAt)} mês(es).`};
+  un.out = false; for (const n of G.nations) if (n && n.id > 1 && n.alive) changeRel(n, 4);
+  return {ok:true, msg:'🤝 Voltamos a fazer parte da ONU.'};
+}
 
 // ---------- painel ----------
 function unPanelHTML(){
   if (!unActive()) return '';
   const un = unState(), N = G.nations;
+  if (un.out) return `<div class="sub">🏛️ Nações Unidas</div><div class="box">
+    <div class="muted">🚪 Estamos <b>fora da ONU</b>. As assembleias continuam sem o nosso voto${un.history.length ? ' — a última: ' + UN_TYPES[un.history[0].type].n + ' (' + (un.history[0].passed ? 'aprovada' : 'rejeitada') + ')' : ''}.</div>
+    ${sanctioned() ? row('🚫 Sanções contra nós', `${G.p.sanctionUntil - G.turn} meses`, 'down') : ''}
+    <button class="btn xs green" style="margin-top:6px" data-unmb="join">🤝 Voltar para a ONU</button></div>`;
   const hist = un.history.slice(0, 4).map(h => `<div class="row"><span class="k">${UN_TYPES[h.type].icon} ${UN_TYPES[h.type].n}${h.target ? ' — ' + esc(h.target === 1 ? G.p.name : (N[h.target]||{}).name || '') : ''}</span><span class="v ${h.passed ? 'up' : 'down'}">${h.passed ? 'aprovada' : h.veto ? 'vetada' : 'rejeitada'}</span></div>`).join('');
   return `<div class="sub">🏛️ Nações Unidas</div><div class="box">
     ${row('Próxima Assembleia', `em ${Math.max(0, un.next - G.turn)} meses`)}
     ${row('Conselho de Segurança', unCouncil().map(id => id === 1 ? '<b>nós</b>' : esc(N[id].name)).join(', '))}
     ${un.nukeBan ? row('☢️ Tratado nuclear', 'em vigor') : ''}${sanctioned() ? row('🚫 Sanções contra nós', `${G.p.sanctionUntil - G.turn} meses`, 'down') : ''}
     ${hist}
-    <button class="btn xs" style="margin-top:6px" data-unact="propose" ${G.turn - un.proposed < 12 ? 'disabled' : ''} title="Uma proposta por ano">🚫 Propor sanções contra…</button></div>`;
+    <button class="btn xs" style="margin-top:6px" data-unact="propose" ${G.turn - un.proposed < 12 ? 'disabled' : ''} title="Uma proposta por ano">🚫 Propor sanções contra…</button>
+    <button class="btn xs" style="margin-top:6px" data-unmb="leave">🚪 Sair da ONU</button></div>`;
 }
 const _unPanel = panelDiplomacia;
 panelDiplomacia = function(){
@@ -193,4 +222,10 @@ document.addEventListener('click', e => {
     <div class="m-actions"><button class="btn" id="sn-x">Cancelar</button></div>`);
   m.querySelector('#sn-x').onclick = () => { SFX.click(); closeModal(); };
   m.querySelectorAll('[data-sn]').forEach(b => b.onclick = () => { SFX.click(); closeModal(); unState().proposed = G.turn; changeRel(G.nations[+b.dataset.sn], -15); unVote({type:'sancao', target:+b.dataset.sn}, 1, false); refreshAll(); });
+});
+
+document.addEventListener('click', e => {
+  const btn = e.target.closest && e.target.closest('[data-unmb]'); if (!btn || !G) return;
+  if (btn.dataset.unmb === 'leave') confirmModal('🚪', 'Sair da ONU?', 'Deixamos de votar e de poder vetar. As democracias não vão gostar (−8 relação; outras nações −3). A ONU ainda pode aprovar sanções contra nós. Dá para voltar depois de 1 ano.', 'Sair da ONU', () => { const r = unLeave(); toast(esc(r.ok ? r.msg : r.why), r.ok ? 'dip' : 'bad'); if (r.ok) addLog(r.msg, 'dip'); refreshAll(); }, true);
+  else { const r = unJoin(); if (r.ok){ SFX.bell(); toast(esc(r.msg), 'good'); addLog(r.msg, 'dip'); } else { SFX.error(); toast(esc(r.why), 'bad'); } refreshAll(); }
 });

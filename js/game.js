@@ -502,7 +502,7 @@ function newGameInner(cfg){
     name:cfg.name, official:cfg.official, leader:cfg.leader, title:cfg.title, age:cfg.age, trait:cfg.trait, gov:cfg.gov, econ:cfg.econ,
     religion:cfg.religion, capital:cfg.capital, currency:cfg.currency, currencySym:cfg.currencySym||'$', language:cfg.language, motto:cfg.motto,
     flag:cfg.flag, color:cfg.color, climate:cfg.climate, terrain:cfg.terrain, focus:cfg.focus, resources:cfg.resources.slice(),
-    baseArea:cfg.area, homeCells:home, homeTotal:home.length, homeArea, homePoly:cfg.homePoly, homeParts:cfg.homeParts||[], shape:cfg.shape,
+    baseArea:cfg.area, homeCells:home, homeTotal:home.length, homeArea, homePoly:cfg.homePoly, homeParts:cfg.homeParts||[], shape:cfg.shape, unMember: cfg.unMember !== false,
     pop:cfg.pop, basePc, gdpPc:basePc, gdp:cfg.pop*basePc, treasury:0, debt:0,
     tax:0.22, spend:{edu:3, health:3, infra:3, social:3, research:1, police:1.5},
     inflation:3, unemployment:7, approval:58, stability:62, corruption:0.08, warWeary:0, morale:1, occupied:0,

@@ -103,11 +103,7 @@ function stepNation(){
   const c = C.cfg, e = ERAS[c.era];
   return `<div class="section-title" ${C.onlineRoom?'style="display:none"':''}>Época</div>
     <div class="cards" ${C.onlineRoom?'style="display:none"':''}>${Object.entries(ERAS).map(([k,x])=>`<div class="card ${+k===+c.era?'sel':''}" data-era2="${k}"><b>${x.year} — ${x.name}</b><span>${x.desc}</span></div>`).join('')}</div>
-    ${c.existing ? `<div class="box" style="margin:10px 0;border-color:var(--red)">
-      <div class="flex" style="gap:10px;align-items:center"><canvas width="54" height="36" id="pick-curflag"></canvas><div><b style="font-size:17px">${esc(c.existing)}</b><div class="muted">Escolha o partido e, se quiser, um político real dele para ser o líder. Na próxima aba você vê o visual do líder.</div></div>
-      <div style="margin-left:auto;text-align:center">${avatarSVG(ensureCfgAvatar(), null, 64)}<div><small><b>${esc(c.leader)}</b></small></div></div></div>
-      <div id="pg-root1">${partyPickerHTML(c, createKey(), ERAS[c.era].year, c.gov)}</div></div>` : ''}
-    <div class="section-title">${c.existing ? 'Trocar de nação' : 'Escolha a nação que você vai governar'} <button class="btn sm" id="pick-rand" style="margin-left:10px">🎲 Sortear uma nação</button></div>
+    <div class="section-title">Escolha a nação que você vai governar <button class="btn sm" id="pick-rand" style="margin-left:10px">🎲 Sortear uma nação</button></div>
     <div class="muted">Depois você pode mudar nome, líder, regime, bandeira, religião e o que mais quiser.</div>
     <input type="text" id="pick-search" class="pick-search" placeholder="🔎 Buscar país (ex.: Portugal, Japão, Quênia...)" autocomplete="off">
     <div class="nation-pick">${eraNations(c.era).filter(d=>!C.onlineRoom || !takenNations().includes(d.name)).map(d=>{ const H = d.hist || (HIST[d.key] && HIST[d.key][c.era]); return `<div class="npick ${c.existing===d.name?'sel':''}" data-pick="${esc(d.name)}"><canvas width="42" height="28" data-pf="${esc(d.name)}"></canvas>
@@ -120,9 +116,7 @@ function bindNation(b){
   b.querySelectorAll('[data-pick]').forEach(x=>x.onclick=()=>{ SFX.click(); applyExisting(x.dataset.pick); C.cfg.randomPick = false; renderStep(); });
   const ps = b.querySelector('#pick-search'); if (ps){ const norm = t => t.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase(); ps.oninput = ()=>{ const q = norm(ps.value.trim()); b.querySelectorAll('.nation-pick .npick').forEach(el=>{ el.style.display = !q || norm(el.textContent).includes(q) ? '' : 'none'; }); }; }
   b.querySelector('#pick-rand').onclick = ()=>{ SFX.bell(); const L = eraNations(C.cfg.era); applyExisting(pick(L).name); C.cfg.randomPick = true; renderStep(); };
-  const cf = b.querySelector('#pick-curflag'); if (cf) drawFlag(cf.getContext('2d'), C.cfg.flag, 0, 0, 54, 36);
-  const pg1 = b.querySelector('#pg-root1');
-  if (pg1) bindPartyPicker(pg1, C.cfg, createKey(), ERAS[C.cfg.era].year, C.cfg.gov, ()=>{ const y = b.scrollTop; renderStep(); $('#create-body').scrollTop = y; });
+
 }
 function applyExisting(name){
   const c = C.cfg, e = ERAS[c.era], d = eraNations(c.era).find(x=>x.name===name), pr = PROFILES[d.key] || {cult:'luso', res:[]};
