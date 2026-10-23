@@ -287,7 +287,7 @@ table.tbl tr.me td{background:rgba(201,161,59,.3);font-weight:bold}
 ::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:var(--paper4);border-radius:5px;border:2px solid var(--paper2)}::-webkit-scrollbar-track{background:transparent}
 
 /* ---- v2: povo, acordos, constituição ---- */
-#st-app{cursor:pointer}
+#st-app,#st-tre{cursor:pointer}
 .voice{background:rgba(255,255,255,.4);border-left:4px solid var(--red2);border-radius:4px;padding:8px 10px;margin:7px 0}
 .voice.good{border-left-color:var(--green)}
 .voice .q{font-style:italic;font-size:15.5px;line-height:1.35}

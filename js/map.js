@@ -61,6 +61,7 @@ const Grid = {
 };
 
 // ------------------------------------------------------------
+const LABEL_MAX_Z = 3;   // acima deste zoom os nomes dos países não aparecem
 const MAP_NB8 = [1,0, -1,0, 0,1, 0,-1, 1,1, -1,-1, 1,-1, -1,1];
 const MapView = {
   canvas:null, ctx:null, dpr:1, cw:0, ch:0,
@@ -568,7 +569,7 @@ const MapView = {
     ctx.save(); ctx.textAlign='center'; ctx.textBaseline='middle';
     for (let id=2; id<G.nations.length; id++){
       const n = G.nations[id]; if (!n.alive || !n.cells) continue;
-      const fs = n.labelSize; if (fs*z < 6.5) continue;
+      const fs = n.labelSize; if (fs*z < 6.5 || z > LABEL_MAX_Z) continue;   // no zoom de perto o nome some (fica só no mapa geral e no zoom médio)
       ctx.font = `600 ${fs}px "Cinzel", Georgia, serif`; ctx.letterSpacing = (fs*0.18)+'px';
       ctx.lineWidth = fs*0.22; ctx.strokeStyle='rgba(240,228,195,0.75)'; ctx.fillStyle='rgba(55,35,15,0.85)';
       const t = n.name.toUpperCase();
@@ -591,7 +592,7 @@ const MapView = {
     ctx.save(); ctx.textAlign='center';
     const n1 = G.nations[1];
     // nome do país do jogador
-    if (n1.cells){
+    if (n1.cells && z <= LABEL_MAX_Z){
       const fs = Math.max(n1.labelSize, 7);
       ctx.font = `700 ${fs}px "Cinzel", Georgia, serif`; ctx.letterSpacing = (fs*0.2)+'px';
       ctx.lineWidth = fs*0.28; ctx.strokeStyle='rgba(255,245,215,0.9)'; ctx.fillStyle = darken(n1.color, 0.45);
