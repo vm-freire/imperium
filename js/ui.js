@@ -182,10 +182,12 @@ function row(k, v, cls){ return `<div class="row"><span class="k">${k}</span><sp
 function renderPanel(){
   if (!G) return;
   const el = $('#panel'); const st = el.scrollTop;
+  const ae = document.activeElement, keep = ae && el.contains(ae) && ae.dataset && ae.dataset.recn;
   const f = {geral:panelGeral, metas:panelMetas, povo:panelPovo, ranking:panelRanking, obras:panelObras, economia:panelEconomia, militar:panelMilitar, diplomacia:panelDiplomacia, tecnologia:panelTecnologia, leis:panelLeis, registro:panelRegistro}[UI.tab];
   el.innerHTML = f();
   bindPanel(el);
   el.scrollTop = st;
+  if (keep){ const i = el.querySelector(`[data-recn="${keep}"]`); if (i){ i.focus(); const v = i.value; i.value = ''; i.value = v; } }
 }
 
 function panelGeral(){
@@ -305,7 +307,7 @@ function panelMilitar(){
     const c = p.units[u.id]||0;
     return `<div class="unit ${locked?'locked':''}"${tip(`${u.icon} ${u.n}`, UNIT_TIPS[u.id]||'', locked?`🔒 Requer ${TECH[u.req].n} (${TECH[u.req].year})`:`Ataque ${u.atk} · Defesa ${u.def}${u.nav?` · Naval ${u.nav}`:''} · usa ${u.man} mil soldados`)}><span class="ic">${u.icon}</span>
       <span class="nm"><b>${u.n}</b><small>${locked?`🔒 Requer ${TECH[u.req].n}`:`${fmtMoney(unitCost(u.id,m))} · manut. ${fmtMoney(unitUpkeep(u.id,m))}/mês · ${u.id==='nuke'?'arma estratégica':`⚔${u.atk} 🛡${u.def}${u.nav?' ⚓'+u.nav:''}`}`}</small></span>
-      <span class="ct">${locked?'':`<button class="btn xs" data-dis="${u.id}" ${c?'':'disabled'}>−</button><span class="cnt">${c}</span><button class="btn xs" data-rec="${u.id}" data-q="1">+1</button>${u.id!=='nuke'?`<button class="btn xs" data-rec="${u.id}" data-q="5">+5</button>`:''}`}</span></div>`;
+      <span class="ct">${locked?'':`<button class="btn xs" data-dis="${u.id}" ${c?'':'disabled'}>−</button><span class="cnt">${c}</span><button class="btn xs" data-rec="${u.id}" data-q="1">+1</button>${u.id!=='nuke'?`<input type="number" min="1" max="999" placeholder="qtd" title="Digite quantas quer recrutar e aperte Enter ou ✔" data-recn="${u.id}" value="${(UI.recQ&&UI.recQ[u.id])||''}" style="width:50px;text-align:center"><button class="btn xs green" data-recgo="${u.id}" title="Recrutar a quantidade digitada">✔</button>`:''}`}</span></div>`;
   }).join('');
   return `
   <div class="ph">Forças Armadas</div>
@@ -379,7 +381,7 @@ function panelTecnologia(){
   ${Object.keys(tiers).map(k=>`<div class="tier"><div class="tier-lbl">ERA ${names[k]}</div>${tiers[k].map(t=>{
     const done = p.techs.includes(t.id), reqOk = t.req.every(r=>p.techs.includes(r)), timeOk = techTimeOk(t.id);
     const avail = reqOk && timeOk, cls = done?'done':(p.researching===t.id?'cur':(avail?'':'lock'));
-    const status = done ? '✔ Conhecida' : !timeOk ? `🔒 Disponível a partir de ${t.year - TECH_LEAD}` : !reqOk ? '🔒 Requer: ' + t.req.filter(r=>!p.techs.includes(r)).map(r=>TECH[r].n).join(', ') : `${techCost(t.id)} pts${techGap(t.id)>0?' ⚡':techGap(t.id)<-10?' (difundida)':''}`;
+    const status = done ? '✔ Conhecida' : !timeOk ? `🔒 Disponível a partir de ${t.year - techLead()}` : !reqOk ? '🔒 Requer: ' + t.req.filter(r=>!p.techs.includes(r)).map(r=>TECH[r].n).join(', ') : `${techCost(t.id)} pts${techGap(t.id)>0?' ⚡':techGap(t.id)<-10?' (difundida)':''}`;
     const cat = TECH_CATS[techCat(t.id)];
     const unl = (t.unlock||[]).map(u=>UNIT[u]?UNIT[u].icon+' '+UNIT[u].n:'').concat(Object.entries(BUILDINGS).filter(([k,B])=>B.req===t.id).map(([k,B])=>B.icon+' '+B.n)).filter(Boolean);
     return `<div class="tech ${cls}" data-tech="${t.id}"${tip(`${t.icon} ${t.n} (${t.year})`, `${t.d}.<br>Área: ${cat.icon} ${cat.n}.`, `Efeito: ${fxList(t.fx)||'—'}${unl.length?'<br>Libera: '+unl.join(', '):''}<br>Acelerada por: ${helpersText(t.id)}${t.req.length?'<br>Requer: '+t.req.map(r=>TECH[r].n).join(', '):''}`)}><b>${t.icon} ${t.n}</b><small>📅 ${t.year} · ${status}</small><small>${t.d}</small></div>`;
@@ -747,6 +749,11 @@ function bindPanel(el){
     if (r.ok){ SFX.build(); toast(r.msg); } else { SFX.error(); toast(r.why,'bad'); }
     refreshAll();
   });
+  // quantidade digitada: guarda o valor (o painel se redesenha a cada mês) e recruta no ✔ ou no Enter
+  const recGo = u => { const q = Math.round(+(UI.recQ||{})[u] || 0); if (q < 1){ SFX.error(); toast('Digite quantas divisões quer recrutar.', 'bad'); return; }
+    const r = recruit(u, Math.min(999, q)); if (r.ok){ SFX.build(); toast(r.msg); UI.recQ[u] = ''; } else { SFX.error(); toast(r.why,'bad'); } refreshAll(); };
+  el.querySelectorAll('[data-recn]').forEach(i=>{ i.oninput = ()=>{ UI.recQ = UI.recQ || {}; UI.recQ[i.dataset.recn] = i.value; }; i.onkeydown = e=>{ if (e.key === 'Enter'){ e.preventDefault(); recGo(i.dataset.recn); } }; });
+  el.querySelectorAll('[data-recgo]').forEach(b=> b.onclick = ()=> recGo(b.dataset.recgo));
   el.querySelectorAll('[data-dis]').forEach(b=> b.onclick = ()=>{ const r = disband(b.dataset.dis, 1); if (r.ok){ SFX.click(); } refreshAll(); });
   el.querySelectorAll('[data-nation]').forEach(b=> b.onclick = ()=>{ SFX.page(); openNation(+b.dataset.nation); });
   el.querySelectorAll('[data-fly]').forEach(b=> b.onclick = ()=>{ const n = G.nations[+b.dataset.fly]; const [lo,la] = cellCenter(n.cap); MapView.flyTo(lo,la,3); });
@@ -1208,6 +1215,21 @@ function onVictory(reason){
 // ------------------------------------------------------------
 //  Menu do jogo / opções
 // ------------------------------------------------------------
+// anfitrião: tempo de cada mês (vale para todos; o relógio recomeça com o novo tempo)
+function openSpeedPicker(){
+  const cur = ON.room.speed;
+  const m = openModal(`<div class="m-icon">⏱️</div><div class="m-title">Tempo de cada mês</div><div class="m-text">Vale para todos os jogadores da sala. Uma partida com objetivos dura em média 1h15 no tempo Normal.</div>
+    ${Object.entries(SPEEDS).map(([k, v])=>`<button class="choice ${+k===+cur?'sel':''}" data-spd="${k}"><b>${+k===+cur?'✔ ':''}${esc(v)}</b><span>${Math.round(75*k/60)} min para ~75 meses de jogo</span></button>`).join('')}
+    <div class="m-actions"><button class="btn" id="sp-x">Voltar</button></div>`);
+  m.querySelector('#sp-x').onclick = ()=>{ SFX.click(); closeModal(); };
+  m.querySelectorAll('[data-spd]').forEach(b=> b.onclick = async ()=>{
+    const v = +b.dataset.spd; closeModal(); if (v === +ON.room.speed) return;
+    const nt = Date.now() + v*1000; ON.room = Object.assign({}, ON.room, {speed:v, nextTick:nt});
+    try { await NET.be.updateRoom(ON.room.code, {speed:v, nextTick:nt, updatedAt:Date.now()}); SFX.bell(); toast(`⏱️ Agora cada mês dura ${v} s para todos.`, 'good'); addLog(`⏱️ O anfitrião mudou o tempo de cada mês para ${v} s.`, 'info'); }
+    catch(e){ SFX.error(); toast('Não foi possível mudar agora. Tente de novo.', 'bad'); }
+    updateOnlineBar();
+  });
+}
 function openGameMenu(){
   SFX.page();
   if (G.online){
@@ -1216,6 +1238,7 @@ function openGameMenu(){
       <button class="choice" id="og-pl"><b>👥 Jogadores e diplomacia</b><span>Alianças, comércio, mensagens e guerra com os outros jogadores</span></button>
       <button class="choice" id="og-rep"><b>📊 Relatório completo</b><span>Gráficos, guerras, rankings e crônica</span></button>
       <button class="choice" id="og-tro"><b>🏅 Conquistas</b><span>Inclui as conquistas online</span></button>
+      <button class="choice" id="og-spd"><b>⏱️ Tempo de cada mês: ${esc((SPEEDS[ON.room.speed]||ON.room.speed+' s').replace(/ \(.*/, ''))} (${ON.room.speed} s)</b><span>${isHost ? 'Você é o anfitrião: mude a velocidade para todos os jogadores' : 'Só o anfitrião pode mudar'}</span></button>
       <button class="choice" id="og-opt"><b>⚙️ Opções de som</b><span>Volume, música e efeitos</span></button>
       <button class="choice" id="og-leave"><b>🚪 Sair para o menu</b><span>${isHost ? 'Como anfitrião, o mundo para de avançar enquanto você estiver fora' : 'Sua nação fica parada; o mundo continua'}</span></button>
       ${isHost ? '<button class="choice danger" id="og-stop"><b>⏹ Encerrar a sessão</b><span>Para o relógio para todos. Retome depois pelo lobby da sala.</span></button>' : ''}
@@ -1226,6 +1249,7 @@ function openGameMenu(){
     m.querySelector('#og-rep').onclick = ()=>{ closeModal(); openLiveReport(); };
     m.querySelector('#og-tro').onclick = ()=>{ closeModal(); openTrophies(); };
     m.querySelector('#og-opt').onclick = ()=>{ closeModal(); openOptions(); };
+    m.querySelector('#og-spd').onclick = ()=>{ if (!isHost){ SFX.error(); toast('Só o anfitrião da sala pode mudar o tempo de cada mês.', 'bad'); return; } closeModal(); openSpeedPicker(); };
     m.querySelector('#og-leave').onclick = ()=>{ closeModal(); leaveOnline(); };
     const dl = m.querySelector('#og-del'); if (dl) dl.onclick = ()=>{ closeModal(); onlineSave(true); confirmDeleteRoom(ON.room); };
     const st = m.querySelector('#og-stop'); if (st) st.onclick = ()=>{ closeModal(); confirmModal('⏹', 'Encerrar a sessão?', 'O mundo para de avançar para todos os jogadores. A sala fica salva e você pode retomar pelo lobby.', 'Encerrar sessão', async ()=>{ await NET.be.updateRoom(G.online.code, {status:'stopped', updatedAt:Date.now()}); leaveOnline(); }, true); };

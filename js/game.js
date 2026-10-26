@@ -732,14 +732,17 @@ function budget(m){
 
 function researchRate(m){
   const p = G.p; m = m || p.mods;
-  return (2 + p.spend.edu*1.3 + p.spend.research*4.5) * (0.6 + p.urb) * (1 + m.research) * (0.7 + 0.3*Math.log10(p.pop+1)) * (p.stability<25?0.7:1);
+  return (2 + p.spend.edu*1.3 + p.spend.research*4.5) * (0.6 + p.urb) * (1 + m.research) * (0.7 + 0.3*Math.log10(p.pop+1)) * (p.stability<25?0.7:1) * (G.online ? ONLINE_RESEARCH : 1);
 }
+// online não dá para acelerar o tempo: a pesquisa anda mais rápido e alcança tecnologias mais distantes da data
+const ONLINE_RESEARCH = 4;
 // a tecnologia só pode ser pesquisada até 12 anos antes de sua época histórica (e custa mais quanto mais cedo)
 const TECH_LEAD = 12;
 function techCountAt(year){ return TECHS.filter(t=>t.year <= year).length; }
 function techGap(id){ return TECH[id].year - curYear(); }
-function techTimeOk(id){ return techGap(id) <= TECH_LEAD; }
-function techCost(id){ const t = TECH[id], gap = t.year - curYear(); let c = t.cost; if (gap > 0) c *= 1 + gap*0.12; else if (gap < -10) c *= 0.7; return Math.round(c); }
+function techLead(){ return G && G.online ? 30 : TECH_LEAD; }
+function techTimeOk(id){ return techGap(id) <= techLead(); }
+function techCost(id){ const t = TECH[id], gap = t.year - curYear(); let c = t.cost; if (gap > 0) c *= 1 + gap*(G && G.online ? 0.05 : 0.12); else if (gap < -10) c *= 0.7; return Math.round(c); }
 function availableTechs(){ return TECHS.filter(t => !G.p.techs.includes(t.id) && t.req.every(r=>G.p.techs.includes(r)) && techTimeOk(t.id)); }
 
 // ------------------------------------------------------------

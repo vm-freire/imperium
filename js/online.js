@@ -6,7 +6,7 @@
 // ============================================================
 'use strict';
 
-const SPEEDS = {20:'Relâmpago (20 s por mês)', 45:'Rápida (45 s por mês)', 60:'Normal (1 min por mês)', 120:'Calma (2 min por mês)', 300:'Estratégica (5 min por mês)'};
+const SPEEDS = {20:'Relâmpago (20 s por mês)', 30:'Ágil (30 s por mês)', 45:'Rápida (45 s por mês)', 60:'Normal (1 min por mês)', 120:'Calma (2 min por mês)', 300:'Estratégica (5 min por mês)'};
 const ON = { room:null, players:{}, subs:[], timer:null, hbTimer:null, pending:[], evSeen:new Set(), snapPower:{}, applying:false, inGame:false, lastSave:0, entering:false, hostTry:0 };
 
 // ------------------------------------------------------------

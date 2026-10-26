@@ -5,30 +5,34 @@
 
 // cada objetivo: o que atingir (sem dizer como), progresso 0..1 e recompensa
 // a = valores do início da partida (G.objBase)
+// online o tempo não acelera: metas menores e prazos curtos, para a partida toda caber em ~1h15
+const objOn = () => !!(typeof G !== 'undefined' && G && G.online);
+const onl = (off, on) => objOn() ? on : off;
+const objMonths = m => objOn() ? Math.min(12, Math.max(3, Math.round(m/5))) : m;
 const OBJECTIVES = [
   // ---- Capítulo I: Fundação ----
-  {id:'pop15', ch:1, icon:'👥', n:'Uma nação que cresce', d:a=>`Alcançar ${fmtPop(a.pop*1.25)} habitantes.`, prog:a=>G.p.pop/(a.pop*1.25), rw:{money:0.02, approval:3}},
-  {id:'tech5', ch:1, icon:'🔬', n:'Mentes brilhantes', d:a=>`Dominar ${a.techs+4} tecnologias.`, prog:a=>G.p.techs.length/(a.techs+4), rw:{rp:0.5}},
+  {id:'pop15', ch:1, icon:'👥', n:'Uma nação que cresce', d:a=>`Alcançar ${fmtPop(a.pop*onl(1.25, 1.04))} habitantes.`, prog:a=>G.p.pop/(a.pop*onl(1.25, 1.04)), rw:{money:0.02, approval:3}},
+  {id:'tech5', ch:1, icon:'🔬', n:'Mentes brilhantes', d:a=>`Dominar ${a.techs+onl(4, 3)} tecnologias.`, prog:a=>G.p.techs.length/(a.techs+onl(4, 3)), rw:{rp:0.5}},
   {id:'deals3', ch:1, icon:'⚓', n:'Portas abertas', d:()=>'Manter acordos comerciais com 3 nações ao mesmo tempo.', prog:()=>G.nations.filter(n=>n&&n.id>1&&n.alive&&dealCount(n)).length/3, rw:{money:0.03}},
-  {id:'build5', ch:1, icon:'🏗️', n:'Construtores', d:()=>'Ter 5 construções em funcionamento no território.', prog:()=>(G.p.buildings||[]).filter(b=>bOk(b)).length/5, rw:{stability:4}},
-  {id:'stab24', ch:1, icon:'⚖️', n:'Ordem e paz interna', d:()=>'Manter a estabilidade acima de 65% por 24 meses seguidos.', prog:()=>(G.objStreak||0)/24, rw:{approval:4}},
+  {id:'build5', ch:1, icon:'🏗️', n:'Construtores', d:()=>`Ter ${onl(5, 4)} construções em funcionamento no território.`, prog:()=>(G.p.buildings||[]).filter(b=>bOk(b)).length/onl(5, 4), rw:{stability:4}},
+  {id:'stab24', ch:1, icon:'⚖️', n:'Ordem e paz interna', d:()=>`Manter a estabilidade acima de 65% por ${objMonths(24)} meses seguidos.`, prog:()=>(G.objStreak||0)/objMonths(24), rw:{approval:4}},
   // ---- Capítulo II: Ascensão ----
   {id:'gdp10', ch:2, icon:'💰', n:'Entre os grandes', d:()=>'Estar entre as 10 maiores economias do mundo.', prog:()=>{ const r = rankings(); return r.gdp <= 10 ? 1 : 10/r.gdp; }, rw:{money:0.04}},
   {id:'army5', ch:2, icon:'⚔️', n:'Respeito militar', d:()=>'Ter um dos 5 exércitos mais poderosos do mundo.', prog:()=>{ const r = rankings(); return r.power <= 5 ? 1 : 5/r.power; }, rw:{stability:5}},
-  {id:'area15', ch:2, icon:'🗺️', n:'Fronteiras ampliadas', d:a=>`Controlar ${fmtArea(a.area*1.5)} de território.`, prog:a=>G.p.area/(a.area*1.5), rw:{money:0.03, approval:3}},
+  {id:'area15', ch:2, icon:'🗺️', n:'Fronteiras ampliadas', d:a=>`Controlar ${fmtArea(a.area*onl(1.5, 1.15))} de território.`, prog:a=>G.p.area/(a.area*onl(1.5, 1.15)), rw:{money:0.03, approval:3}},
   {id:'ally2', ch:2, icon:'🤝', n:'Amigos poderosos', d:()=>'Ter alianças militares com 2 nações.', prog:()=>G.nations.filter(n=>n&&n.id>1&&n.alive&&n.alliance).length/2, rw:{stability:4}},
   {id:'reserve', ch:2, icon:'🏦', n:'Cofres cheios', d:()=>'Acumular no tesouro o equivalente a 15% do PIB, sem dívida maior que 30% do PIB.', prog:()=>Math.min(G.p.treasury/(G.p.gdp*0.15), G.p.debt <= G.p.gdp*0.3 ? 1 : 0.5), rw:{approval:5}},
-  {id:'idh650', ch:2, icon:'🌟', n:'Qualidade de vida', d:a=>`Alcançar IDH ${(Math.min(0.95, a.idh+0.1)).toFixed(3).replace('.',',')}.`, prog:a=>socialIndex(1).idh/Math.min(0.95, a.idh+0.1), rw:{approval:5}},
+  {id:'idh650', ch:2, icon:'🌟', n:'Qualidade de vida', d:a=>`Alcançar IDH ${(Math.min(0.95, a.idh+onl(0.1, 0.02))).toFixed(3).replace('.',',')}.`, prog:a=>socialIndex(1).idh/Math.min(0.95, a.idh+onl(0.1, 0.02)), rw:{approval:5}},
   // ---- Capítulo III: Potência ----
   {id:'capital', ch:3, icon:'👑', n:'A queda de uma capital', d:()=>'Capturar a capital de uma nação inimiga.', prog:()=>G.stats.capitalsTaken ? 1 : 0, rw:{money:0.05, stability:5}},
-  {id:'gdp3', ch:3, icon:'💎', n:'Gigante econômico', d:()=>'Estar entre as 3 maiores economias do mundo.', prog:()=>{ const r = rankings(); return r.gdp <= 3 ? 1 : 3/r.gdp; }, rw:{money:0.05}},
-  {id:'techlead', ch:3, icon:'🚀', n:'Vanguarda científica', d:()=>'Ter 5 tecnologias a mais que a média mundial.', prog:()=>{ const avg = G.nations.filter(n=>n&&n.id>1&&n.alive).reduce((s,n,_,x)=>s+n.tech/x.length,0); return (G.p.techs.length - avg)/5; }, rw:{rp:1}},
-  {id:'deals8', ch:3, icon:'🌐', n:'Centro do comércio mundial', d:()=>'Somar 8 acordos comerciais em vigor.', prog:()=>G.nations.filter(n=>n&&n.id>1).reduce((s,n)=>s+dealCount(n),0)/8, rw:{money:0.05}},
-  {id:'idh800', ch:3, icon:'🏙️', n:'Nação desenvolvida', d:()=>'Alcançar IDH 0,800.', prog:()=>socialIndex(1).idh/0.8, rw:{approval:6}},
+  {id:'gdp3', ch:3, icon:'💎', n:'Gigante econômico', d:()=>`Estar entre as ${onl(3, 5)} maiores economias do mundo.`, prog:()=>{ const r = rankings(), k = onl(3, 5); return r.gdp <= k ? 1 : k/r.gdp; }, rw:{money:0.05}},
+  {id:'techlead', ch:3, icon:'🚀', n:'Vanguarda científica', d:()=>`Ter ${onl(5, 2)} tecnologias a mais que a média mundial.`, prog:()=>{ const avg = G.nations.filter(n=>n&&n.id>1&&n.alive).reduce((s,n,_,x)=>s+n.tech/x.length,0); return (G.p.techs.length - avg)/onl(5, 2); }, rw:{rp:1}},
+  {id:'deals8', ch:3, icon:'🌐', n:'Centro do comércio mundial', d:()=>`Somar ${onl(8, 5)} acordos comerciais em vigor.`, prog:()=>G.nations.filter(n=>n&&n.id>1).reduce((s,n)=>s+dealCount(n),0)/onl(8, 5), rw:{money:0.05}},
+  {id:'idh800', ch:3, icon:'🏙️', n:'Nação desenvolvida', d:a=>`Alcançar IDH ${onl(0.8, Math.min(0.8, a.idh+0.04)).toFixed(3).replace('.',',')}.`, prog:a=>socialIndex(1).idh/onl(0.8, Math.min(0.8, a.idh+0.04)), rw:{approval:6}},
   // ---- Capítulo IV: Legado ----
   {id:'gdp1', ch:4, icon:'🦅', n:'A maior economia do mundo', d:()=>'Ser a economia número 1 do planeta.', prog:()=>{ const r = rankings(); return 1/r.gdp; }, rw:{approval:8}},
-  {id:'land15', ch:4, icon:'🌍', n:'Senhor dos continentes', d:()=>'Controlar 15% das terras do mundo.', prog:()=>{ let t=0; for (let i=0;i<NCELLS;i++) if (Grid.land[i] && Grid.owner[i]>0) t++; return (G.nations[1].cells/t)/0.15; }, rw:{stability:8}},
-  {id:'idh900', ch:4, icon:'✨', n:'Exemplo para a humanidade', d:()=>'Alcançar IDH 0,900.', prog:()=>socialIndex(1).idh/0.9, rw:{approval:8}}
+  {id:'land15', ch:4, icon:'🌍', n:'Senhor dos continentes', d:()=>`Controlar ${onl(15, 8)}% das terras do mundo.`, prog:()=>{ let t=0; for (let i=0;i<NCELLS;i++) if (Grid.land[i] && Grid.owner[i]>0) t++; return (G.nations[1].cells/t)/onl(0.15, 0.08); }, rw:{stability:8}},
+  {id:'idh900', ch:4, icon:'✨', n:'Exemplo para a humanidade', d:a=>`Alcançar IDH ${onl(0.9, Math.min(0.9, a.idh+0.06)).toFixed(3).replace('.',',')}.`, prog:a=>socialIndex(1).idh/onl(0.9, Math.min(0.9, a.idh+0.06)), rw:{approval:8}}
 ];
 const OBJ = Object.fromEntries(OBJECTIVES.map(o=>[o.id,o]));
 const OBJ_CHAPTERS = {1:'Fundação', 2:'Ascensão', 3:'Potência', 4:'Legado'};
@@ -61,6 +65,10 @@ const FINAL_OBJ = {
   abundancia:{icon:'🌟', n:'Era da Abundância', d:'Dominar a Fusão Nuclear e a Computação Quântica sendo a economia nº 1 do mundo — por 2 anos seguidos.', months:24, minEra:1914, maxEra:2000,
     met:()=>G.p.techs.includes('fusao') && G.p.techs.includes('quantica') && rankings().gdp === 1, prog:()=>(G.p.techs.includes('quantica')?0.4:0) + (G.p.techs.includes('fusao')?0.4:0) + (rankings().gdp===1?0.2:0)}
 };
+// objetivo final online: mesmo desafio, prazo bem menor (ex.: 5 anos → 12 meses)
+for (const F of Object.values(FINAL_OBJ)){ const m0 = F.months, d0 = F.d;
+  Object.defineProperty(F, 'months', {get:()=>objMonths(m0)});
+  Object.defineProperty(F, 'd', {get:()=>objOn() ? d0.replace(/por (\d+ anos?|1 ano)( seguidos)?\.$/, `por ${objMonths(m0)} meses seguidos.`) : d0}); }
 function activeObjectives(){
   if (G.objMode !== 'objetivos') return [];
   const done = new Set(G.objDone||[]);
