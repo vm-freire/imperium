@@ -106,3 +106,16 @@ document.addEventListener('click', e => {
   const r = MapView.canvas.getBoundingClientRect();
   setTimeout(() => { MapView.selCell = cell; renderAttackPopover(cell, r.left + r.width/2, r.top + r.height/2, UI.selCorps); }, 950);
 });
+
+// ---------- pausado: nenhum ataque começa, nem por janelas abertas antes da pausa ----------
+function pzBlocked(){ if (!mapLocked()) return false; SFX.error(); toast('⏸ O jogo está pausado: ataques só com o tempo correndo (aperte ▶).', 'bad'); return true; }
+const _pzAtk = launchAttack;
+launchAttack = function(){ if (pzBlocked()) return; return _pzAtk.apply(this, arguments); };
+const _pzNuke = launchNuke;
+launchNuke = function(){ if (pzBlocked()) return; return _pzNuke.apply(this, arguments); };
+// mísseis e ataques aéreos são imediatos; as operações secretas só se resolvem quando o mês passa
+const _pzSab = startSabotage;
+startSabotage = function(key){ const M = SAB_METHODS[key]; if (M && !M.months[1] && mapLocked()) return {ok:false, why:'⏸ Jogo pausado: ataques só com o tempo correndo (aperte ▶).'}; return _pzSab.apply(this, arguments); };
+// ao pausar, fecha o que estiver aberto sobre o mapa (ataque, exército, frota)
+const _pzSpeed = setSpeed;
+setSpeed = function(s){ _pzSpeed.apply(this, arguments); if (s === 0 && mapLocked() && typeof closePopover === 'function') closePopover(); };
