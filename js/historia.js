@@ -310,7 +310,11 @@ function hsSkip(st){
   let t = 900; lns.forEach(l => { setTimeout(() => l.classList.add('on'), t); t += 400 + l.textContent.length * 38; });
   chs.forEach((c, i) => setTimeout(() => c.classList.add('on'), t + i*350));
   let closed = false;
-  const close = () => { if (closed) return; closed = true; clearTimeout(HS.timer); d.classList.remove('on'); d.classList.add('hs-dark-old'); d.removeAttribute('id'); d.style.pointerEvents = 'none'; setTimeout(() => d.remove(), 800); HS.busy = false; hsBar(ch); if (sk.fx) sk.fx(F); if (HS.sc) hsNext(); };
+  const close = () => { if (closed) return; closed = true; clearTimeout(HS.timer); d.classList.remove('on'); d.classList.add('hs-dark-old'); d.removeAttribute('id'); d.style.pointerEvents = 'none'; setTimeout(() => d.remove(), 800); HS.busy = false; hsBar(ch); if (sk.fx) sk.fx(F); if (!HS.sc) return;
+    // outra tela escura em seguida: volta para a tela do jogo e só abre a próxima no Próximo
+    const nx = HS.sc.steps[HS.i + 1];
+    if (nx && nx.skip){ $('#sp-body').innerHTML = `<h3>⏳ ${esc(sk.ago || '')}${sk.date ? ' · ' + esc(sk.date) : ''}</h3>${lines.map(l => `<p>${l}</p>`).join('')}<div class="sp-act">Quando terminar de ler, clique em <b>Próximo ▶</b>.</div>`; $('#sp-body').scrollTop = 0; }
+    else hsNext(); };
   // clicar no fundo só mostra o texto todo de uma vez; avançar ou sair é sempre no botão
   d.onclick = e => { lns.forEach(l => l.classList.add('on')); chs.forEach(c => c.classList.add('on'));
     const b = e.target.closest('[data-dk]'); if (!b) return; SFX.click();
