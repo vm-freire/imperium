@@ -110,7 +110,7 @@ function hsApply(set){
   const out = []; if (!set) return out;
   for (const k in set){ const n = HS.nat[k]; if (!n) continue;
     for (const f in set[k]){ const v = set[k][f];
-      if (f === 'leader'){ if (n.leader !== v) out.push({k, f, b:n.leader, a:v}); n.leader = v; continue; }
+      if (f === 'leader' || f === 'name' || f === 'short'){ if (n[f] !== v && f !== 'short') out.push({k, f, b:n[f], a:v}); n[f] = v; continue; }
       const b = n.s[f], a = typeof v === 'string' && /^[+-]\d/.test(v) && typeof b === 'number' ? b + parseFloat(v) : v;
       if (a !== b){ out.push({k, f, b, a}); n.s[f] = a; } } }
   return out;
@@ -130,7 +130,9 @@ function hsBar(flash){
       return `<div class="st ${ch ? (d === null ? 'flash-up' : d >= 0 ? 'flash-up' : 'flash-down') : ''}" title="${esc(u)}"><span class="l">${l}</span><span class="v">${esc(hsVal(f, v))}</span>${d !== null ? `<span class="d ${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '▲ +' : '▼ '}${esc(hsVal(f, d).replace('%',''))}${f === 'app' || f === 'stab' ? ' pts' : ''}</span>` : ch ? '<span class="d up">● mudou</span>' : ''}</div>`; }).join('')}</div>
     <div class="hs-tabs">${tabs}</div>`;
   if (n.flag){ const d = eraNations(HS.sc.era).find(x => x.name === n.flag); const f = d && eraNationFlag(d); if (f) drawFlag($('#hs-flag').getContext('2d'), f, 0, 0, 54, 36); }
-  el.querySelectorAll('[data-hsv]').forEach(b => b.onclick = () => { SFX.click(); HS.view = b.dataset.hsv; hsBar(); });
+  el.querySelectorAll('[data-hsv]').forEach(b => b.onclick = () => { SFX.click(); HS.view = b.dataset.hsv; hsBar();
+    const st = HS.sc && HS.sc.steps[HS.i];
+    if (st && st.switchTo === HS.view && !st._done){ st._done = true; SFX.bell(); hsAfterAction(st); } });
 }
 
 function hsStart(id, from){
@@ -170,7 +172,9 @@ function hsUI(){
     #hs-bar .hs-date{font-family:var(--title,'Cinzel'),serif;font-size:14px;background:rgba(201,161,59,.18);border:1px solid #c9a13b;border-radius:6px;padding:4px 8px;white-space:nowrap}
     #hs-bar .hs-stats{display:flex;gap:6px;flex:1;overflow:hidden}
     #hs-bar .st{display:flex;flex-direction:column;min-width:86px;padding:3px 7px;border-radius:6px;background:rgba(255,255,255,.06)}
-    #hs-bar .st .l{font-size:10.5px;opacity:.75}#hs-bar .st .v{font-weight:800;font-size:13.5px}#hs-bar .st .d{font-size:10.5px;display:block!important;font-weight:700}#hs-bar .up{color:#8fd47a}#hs-bar .down{color:#ff8a7a}
+    #hs-bar .st .l{font-size:10.5px;opacity:.75}#hs-bar .st .v{font-weight:800;font-size:13.5px}#hs-dark .hs-dk-btns{display:flex;gap:10px;justify-content:center;margin-top:22px}#hs-dark .hs-dk-btns .btn{font-size:15px;padding:8px 18px}
+  #sp-next.hs-pulse{animation:hsPulse 1s ease-in-out infinite}@keyframes hsPulse{50%{box-shadow:0 0 0 4px #e0b240}}
+  #hs-bar .st .d{font-size:10.5px;display:block!important;font-weight:700}#hs-bar .up{color:#8fd47a}#hs-bar .down{color:#ff8a7a}
     #hs-bar .hs-tabs{display:flex;flex-direction:column;gap:3px}#hs-bar .hs-tab{font-size:11px;padding:2px 8px;border-radius:5px;border:1px solid #c9a13b;background:transparent;color:#f3e6c4;cursor:pointer}#hs-bar .hs-tab.on{background:#c9a13b;color:#24170b;font-weight:700}
     #hs-dark{position:fixed;inset:0;z-index:80;background:#050302;color:#f3e6c4;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px;text-align:center;opacity:0;transition:opacity .8s}
     #hs-dark.on{opacity:1}#hs-dark .ago{font-style:italic;letter-spacing:2px;opacity:.75;font-size:18px}
@@ -184,7 +188,7 @@ function hsUI(){
   document.body.insertAdjacentHTML('beforeend', `<div id="hs-bar"></div><div id="story-panel"><div class="sp-head"><small>🎬 Modo História · ${esc(HS.sc.year)}</small><b>${esc(HS.sc.title)}</b></div><div class="sp-body" id="sp-body"></div>
     <div class="sp-foot"><div class="sp-dots" id="sp-dots"></div><button class="btn sm" id="sp-exit">✖ Sair</button><button class="btn sm green" id="sp-next">Próximo ▶</button></div></div>`);
   $('#sp-exit').onclick = () => { SFX.click(); hsExit(); };
-  $('#sp-next').onclick = () => { if (HS.busy) return; const st = HS.sc.steps[HS.i]; if ((st.act || st.diplo || st.choice) && !st._done){ SFX.error(); toast('👉 Faça a ação primeiro (no mapa ou na diplomacia).', 'bad'); return; } hsNext(); };
+  $('#sp-next').onclick = () => { if (HS.busy) return; const st = HS.sc.steps[HS.i]; if ((st.act || st.diplo || st.choice || st.task || st.switchTo) && !st._done){ SFX.error(); toast('👉 Faça a ação primeiro (no mapa, na diplomacia ou no painel).', 'bad'); return; } hsNext(); };
 }
 function hsNext(){ if (!HS.sc) return; if (HS.i < HS.sc.steps.length - 1){ SFX.page(); HS.i++; hsStep(); } else hsExit(); }
 
@@ -204,7 +208,11 @@ function hsStep(){
   if (st.diplo) html += `<div class="sp-act">🤝 ${st.diplo.prompt}</div><button class="btn xs" id="sp-hint">📍 Mostrar onde</button>`;
   if (st.quiz) html += `<div class="quiz"><p><b>❓ ${st.quiz.q}</b></p>${st.quiz.o.map((o, i) => `<button class="btn sm" data-qz="${i}">${String.fromCharCode(65+i)}) ${o}</button>`).join('')}<div id="qz-r"></div></div>`;
   if (st.choice) html += `<div class="quiz">${st.choice.map((o, i) => `<button class="btn sm" data-ch="${i}">${o.t}</button>`).join('')}<div id="ch-r"></div></div>`;
+  if (st.switchTo) html += `<div class="sp-act">🔄 ${st.switchPrompt || `Agora troque de país: clique na aba <b>${esc(HS.nat[st.switchTo].short || HS.nat[st.switchTo].name)}</b> na barra do topo.`}</div>`;
+  if (st.task) html += hsTaskHTML(st);
   $('#sp-body').innerHTML = html; $('#sp-body').scrollTop = 0;
+  if (st.task) hsTaskBind(st);
+  if (st.switchTo){ const tb = document.querySelector(`#hs-bar [data-hsv="${st.switchTo}"]`); if (tb){ tb.style.boxShadow = '0 0 0 3px #e0b240'; } }
   const tgt = st.act || st.diplo;
   const hb = $('#sp-hint'); if (hb) hb.onclick = () => { SFX.click(); hsFx().pulse = {lon:tgt.lon, lat:tgt.lat, r:tgt.r}; F.cam(tgt.lon, tgt.lat, Math.max(MapView.cam.z, tgt.z || 3)); };
   $$('#sp-body [data-qz]').forEach(b => b.onclick = () => { const k = +b.dataset.qz, ok = k === st.quiz.a; ok ? SFX.fanfare() : SFX.error();
@@ -213,46 +221,100 @@ function hsStep(){
   $$('#sp-body [data-ch]').forEach(b => b.onclick = () => { const o = st.choice[+b.dataset.ch]; SFX.page(); $('#ch-r').innerHTML = `<p style="margin-top:8px">${o.r}</p>`; if (o.fx) o.fx(F);
     if (o.ok){ $$('#sp-body [data-ch]').forEach(x => x.disabled = true); st._done = true; hsAfterAction(st); } });
 }
-// depois de uma ação: aplica as mudanças, mostra a explicação e segue sozinho
+// depois de uma ação: aplica as mudanças, mostra a explicação e espera o clique em Próximo
 function hsAfterAction(st){
   const ch = hsApply(st.after); if (st.afterView) HS.view = st.afterView; hsBar(ch);
   if (st.afterText){ $('#sp-body').insertAdjacentHTML('beforeend', `<div style="margin-top:10px;padding:8px 10px;border-left:4px solid #2d6a2d;background:rgba(45,106,45,.08)">${st.afterText}</div>`); }
   HS.busy = true;
-  const wait = (st.act && st.act.wait) || 1800, read = 2500 + (st.afterText || '').replace(/<[^>]+>/g, '').length * 38;
+  const wait = (st.act && st.act.wait) || 900;
   HS.timer = setTimeout(() => {
     HS.busy = false; if (!HS.sc || HS.sc.steps[HS.i] !== st) return;
-    const nx = HS.sc.steps[HS.i + 1];
-    // o tempo passa sozinho: se o próximo passo é "tempos depois", ele começa após a leitura
-    if (nx && nx.skip){ HS.busy = true; HS.timer = setTimeout(() => { HS.busy = false; if (HS.sc && HS.sc.steps[HS.i] === st) hsNext(); }, read); }
+    const nb = $('#sp-next'); if (nb){ nb.classList.add('hs-pulse'); setTimeout(() => nb.classList.remove('hs-pulse'), 4000); }
   }, wait);
 }
 
-// tela escura: "passados tantos meses…" — automática
+// ---------- tarefas com os itens do jogo (recrutar, pesquisar, aprovar lei, ranking) ----------
+function hsTaskHTML(st){
+  const t = st.task, n = HS.nat[t.nat || HS.view] || HS.nat.A;
+  if (t.type === 'recruit'){
+    const U = (typeof UNIT !== 'undefined' && UNIT[t.unit]) || {icon:'💂', n:t.label || 'Tropas'};
+    t._n = t._n || 0;
+    return `<div class="sp-act">🎖️ ${t.prompt || `Recrute ${t.need} divisões de ${t.label || U.n}.`}</div>
+      <div class="unit" style="background:rgba(255,255,255,.5);border-radius:8px;padding:6px"><span class="ic">${t.icon || U.icon}</span><span class="nm"><b>${esc(t.label || U.n)}</b><small>${esc(n.short || n.name)} · aba Militar</small></span>
+      <span class="ct"><button class="btn xs" data-trec="1">+1</button><button class="btn xs" data-trec="5">+5</button></span></div>
+      <div class="lbl" style="margin-top:4px">Recrutadas: <b id="tk-n">${t._n}</b> / ${t.need}</div><div style="height:8px;background:#e6d6ae;border-radius:4px"><i id="tk-bar" style="display:block;height:8px;width:${Math.min(100, t._n/t.need*100)}%;background:#2d6a2d;border-radius:4px"></i></div>`;
+  }
+  if (t.type === 'research' || t.type === 'law'){
+    const law = t.type === 'law';
+    return `<div class="sp-act">${law ? '📜' : '🔬'} ${t.prompt}</div><div class="deal-list">${t.opts.map((o, i) => `<div class="deal-opt"><div><b>${o.icon || (law ? '📜' : '🔬')} ${o.n}</b><small>${o.d || ''}</small></div><button class="btn xs ${law ? '' : 'green'}" data-topt="${i}">${law ? 'Votar' : 'Pesquisar'}</button></div>`).join('')}</div><div id="tk-r"></div>`;
+  }
+  if (t.type === 'ranking'){
+    const rows = Object.entries(HS.nat).map(([k, v]) => ({k, v})).filter(x => typeof x.v.s[t.stat] === 'number');
+    t._order = rows.slice().sort((a, b) => b.v.s[t.stat] - a.v.s[t.stat]).map(x => x.k);
+    const lab = (HS_STATS.find(x => x[0] === t.stat) || [0, t.stat])[1];
+    return `<div class="sp-act">🏆 ${t.prompt || `Abra o ranking: qual país está em 1º lugar em ${lab}?`}</div>
+      <div class="box">${rows.map(x => `<div class="row"><span class="k">${esc(x.v.name)}</span><span class="v"><button class="btn xs" data-trank="${x.k}">É este</button></span></div>`).join('')}</div><div id="tk-r"></div>`;
+  }
+  return '';
+}
+function hsTaskBind(st){
+  const t = st.task, k = t.nat || HS.view;
+  const done = (msg) => { if (st._done) return; st._done = true; if (msg) $('#sp-body').insertAdjacentHTML('beforeend', `<div class="box" style="margin-top:8px;border-color:#2d6a2d">${msg}</div>`); hsAfterAction(st); };
+  $$('#sp-body [data-trec]').forEach(b => b.onclick = () => {
+    if (st._done) return; const q = Math.min(+b.dataset.trec, t.need - t._n); t._n += q; SFX.coin();
+    const ch = hsApply({[k]:{[t.stat || 'mil']: '+' + (q*(t.per || 1))}}); hsBar(ch);
+    $('#tk-n').textContent = t._n; $('#tk-bar').style.width = Math.min(100, t._n/t.need*100) + '%';
+    if (t._n >= t.need){ SFX.march(); done(t.doneText || '✅ Tropas prontas!'); }
+  });
+  $$('#sp-body [data-topt]').forEach(b => b.onclick = () => {
+    if (st._done) return; const o = t.opts[+b.dataset.topt];
+    if (!o.ok){ SFX.error(); b.disabled = true; $('#tk-r').innerHTML = `<div class="tip" style="margin-top:6px">🤔 ${o.r}</div>`; return; }
+    $$('#sp-body [data-topt]').forEach(x => x.disabled = true); SFX.click();
+    if (t.type === 'law'){
+      const yes = o.yes || 60, no = o.no || 40;
+      $('#tk-r').innerHTML = `<div class="box" style="margin-top:6px">🏛️ Votação: <b id="tk-y">0</b> a favor × <b id="tk-no">0</b> contra</div>`;
+      let i = 0; const tm = setInterval(() => { i++; const f = Math.min(1, i/20); $('#tk-y').textContent = Math.round(yes*f); $('#tk-no').textContent = Math.round(no*f); if (f >= 1){ clearInterval(tm); SFX.bell(); done(o.r); } }, 70);
+    } else {
+      $('#tk-r').innerHTML = `<div class="lbl" style="margin-top:6px">${o.icon || '🔬'} Pesquisando ${o.n}...</div><div style="height:8px;background:#e6d6ae;border-radius:4px"><i id="tk-pb" style="display:block;height:8px;width:0;background:#1f4e8c;border-radius:4px;transition:width 1.6s linear"></i></div>`;
+      setTimeout(() => { const pb = $('#tk-pb'); if (pb) pb.style.width = '100%'; }, 30);
+      setTimeout(() => { SFX.research ? SFX.research() : SFX.bell(); done(o.r); }, 1700);
+    }
+  });
+  $$('#sp-body [data-trank]').forEach(b => b.onclick = () => {
+    if (st._done) return; const ok = b.dataset.trank === t._order[0];
+    if (!ok){ SFX.error(); b.disabled = true; $('#tk-r').innerHTML = `<div class="tip" style="margin-top:6px">Não é esse. Compare os números na barra do topo (clique nas abas dos países).</div>`; return; }
+    SFX.fanfare(); $$('#sp-body [data-trank]').forEach(x => x.disabled = true);
+    const lab = (HS_STATS.find(x => x[0] === t.stat) || [0, t.stat])[1];
+    done(`🏆 <b>Ranking — ${lab}</b><br>${t._order.map((kk, i) => `${i+1}º ${esc(HS.nat[kk].name)}: ${esc(hsVal(t.stat, HS.nat[kk].s[t.stat]))}`).join('<br>')}${t.doneText ? '<br><br>' + t.doneText : ''}`);
+  });
+}
+
+// tela escura: "passados tantos meses…" — abre no Próximo e só fecha no botão Continuar
 function hsSkip(st){
   const sk = st.skip; HS.busy = true;
   const lines = sk.lines || [];
   const ch = hsApply(sk.set);
   if (sk.date) HS.date = sk.date;
   if (sk.view) HS.view = sk.view;
-  const chg = ch.filter(c => c.f !== 'leader' || true).map(c => { const n = HS.nat[c.k], lab = c.f === 'leader' ? '👤 Líder' : (HS_STATS.find(s => s[0] === c.f) || [0, c.f])[1];
-    return `${esc(n.short || n.name)} · ${lab}: ${esc(c.f === 'leader' ? c.a : hsVal(c.f, c.b) + ' → ' + hsVal(c.f, c.a))}`; });
-  const total = 1800 + lines.join(' ').length * 42 + chg.length * 500;
+  const chg = ch.filter(c => c.f !== 'leader' || true).map(c => { const n = HS.nat[c.k], txt = c.f === 'leader' || c.f === 'name', lab = c.f === 'leader' ? '👤 Líder' : c.f === 'name' ? '🏳️ Novo nome' : (HS_STATS.find(s => s[0] === c.f) || [0, c.f])[1];
+    return `${esc(n.short || n.name)} · ${lab}: ${esc(txt ? c.a : hsVal(c.f, c.b) + ' → ' + hsVal(c.f, c.a))}`; });
   // cada tela escura é um elemento novo (a anterior pode ainda estar sumindo)
   document.querySelectorAll('.hs-dark-old').forEach(x => x.remove());
   const d = document.createElement('div'); d.id = 'hs-dark';
   d.innerHTML = `<div class="ago">⏳ ${esc(sk.ago || '')}</div><div class="date">${esc(sk.date || '')}</div>
-    ${lines.map(l => `<div class="ln">${l}</div>`).join('')}<div class="chg">${chg.map(c => `<span>${c}</span>`).join('')}</div><div class="bar"></div><div class="skip">clique para continuar ▶▶</div>`;
+    ${lines.map(l => `<div class="ln">${l}</div>`).join('')}<div class="chg">${chg.map(c => `<span>${c}</span>`).join('')}</div><div class="hs-dk-btns"><button class="btn sm" data-dk="exit">✖ Sair</button><button class="btn sm green" data-dk="go">Continuar ▶</button></div>`;
   document.body.appendChild(d); SFX.page();
   requestAnimationFrame(() => d.classList.add('on'));
   setTimeout(() => d.classList.add('on'), 50);
   const lns = [...d.querySelectorAll('.ln')], chs = [...d.querySelectorAll('.chg span')];
   let t = 900; lns.forEach(l => { setTimeout(() => l.classList.add('on'), t); t += 400 + l.textContent.length * 38; });
   chs.forEach((c, i) => setTimeout(() => c.classList.add('on'), t + i*350));
-  const bar = d.querySelector('.bar'); bar.style.transition = `width ${total}ms linear`; setTimeout(() => bar.style.width = '100%', 60);
   let closed = false;
   const close = () => { if (closed) return; closed = true; clearTimeout(HS.timer); d.classList.remove('on'); d.classList.add('hs-dark-old'); d.removeAttribute('id'); d.style.pointerEvents = 'none'; setTimeout(() => d.remove(), 800); HS.busy = false; hsBar(ch); if (sk.fx) sk.fx(F); if (HS.sc) hsNext(); };
-  HS.timer = setTimeout(close, total + 600);
-  d.onclick = () => { lns.forEach(l => l.classList.add('on')); chs.forEach(c => c.classList.add('on')); if (Date.now() - (d._t || 0) < 500) return; d._t = Date.now(); if (d.dataset.seen) close(); else d.dataset.seen = 1; };
+  // clicar no fundo só mostra o texto todo de uma vez; avançar ou sair é sempre no botão
+  d.onclick = e => { lns.forEach(l => l.classList.add('on')); chs.forEach(c => c.classList.add('on'));
+    const b = e.target.closest('[data-dk]'); if (!b) return; SFX.click();
+    if (b.dataset.dk === 'go') close(); else { closed = true; d.remove(); HS.busy = false; hsExit(); } };
 }
 
 function hsClick(lon, lat){
@@ -791,7 +853,387 @@ const HIST_SCENES = [
     {title:'Pergunta para a turma',
      quiz:{q:'Por que o Muro de Berlim foi construído em 1961?', o:['Para proteger Berlim de uma invasão americana', 'Para impedir que os alemães orientais fugissem para o oeste', 'Para separar dois bairros que brigavam'], a:1,
        e:'Milhões de pessoas fugiam da RDA. O muro foi erguido para fechar essa saída — e virou o símbolo da Guerra Fria.'}}
-  ]}
+  ]},
+// 11 ---------------------------------------------------------------
+{ id:'constantinopla', year:'1453', date:'abril de 1453', era:1500, world:'Império Otomano', icon:'🏰', title:'A Queda de Constantinopla',
+  sub:'O fim do Império Bizantino e o começo da Idade Moderna',
+  nat:{
+    A:{name:'Império Otomano', short:'Otomanos', flag:'Império Otomano', leader:'Sultão Mehmed II (21 anos)', s:{eco:100, pop:6, app:65, stab:60, mil:120, sci:'Canhões de bronze'}},
+    B:{name:'Império Bizantino', short:'Bizâncio', icon:'🦅', leader:'Imperador Constantino XI', s:{eco:30, pop:0.05, app:70, stab:50, mil:12, sci:'Muralhas de Teodósio'}}
+  },
+  steps:[
+    {view:'B', cam:[28.98, 41.01, 4.5], title:'A última cidade de Roma',
+     fx:F => { F.marker(28.98, 41.01, '🏰', 'Constantinopla'); F.circle(28.98, 41.01, 0.5, '#7a2a8c', 'rgba(122,42,140,0.25)'); },
+     text:P('O Império Romano do Oriente, que durou mais de mil anos, encolheu até quase só a cidade de <b>Constantinopla</b>, com cerca de <b>50 mil</b> habitantes.') + P('Suas <b>muralhas triplas</b> resistiram a cercos durante séculos. Mas o jovem sultão <b>Mehmed II</b> quer a cidade como capital do seu império.'),
+     switchTo:'A', switchPrompt:'Veja o outro lado: clique na aba <b>Otomanos</b> na barra do topo e compare o tamanho do exército.'},
+    {view:'A', title:'Os grandes canhões',
+     text:P('Mehmed contrata o engenheiro húngaro <b>Orbán</b>, que funde canhões gigantes de bronze — um deles tinha mais de 8 metros e atirava pedras de mais de 500 kg.'),
+     task:{type:'research', nat:'A', prompt:'Escolha a tecnologia que pode vencer as muralhas:',
+       opts:[{n:'Cavalaria pesada', icon:'🐎', d:'Cavaleiros com armadura', ok:false, r:'Cavalos não derrubam muralhas de pedra de 12 metros.'},
+             {n:'Artilharia de cerco', icon:'💣', d:'Canhões gigantes de bronze', ok:true, r:'💣 <b>Artilharia de cerco</b> pronta! Pela primeira vez, a pólvora decide um grande cerco na Europa.'}]},
+     after:{A:{mil:'+20', sci:'Artilharia de cerco'}}},
+    {view:'A', cam:[28.98, 41.05, 5], title:'6 de abril de 1453: o cerco',
+     act:{prompt:'Comece o cerco: clique nas muralhas de Constantinopla.', lon:28.93, lat:41.02, r:1.5, z:5, hint:'A cidade fica no estreito do Bósforo.',
+       do:F => { F.arrow([26.56, 41.68], [28.92, 41.02], '#a3322a'); [0, 500, 1000, 1500].forEach(d => setTimeout(() => F.boom(28.93 + Math.random()*0.04, 41.01 + Math.random()*0.03), d)); }, wait:2200},
+     after:{B:{mil:'-4', stab:'-15'}}, afterText:'Os canhões atiram dia e noite. Os defensores consertam as brechas com terra e madeira durante a noite.'},
+    {skip:{ago:'7 semanas depois', date:'29 de maio de 1453', set:{B:{mil:'-6', pop:'-0.01'}, A:{stab:'+10'}},
+      fx:F => { F.ship([[29.0, 41.08], [28.97, 41.04]], 1500, '⛵'); },
+      lines:['Uma corrente de ferro fecha o porto do <b>Chifre de Ouro</b>. Mehmed manda <b>arrastar navios por terra</b>, sobre troncos untados, e os coloca dentro do porto.', 'Na madrugada de 29 de maio, os janízaros entram pela muralha. Constantino XI morre lutando.']}},
+    {view:'A', title:'Uma nova capital',
+     text:P('Mehmed entra na cidade e transforma a basílica de <b>Santa Sofia</b> em mesquita. Constantinopla (depois chamada <b>Istambul</b>) vira a capital otomana.') + P('Muitos sábios gregos fogem para a Itália levando livros antigos — isso ajuda o <b>Renascimento</b>.'),
+     choice:[{t:'Fechar as rotas de comércio para os europeus', ok:false, r:'Os otomanos não fecharam tudo, mas passaram a controlar e cobrar impostos sobre as rotas para o Oriente.'},
+             {t:'✔ Controlar as rotas para o Oriente e cobrar impostos', ok:true, r:'Com as especiarias mais caras, portugueses e espanhóis buscam um caminho <b>pelo mar</b> — começam as Grandes Navegações!'}],
+     after:{A:{eco:'+30', app:'+10'}}},
+    {title:'Pergunta para a turma',
+     quiz:{q:'Por que a queda de Constantinopla (1453) é usada para marcar o início da Idade Moderna?', o:['Porque foi a primeira cidade a usar eletricidade', 'Porque acabou o Império Romano do Oriente e impulsionou as navegações europeias', 'Porque os bizantinos descobriram a América'], a:1,
+       e:'Com o fim de Bizâncio e o controle otomano das rotas, os europeus buscaram novos caminhos marítimos.'}}
+  ]},
+// 12 ---------------------------------------------------------------
+{ id:'mexico', year:'1521', date:'novembro de 1519', era:1500, world:'Império Asteca', icon:'🌋', title:'Tenochtitlán: o encontro de dois mundos',
+  sub:'Astecas, tlaxcaltecas e espanhóis — e as epidemias que mudaram tudo',
+  nat:{
+    A:{name:'Império Asteca', short:'Astecas', flag:'Império Asteca', leader:'Huey tlatoani Moctezuma II', s:{eco:120, pop:6, app:55, stab:60, mil:100, sci:'Chinampas e calendário'}},
+    B:{name:'Coroas de Castela e Aragão', short:'Espanhóis', flag:'Coroas de Castela e Aragão', leader:'Hernán Cortés (expedição)', s:{eco:5, pop:0.0005, app:50, stab:40, mil:8, sci:'Aço, cavalos, arcabuzes'}},
+    C:{name:'Tlaxcala', short:'Tlaxcala', icon:'🏹', leader:'Conselho de Tlaxcala', s:{eco:30, pop:0.3, app:70, stab:65, mil:35, sci:'Guerreiros experientes'}}
+  },
+  steps:[
+    {view:'A', cam:[-99.13, 19.43, 4.5], title:'A cidade sobre o lago',
+     fx:F => { F.marker(-99.13, 19.43, '🏛️', 'Tenochtitlán'); },
+     text:P('<b>Tenochtitlán</b> era uma das maiores cidades do mundo, com uns <b>200 mil</b> habitantes, construída numa ilha do lago Texcoco, com canais, mercados e jardins flutuantes (<i>chinampas</i>).') + P('Em 1519, cerca de <b>500 espanhóis</b> desembarcam no litoral. Eram muito poucos: o que mudaria a história seriam os aliados indígenas... e as doenças.'),
+     task:{type:'ranking', stat:'mil', prompt:'Veja o ranking: qual povo tinha o maior exército?', doneText:'Os astecas eram muito mais numerosos. Os espanhóis só avançaram com milhares de aliados indígenas.'}},
+    {view:'C', cam:[-98.24, 19.32, 4.5], title:'Os inimigos dos astecas',
+     text:P('<b>Tlaxcala</b> nunca foi conquistada pelos astecas e vivia em guerra com eles. Vários povos pagavam pesados tributos a Tenochtitlán.'),
+     diplo:{prompt:'Você é o conselho de Tlaxcala. Clique no acampamento espanhol, na costa.', lon:-96.13, lat:19.2, r:3, to:'B', from:'C', icon:'🤝', rel:-10, relTxt:'desconfiança (houve batalhas)',
+       intro:'Depois de lutar contra os espanhóis, Tlaxcala precisa decidir.',
+       opts:[{t:'Continuar lutando contra os espanhóis', ok:false, r:'Sem Tlaxcala, a pequena expedição espanhola dificilmente teria chegado a Tenochtitlán.'},
+             {t:'✔ Aliar-se aos espanhóis contra os astecas', h:'Milhares de guerreiros tlaxcaltecas', ok:true, r:'Tlaxcala vê a chance de derrotar seu antigo inimigo — sem imaginar que a Espanha dominaria todos depois.'}]},
+     after:{B:{mil:'+30'}, C:{mil:'-5'}}, afterText:'A "conquista" foi, em boa parte, uma guerra de povos indígenas contra o domínio asteca.'},
+    {skip:{ago:'1 ano depois', date:'1520', view:'A', set:{A:{pop:'-2', stab:'-25', leader:'Cuitláhuac'}},
+      fx:F => { F.circle(-99.13, 19.43, 3, '#6b5b2a', 'rgba(107,91,42,0.2)'); F.text(-99.13, 20.7, 'Varíola', '#6b5b2a'); },
+      lines:['Moctezuma morre durante a ocupação espanhola da cidade.', 'Uma epidemia de <b>varíola</b>, doença trazida da Europa, mata uma enorme parte da população — inclusive o novo líder, <b>Cuitláhuac</b>.', 'Os indígenas não tinham nenhuma imunidade a essas doenças.']}},
+    {view:'A', title:'A defesa de Tenochtitlán',
+     text:P('O jovem <b>Cuauhtémoc</b> lidera a resistência. A cidade é cercada por terra e pelo lago, sem comida e sem água potável.'),
+     task:{type:'recruit', nat:'A', need:5, per:4, stat:'mil', label:'Guerreiros águia e jaguar', icon:'🦅', prompt:'Organize a defesa: recrute 5 divisões de guerreiros.', doneText:'Os mexicas resistem por quase <b>80 dias</b> de cerco.'},
+     after:{A:{leader:'Cuauhtémoc', stab:'+5'}}},
+    {skip:{ago:'3 meses depois', date:'13 de agosto de 1521', set:{A:{pop:'-1', eco:'-80', stab:'-30'}, B:{eco:'+60'}},
+      lines:['Tenochtitlán cai. Cuauhtémoc é capturado.', 'Sobre as ruínas, os espanhóis constroem a <b>Cidade do México</b>.', 'Em um século, a população indígena do México cai drasticamente, sobretudo pelas epidemias e pelo trabalho forçado.']}},
+    {title:'Pergunta para a turma',
+     quiz:{q:'Qual foi um dos fatores mais decisivos para a queda de Tenochtitlán?', o:['Os espanhóis tinham um exército maior que o asteca', 'As epidemias trazidas da Europa e a aliança com povos indígenas inimigos dos astecas', 'Os astecas não tinham cidades'], a:1,
+       e:'A varíola e os aliados indígenas (como Tlaxcala) foram decisivos; os espanhóis eram poucas centenas.'}}
+  ]},
+// 13 ---------------------------------------------------------------
+{ id:'eua', year:'1776', date:'dezembro de 1773', era:1700, world:'Treze Colônias', icon:'🗽', title:'A Independência dos Estados Unidos',
+  sub:'"Sem tributação sem representação"',
+  nat:{
+    A:{name:'Treze Colônias', short:'Colonos', flag:'Treze Colônias', leader:'Congresso Continental', s:{eco:80, pop:2.5, app:55, stab:45, mil:15, sci:'Imprensa livre'}},
+    B:{name:'Reino da Grã-Bretanha', short:'Grã-Bretanha', flag:'Reino da Inglaterra', leader:'Rei Jorge III', s:{eco:150, pop:8, app:60, stab:70, mil:120, sci:'Marinha Real'}},
+    C:{name:'Reino da França', short:'França', flag:'Reino da França', leader:'Rei Luís XVI', s:{eco:110, pop:26, app:50, stab:55, mil:100, sci:'Iluminismo'}}
+  },
+  steps:[
+    {view:'A', cam:[-71.06, 42.36, 4.5], title:'O chá de Boston',
+     text:P('Depois da Guerra dos Sete Anos, a Grã-Bretanha tem dívidas e cria impostos para as colônias (Lei do Selo, Lei do Chá). Os colonos protestam: não têm deputados no Parlamento de Londres.'),
+     act:{prompt:'Clique no porto de Boston.', lon:-71.06, lat:42.36, r:2, z:5, hint:'Boston fica no nordeste das colônias.',
+       do:F => { F.marker(-71.06, 42.36, '📦', 'Chá no mar'); F.ring(-71.06, 42.36, '#7a5c2e', 20); }, wait:1500},
+     after:{A:{app:'+10'}, B:{app:'-5'}}, afterText:'16/12/1773: colonos jogam 342 caixas de chá no mar. Londres responde fechando o porto de Boston.'},
+    {skip:{ago:'2 anos e meio depois', date:'4 de julho de 1776', set:{A:{stab:'+10', mil:'+15', leader:'Congresso (com Thomas Jefferson)'}},
+      lines:['Em 1775 começam os combates em Lexington e Concord. <b>George Washington</b> comanda o Exército Continental.', 'Na Filadélfia, o Congresso aprova a <b>Declaração de Independência</b>, escrita por <b>Thomas Jefferson</b>.']}},
+    {view:'A', title:'Um exército novo',
+     task:{type:'recruit', nat:'A', need:6, per:5, stat:'mil', label:'Milícias e Exército Continental', icon:'🎖️', prompt:'Ajude Washington: recrute 6 divisões.', doneText:'O exército passa o duro inverno de <b>Valley Forge</b> (1777–78) e sai mais treinado.'}},
+    {view:'A', cam:[-30, 45, 1.6], title:'Procurando aliados',
+     diplo:{prompt:'Benjamin Franklin vai a Paris. Clique na França.', lon:2.35, lat:48.86, r:4, to:'C', from:'A', icon:'🤝', rel:10, relTxt:'simpatia (a França é rival da Grã-Bretanha)',
+       intro:'Franklin pede ajuda ao rei Luís XVI.',
+       opts:[{t:'Pedir que a França fique neutra', ok:false, r:'Sem a marinha e o dinheiro franceses, os colonos teriam muita dificuldade.'},
+             {t:'✔ Propor uma aliança militar contra a Grã-Bretanha', h:'Tratado de Aliança, 1778', ok:true, r:'Depois da vitória americana em Saratoga (1777), a França assina a aliança. Espanha e Holanda também entram contra os britânicos.'}]},
+     after:{A:{mil:'+40'}, C:{eco:'-25'}}, afterText:'A ajuda custou caro à França — e as dívidas ajudariam a causar a Revolução Francesa.'},
+    {skip:{ago:'3 anos depois', date:'19 de outubro de 1781', set:{B:{mil:'-30', app:'-10'}},
+      fx:F => { F.marker(-76.51, 37.24, '🏳️', 'Yorktown'); F.ship([[-70, 34], [-76.2, 37]], 1800, '⛵'); },
+      lines:['Em <b>Yorktown</b>, tropas americanas e francesas cercam o exército britânico, e a frota francesa bloqueia o mar.', 'O general Cornwallis se rende.']}},
+    {view:'B', title:'O Tratado de Paris (1783)',
+     diplo:{prompt:'Você é a Grã-Bretanha. Clique na Filadélfia para negociar.', lon:-75.16, lat:39.95, r:3, to:'A', from:'B', icon:'🖋️', rel:-30, relTxt:'guerra',
+       opts:[{t:'Continuar a guerra por mais 10 anos', ok:false, r:'O Parlamento britânico já estava cansado da guerra cara e distante.'},
+             {t:'✔ Reconhecer a independência dos Estados Unidos', ok:true, r:'O Tratado de Paris (1783) reconhece os <b>Estados Unidos da América</b>.'}]},
+     after:{A:{name:'Estados Unidos', short:'EUA', leader:'George Washington (1789)', stab:'+20', app:'+15'}, B:{stab:'-5'}}},
+    {title:'Pergunta para a turma',
+     quiz:{q:'O que significava o lema "sem tributação sem representação"?', o:['Que os colonos não queriam pagar nenhum imposto nunca', 'Que não aceitavam impostos criados por um Parlamento onde não tinham representantes', 'Que queriam um rei americano'], a:1,
+       e:'Os colonos não elegiam deputados para o Parlamento britânico, que mesmo assim criava impostos para eles.'}}
+  ]},
+// 14 ---------------------------------------------------------------
+{ id:'revfrancesa', year:'1789', date:'5 de maio de 1789', era:1700, world:'Reino da França', icon:'🇫🇷', title:'A Revolução Francesa',
+  sub:'"Liberdade, Igualdade, Fraternidade"',
+  nat:{
+    A:{name:'Reino da França', short:'Rei e nobreza', flag:'Reino da França', leader:'Rei Luís XVI', s:{eco:60, pop:28, app:30, stab:35, mil:100, sci:'Iluminismo'}},
+    B:{name:'Terceiro Estado (o povo)', short:'Povo', icon:'🧑‍🌾', leader:'Deputados do Terceiro Estado', s:{eco:40, pop:27, app:70, stab:40, mil:5, sci:'Ideias de Rousseau e Montesquieu'}}
+  },
+  steps:[
+    {view:'A', cam:[2.35, 48.86, 4], title:'Uma França endividada',
+     text:P('A França está quebrada (guerras, inclusive a ajuda aos EUA) e o pão está caríssimo. A sociedade é dividida em três <b>Estados</b>: clero, nobreza (que quase não pagam impostos) e o <b>Terceiro Estado</b> — 97% da população.'),
+     task:{type:'ranking', stat:'pop', prompt:'Veja o ranking de população: quem é a maioria?', doneText:'Mas, nos Estados Gerais, cada Estado tinha <b>1 voto</b> — o povo perdia por 2 a 1.'}},
+    {view:'B', cam:[2.12, 48.8, 5], title:'Os Estados Gerais',
+     task:{type:'law', nat:'B', prompt:'Proponha a regra de votação nos Estados Gerais:',
+       opts:[{n:'Um voto por Estado', d:'Clero e nobreza somam 2 votos', ok:false, r:'Assim o Terceiro Estado sempre perde por 2 a 1.'},
+             {n:'Um voto por cabeça (por deputado)', d:'Cada deputado vale 1 voto', ok:true, yes:578, no:561, r:'O rei recusa! Os deputados do povo se declaram <b>Assembleia Nacional</b> e juram, no salão do Jogo da Pela, só sair com uma Constituição.'}]},
+     after:{B:{stab:'+10', app:'+10'}, A:{stab:'-10'}}},
+    {view:'B', cam:[2.37, 48.85, 5.5], title:'14 de julho de 1789',
+     text:P('Boatos dizem que o rei vai dissolver a Assembleia com tropas. O povo de Paris procura armas e pólvora.'),
+     act:{prompt:'Clique na Bastilha, a prisão-fortaleza de Paris.', lon:2.37, lat:48.85, r:1.2, z:6, hint:'Fica no leste de Paris.',
+       do:F => { F.boom(2.37, 48.853); F.text(2.37, 49.1, 'Tomada da Bastilha', '#1f4e8c'); }, wait:1600},
+     after:{B:{mil:'+20', app:'+10'}, A:{stab:'-20', app:'-10'}}, afterText:'O 14 de julho virou a <b>festa nacional</b> da França.'},
+    {view:'B', title:'Os direitos',
+     task:{type:'law', nat:'B', prompt:'Aprove o documento mais famoso da Revolução:',
+       opts:[{n:'Declaração dos Direitos do Homem e do Cidadão', d:'26 de agosto de 1789', ok:true, yes:900, no:100, r:'"Os homens nascem e permanecem livres e iguais em direitos." Os privilégios feudais são abolidos.'},
+             {n:'Mais impostos só para os camponeses', d:'', ok:false, r:'Isso era justamente o que a Revolução queria acabar.'}]},
+     after:{B:{stab:'+10'}, A:{eco:'-10'}}, afterText:'Atenção: a Declaração ainda deixou de fora as mulheres — <b>Olympe de Gouges</b> escreveu em 1791 a Declaração dos Direitos da Mulher.'},
+    {skip:{ago:'3 anos depois', date:'setembro de 1792', set:{A:{leader:'(monarquia abolida)', stab:'-30'}, B:{name:'República Francesa', short:'República', leader:'Convenção Nacional'}},
+      lines:['O rei tenta fugir do país e é preso em Varennes.', 'A França entra em guerra com a Áustria e a Prússia.', 'Em setembro de 1792, a monarquia acaba: nasce a <b>República</b>.', 'Depois viriam anos de violência política e, em 1799, o golpe de <b>Napoleão Bonaparte</b>.']}},
+    {title:'Pergunta para a turma',
+     quiz:{q:'Qual destas ideias se espalhou pelo mundo a partir da Revolução Francesa?', o:['O poder absoluto dos reis', 'Os direitos iguais dos cidadãos diante da lei', 'Os privilégios da nobreza'], a:1,
+       e:'"Liberdade, Igualdade, Fraternidade" inspirou constituições e movimentos em todo o mundo, inclusive na América Latina.'}}
+  ]},
+// 15 ---------------------------------------------------------------
+{ id:'abolicao', year:'1888', date:'setembro de 1850', era:1850, world:'Império do Brasil', icon:'✊🏿', title:'Da Lei Eusébio à Lei Áurea e à República',
+  sub:'O longo caminho da abolição no Brasil (1850–1889)',
+  nat:{
+    A:{name:'Império do Brasil', short:'Governo imperial', flag:'Império do Brasil', leader:'Imperador Dom Pedro II', s:{eco:100, pop:7.2, app:60, stab:70, mil:40, sci:'Café e telégrafo'}},
+    B:{name:'Movimento abolicionista', short:'Abolicionistas', icon:'✊🏿', leader:'Luís Gama, André Rebouças, José do Patrocínio', s:{eco:10, pop:0.05, app:30, stab:50, mil:0, sci:'Jornais e quilombos'}},
+    C:{name:'Reino Unido', short:'Reino Unido', flag:'Reino Unido', leader:'Rainha Vitória', s:{eco:200, pop:27, app:60, stab:75, mil:160, sci:'Máquina a vapor'}}
+  },
+  steps:[
+    {view:'A', cam:[-30, -5, 1.6], title:'O tráfico pelo Atlântico',
+     fx:F => { F.arrow([13.2, -8.8], [-43.2, -22.9], '#8b1a1a'); F.arrow([3.4, 6.4], [-38.5, -12.97], '#8b1a1a'); },
+     text:P('O Brasil foi o país que mais recebeu africanos escravizados: cerca de <b>4,8 milhões</b> de pessoas. Em 1850, o tráfico ainda continua, apesar de uma lei de 1831 que nunca foi cumprida ("lei para inglês ver").'),
+     switchTo:'C', switchPrompt:'Clique na aba <b>Reino Unido</b>: veja quem está pressionando o Brasil.'},
+    {view:'C', title:'A pressão inglesa',
+     diplo:{prompt:'Você é o Reino Unido. Clique no Rio de Janeiro.', lon:-43.2, lat:-22.9, r:3, to:'A', from:'C', icon:'⚓', rel:-15, relTxt:'tensa (navios ingleses apreendem navios negreiros)',
+       opts:[{t:'Ignorar o tráfico brasileiro', ok:false, r:'O Reino Unido havia abolido o tráfico em 1807 e queria acabar com ele no mundo — inclusive por interesses econômicos.'},
+             {t:'✔ Exigir o fim do tráfico (Bill Aberdeen) e perseguir os navios', ok:true, r:'Navios britânicos passam a apreender navios negreiros até em águas brasileiras.'}]},
+     after:{A:{stab:'-10'}}},
+    {view:'A', title:'1850: Lei Eusébio de Queirós',
+     task:{type:'law', nat:'A', prompt:'O Parlamento imperial vota:',
+       opts:[{n:'Lei Eusébio de Queirós', d:'Proíbe o tráfico de africanos para o Brasil', ok:true, yes:70, no:30, r:'✅ Aprovada (4 de setembro de 1850). O tráfico atlântico acaba de fato — mas a escravidão continua.'},
+             {n:'Manter o tráfico', d:'', ok:false, r:'Com a pressão inglesa, manter o tráfico levaria a um conflito com a maior potência naval do mundo.'}]},
+     after:{A:{eco:'+10', sci:'Ferrovias (capital do tráfico vai para a indústria)'}}},
+    {skip:{ago:'21 anos depois', date:'setembro de 1871', set:{A:{leader:'Princesa Isabel (regente)'}, B:{app:'+15'}},
+      lines:['O Brasil luta na <b>Guerra do Paraguai</b> (1864–1870). Muitos escravizados lutam no exército, e muitos oficiais voltam contra a escravidão.', 'O Brasil é um dos últimos países escravistas das Américas.']}},
+    {view:'A', title:'1871: Lei do Ventre Livre',
+     task:{type:'law', nat:'A', prompt:'Vote a Lei Rio Branco:',
+       opts:[{n:'Lei do Ventre Livre', d:'Filhos de escravizadas nascem livres', ok:true, yes:65, no:45, r:'✅ Aprovada. Na prática, as crianças podiam ficar com o senhor até os 21 anos.'}]}},
+    {skip:{ago:'14 anos depois', date:'1885', set:{B:{app:'+20', mil:'+5'}, A:{stab:'-10'}},
+      fx:F => { F.marker(-38.5, -3.7, '🕊️', 'Ceará livre (1884)'); },
+      lines:['O abolicionismo cresce nas ruas: <b>Luís Gama</b> liberta centenas de pessoas nos tribunais, <b>José do Patrocínio</b> e <b>Joaquim Nabuco</b> discursam, jangadeiros do Ceará, liderados por <b>Francisco José do Nascimento</b> (o Dragão do Mar), se recusam a embarcar escravizados.', 'O Ceará e o Amazonas abolem a escravidão em 1884.']}},
+    {view:'A', title:'1885: Lei dos Sexagenários',
+     task:{type:'law', nat:'A', prompt:'Vote a Lei Saraiva-Cotegipe:',
+       opts:[{n:'Lei dos Sexagenários', d:'Liberta os escravizados com mais de 60 anos', ok:true, yes:58, no:42, r:'✅ Aprovada — mas poucos chegavam aos 60, e ainda tinham que trabalhar mais 3 anos.'}]}},
+    {view:'B', cam:[-46.6, -23.5, 4], title:'A resistência',
+     text:P('Escravizados fogem em massa das fazendas de café, ajudados pelos <b>caifazes</b>, para quilombos como o do <b>Jabaquara</b>, em Santos. O Exército se recusa a caçar fugitivos.'),
+     act:{prompt:'Clique em Santos, onde ficava o quilombo do Jabaquara.', lon:-46.33, lat:-23.96, r:1.5, z:5, hint:'Santos fica no litoral de São Paulo.',
+       do:F => { F.arrow([-47.5, -22.4], [-46.33, -23.96], '#2d6a2d'); F.marker(-46.33, -23.96, '🏕️', 'Jabaquara'); }, wait:1600},
+     after:{B:{app:'+15'}, A:{stab:'-10', eco:'-10'}}},
+    {view:'A', title:'13 de maio de 1888',
+     task:{type:'law', nat:'A', prompt:'A princesa Isabel envia o projeto. O Parlamento vota:',
+       opts:[{n:'Lei Áurea', d:'"É declarada extinta a escravidão no Brasil."', ok:true, yes:83, no:9, r:'✅ <b>Lei Áurea</b> sancionada! Cerca de 700 mil pessoas são libertadas — mas sem terra, indenização ou educação, o que deixou marcas até hoje.'}]},
+     after:{B:{app:'+20'}, A:{app:'-10', stab:'-15'}}},
+    {skip:{ago:'1 ano e meio depois', date:'15 de novembro de 1889', set:{A:{name:'República dos Estados Unidos do Brasil', short:'República', leader:'Marechal Deodoro da Fonseca', stab:'-10'}},
+      fx:F => { F.ring(-43.2, -22.9, '#2d6a2d', 26); },
+      lines:['Fazendeiros descontentes, militares e republicanos se unem.', 'No Rio, o marechal <b>Deodoro da Fonseca</b> proclama a <b>República</b>. Dom Pedro II e a família partem para o exílio.']}},
+    {title:'Pergunta para a turma',
+     quiz:{q:'Qual a ordem correta das leis abolicionistas?', o:['Lei Áurea → Ventre Livre → Eusébio de Queirós', 'Eusébio de Queirós (1850) → Ventre Livre (1871) → Sexagenários (1885) → Lei Áurea (1888)', 'Sexagenários → Lei Áurea → Ventre Livre'], a:1,
+       e:'Foram quase 40 anos de leis graduais, pressão externa, luta abolicionista e resistência dos escravizados.'}}
+  ]},
+// 16 ---------------------------------------------------------------
+{ id:'revrussa', year:'1917', date:'fevereiro de 1917', era:1914, world:'Império Russo', icon:'☭', title:'A Revolução Russa',
+  sub:'Do czar aos sovietes em um ano',
+  nat:{
+    A:{name:'Império Russo', short:'Rússia', flag:'Império Russo', leader:'Czar Nicolau II', s:{eco:50, pop:175, app:15, stab:20, mil:110, sci:'Agrícola'}},
+    B:{name:'Império Alemão', short:'Alemanha', flag:'Império Alemão', leader:'Kaiser Guilherme II', s:{eco:80, pop:67, app:45, stab:55, mil:150, sci:'Química, aço, motores'}}
+  },
+  steps:[
+    {view:'A', cam:[30.31, 59.94, 4], title:'Fome e guerra',
+     text:P('A Rússia está na Primeira Guerra há quase 3 anos: milhões de mortos, falta pão nas cidades, os camponeses querem terra.') + P('Em Petrogrado, mulheres operárias saem às ruas no Dia da Mulher (8 de março). Logo há greve geral e os soldados se juntam ao povo.'),
+     act:{prompt:'Clique em Petrogrado (São Petersburgo).', lon:30.31, lat:59.94, r:2, z:5, hint:'É a capital, no golfo da Finlândia.',
+       do:F => { F.ring(30.31, 59.94, '#a3322a', 24); F.text(30.31, 60.6, 'Revolução de Fevereiro', '#a3322a'); }, wait:1600},
+     after:{A:{leader:'Governo Provisório (Kerenski)', stab:'-10', app:'+15'}}, afterText:'Nicolau II abdica: acabam <b>300 anos</b> da dinastia Romanov.'},
+    {view:'A', title:'Continuar na guerra?',
+     choice:[{t:'Continuar a guerra ao lado dos Aliados', ok:true, r:'O Governo Provisório continua a guerra. Os soldados desertam e os bolcheviques, de <b>Lenin</b>, prometem "<b>Paz, terra e pão</b>".'},
+             {t:'Fazer as eleições primeiro e depois decidir', ok:false, r:'Na verdade, o governo adiou as eleições e manteve a guerra — e perdeu o apoio popular.'}],
+     after:{A:{app:'-20', mil:'-30'}}},
+    {skip:{ago:'8 meses depois', date:'7 de novembro de 1917', set:{A:{name:'Rússia Soviética', short:'Rússia Soviética', leader:'Lenin (Conselho dos Comissários do Povo)', stab:'-10'}},
+      fx:F => { F.marker(30.31, 59.94, '⭐', 'Palácio de Inverno'); },
+      lines:['Os bolcheviques tomam o <b>Palácio de Inverno</b>: é a Revolução de Outubro (pelo calendário russo da época).', 'O novo governo distribui terras, nacionaliza bancos e fábricas.']}},
+    {view:'A', cam:[23.7, 52.1, 3], title:'A paz separada',
+     diplo:{prompt:'Negocie a paz: clique em Brest-Litovsk.', lon:23.7, lat:52.1, r:3, to:'B', from:'A', icon:'🖋️', rel:-40, relTxt:'guerra',
+       opts:[{t:'Continuar lutando contra a Alemanha', ok:false, r:'O exército russo estava desmoronando; continuar significava perder ainda mais.'},
+             {t:'✔ Assinar a paz, entregando muitos territórios', h:'Tratado de Brest-Litovsk, março de 1918', ok:true, r:'A Rússia perde Polônia, Bálticos, Finlândia e Ucrânia (que depois seriam disputados de novo).'}]},
+     after:{A:{pop:'-50', eco:'-15'}, B:{eco:'+10'}}},
+    {skip:{ago:'4 anos depois', date:'dezembro de 1922', set:{A:{name:'União Soviética', short:'URSS', eco:'-10', stab:'+20'}},
+      lines:['Uma terrível <b>guerra civil</b> (1918–1921) opõe "vermelhos" e "brancos", com fome e milhões de mortos.', 'Em 1922 nasce a <b>URSS</b>: o primeiro Estado socialista do mundo, de partido único.']}},
+    {title:'Pergunta para a turma',
+     quiz:{q:'Qual era o lema dos bolcheviques em 1917?', o:['"Paz, terra e pão"', '"Ordem e progresso"', '"Independência ou morte"'], a:0,
+       e:'Prometiam tirar a Rússia da guerra, dar terra aos camponeses e acabar com a fome.'}}
+  ]},
+// 17 ---------------------------------------------------------------
+{ id:'crise29', year:'1929', date:'24 de outubro de 1929', era:1914, world:'Estados Unidos', icon:'📉', title:'A Crise de 1929',
+  sub:'A quebra da Bolsa de Nova York e o café brasileiro',
+  nat:{
+    A:{name:'Estados Unidos', short:'EUA', flag:'Estados Unidos', leader:'Presidente Herbert Hoover', s:{eco:180, pop:122, app:70, stab:75, mil:60, sci:'Rádio, automóvel'}},
+    B:{name:'Brasil', short:'Brasil', flag:'Brasil', leader:'Presidente Washington Luís', s:{eco:100, pop:37, app:55, stab:55, mil:30, sci:'Café (70% das exportações)'}}
+  },
+  steps:[
+    {view:'A', cam:[-74.0, 40.71, 5], title:'Os "loucos anos 20"',
+     text:P('Os EUA viveram anos de euforia: fábricas produzindo sem parar e milhões comprando ações a crédito. Mas a Europa comprava menos, e os estoques se acumulavam.'),
+     act:{prompt:'Clique em Wall Street, Nova York.', lon:-74.0, lat:40.71, r:1.5, z:5, hint:'Nova York fica no nordeste dos EUA.',
+       do:F => { F.text(-74, 41.4, '📉 Quinta-feira Negra', '#8b1a1a'); MapView.doShake && MapView.doShake(8, 700); }, wait:1600},
+     after:{A:{eco:'-60', app:'-25', stab:'-20'}}, afterText:'Em poucos dias, as ações perdem bilhões de dólares. Bancos quebram e empresas fecham.'},
+    {skip:{ago:'1 ano depois', date:'1930', view:'B', set:{B:{eco:'-40', stab:'-20'}, A:{eco:'-20'}},
+      lines:['Os americanos param de comprar. O preço do <b>café</b> despenca.', 'No Brasil, fazendeiros quebram e o desemprego cresce.']}},
+    {view:'B', switchTo:'A', switchPrompt:'Compare: clique na aba <b>EUA</b> e veja quanto a economia caiu lá.', title:'Uma crise mundial',
+     text:P('A crise se espalha pelo mundo inteiro, porque muitos países dependiam do dinheiro e do mercado americano.')},
+    {view:'B', title:'Salvar o café?',
+     choice:[{t:'Deixar os fazendeiros quebrarem', ok:false, r:'Era o maior setor da economia brasileira — o desemprego explodiria.'},
+             {t:'✔ O governo compra e queima o café excedente', ok:true, r:'Entre 1931 e 1944 foram destruídas cerca de <b>78 milhões de sacas</b> de café para segurar o preço.'}],
+     after:{B:{eco:'+10'}}, afterText:'Com a crise, Getúlio Vargas chega ao poder na Revolução de 1930 e incentiva a <b>indústria</b>.'},
+    {skip:{ago:'3 anos depois', date:'1933', view:'A', set:{A:{leader:'Presidente Franklin D. Roosevelt', eco:'+15', app:'+30'}},
+      lines:['Nos EUA, um em cada quatro trabalhadores está desempregado.', 'O novo presidente, <b>Franklin Roosevelt</b>, lança o <b>New Deal</b>.']}},
+    {view:'A', title:'O New Deal',
+     task:{type:'law', nat:'A', prompt:'Aprove as medidas do New Deal:',
+       opts:[{n:'Obras públicas e previdência social', d:'Estradas, represas, seguro-desemprego', ok:true, yes:310, no:120, r:'✅ O Estado passa a investir para criar empregos. A economia se recupera aos poucos.'},
+             {n:'Cortar todos os gastos do governo', ok:false, d:'', r:'Hoover já tinha tentado isso e a crise piorou.'}]},
+     after:{A:{eco:'+30', stab:'+20'}}},
+    {title:'Pergunta para a turma',
+     quiz:{q:'Por que a crise de 1929 atingiu tanto o Brasil?', o:['Porque o Brasil tinha a maior Bolsa do mundo', 'Porque a economia brasileira dependia da exportação de café para os EUA', 'Porque o Brasil estava em guerra com os EUA'], a:1,
+       e:'Com a crise, os EUA compraram menos café e o preço despencou.'}}
+  ]},
+// 18 ---------------------------------------------------------------
+{ id:'diad', year:'1944', date:'junho de 1944', era:1914, world:'Reino Unido', icon:'🪖', title:'O Dia D e a FEB na Itália',
+  sub:'A libertação da Europa ocidental',
+  nat:{
+    A:{name:'Aliados', short:'Aliados', flag:'Reino Unido', leader:'Gen. Dwight Eisenhower (comando)', s:{eco:160, pop:180, app:70, stab:70, mil:150, sci:'Radar'}},
+    B:{name:'Brasil', short:'Brasil', flag:'Brasil', leader:'Presidente Getúlio Vargas', s:{eco:70, pop:42, app:55, stab:55, mil:20, sci:'Siderurgia (Volta Redonda)'}},
+    C:{name:'Alemanha nazista', short:'Alemanha', flag:'Império Alemão', leader:'(regime nazista)', s:{eco:90, pop:80, app:30, stab:35, mil:120, sci:'Foguetes'}}
+  },
+  steps:[
+    {view:'A', cam:[-0.6, 49.5, 4.5], title:'A Operação Overlord',
+     fx:F => { F.overlay(hsNationCells('França'), '#555', 'França ocupada', 0.3); },
+     text:P('A Alemanha ocupa a França desde 1940. Os Aliados preparam a maior invasão pelo mar da história, partindo da Inglaterra.'),
+     task:{type:'recruit', nat:'A', need:10, per:4, stat:'mil', label:'Divisões aliadas (EUA, Reino Unido, Canadá...)', icon:'🪖', prompt:'Reúna 10 divisões no sul da Inglaterra.', doneText:'Cerca de <b>156 mil soldados</b> e quase 7 mil navios estão prontos.'}},
+    {view:'A', title:'6 de junho de 1944',
+     act:{prompt:'Desembarque: clique nas praias da Normandia.', lon:-0.6, lat:49.35, r:1.5, z:5, hint:'Normandia fica no norte da França.',
+       do:F => { F.ship([[-1.2, 50.7], [-0.7, 49.4]], 1500, '🚢'); F.ship([[-0.3, 50.8], [-0.3, 49.35]], 1600, '🚢'); setTimeout(() => F.boom(-0.6, 49.35), 1500); }, wait:2200},
+     after:{A:{mil:'-10', stab:'+10'}, C:{mil:'-20', stab:'-10'}}, afterText:'As praias tinham nomes de código: Utah, Omaha, Gold, Juno e Sword.'},
+    {skip:{ago:'2 meses depois', date:'25 de agosto de 1944', set:{C:{mil:'-20'}},
+      fx:F => { hsFx().overlays = []; F.ring(2.35, 48.86, '#1f4e8c', 26); },
+      lines:['Paris é libertada, com ajuda da Resistência francesa.']}},
+    {switchTo:'B', switchPrompt:'Enquanto isso, na Itália... clique na aba <b>Brasil</b>.', title:'A FEB',
+     text:P('O Brasil declarou guerra ao Eixo em 1942, depois que submarinos afundaram navios brasileiros. A <b>Força Expedicionária Brasileira</b> — uns <b>25 mil</b> soldados — chega à Itália em 1944.')},
+    {view:'B', cam:[10.95, 44.2, 4.5], title:'Monte Castelo',
+     act:{prompt:'Clique em Monte Castelo, nos Apeninos (Itália).', lon:10.95, lat:44.2, r:1.5, z:5, hint:'Fica nas montanhas entre Bolonha e Florença.',
+       do:F => { F.marker(10.95, 44.2, '🐍', 'A cobra fumou!'); F.ring(10.95, 44.2, '#2d6a2d', 18); }, wait:1600},
+     after:{B:{app:'+20', mil:'+10'}}, afterText:'Depois de várias tentativas no inverno, os pracinhas tomam Monte Castelo em <b>21/2/1945</b>.'},
+    {skip:{ago:'3 meses depois', date:'8 de maio de 1945', set:{C:{mil:'-60', leader:'(rendição)'}, A:{app:'+20'}},
+      lines:['Com os soviéticos no leste e os Aliados no oeste, a Alemanha se rende.', 'De volta, os pracinhas ajudam a derrubar a ditadura do Estado Novo: Vargas cai em outubro de 1945.']}},
+    {title:'Pergunta para a turma',
+     quiz:{q:'Qual o símbolo da FEB, criado porque diziam que "era mais fácil uma cobra fumar" do que o Brasil ir à guerra?', o:['Uma onça', 'Uma cobra fumando', 'Uma águia'], a:1, e:'Os pracinhas adotaram "a cobra vai fumar" como lema.'}}
+  ]},
+// 19 ---------------------------------------------------------------
+{ id:'espaco', year:'1969', date:'4 de outubro de 1957', era:1960, world:'Estados Unidos', icon:'🌕', title:'A Corrida Espacial',
+  sub:'Do Sputnik ao homem na Lua',
+  nat:{
+    A:{name:'União Soviética', short:'URSS', flag:'União Soviética', leader:'Nikita Kruschev', s:{eco:100, pop:200, app:60, stab:70, mil:150, sci:'Foguete R-7'}},
+    B:{name:'Estados Unidos', short:'EUA', flag:'Estados Unidos', leader:'Presidente Dwight Eisenhower', s:{eco:180, pop:172, app:65, stab:75, mil:160, sci:'Foguetes Redstone'}}
+  },
+  steps:[
+    {view:'A', cam:[63.3, 45.9, 3.5], title:'Bip... bip... bip...',
+     task:{type:'research', nat:'A', prompt:'Na base de Baikonur, escolha o que lançar primeiro:',
+       opts:[{n:'Sputnik 1', icon:'🛰️', d:'Primeiro satélite artificial', ok:true, r:'🛰️ <b>Sputnik</b> em órbita (4/10/1957)! Seu sinal de rádio é ouvido no mundo todo.'},
+             {n:'Estação espacial', icon:'🏗️', d:'', ok:false, r:'Ainda era cedo demais — a primeira estação, a Salyut 1, só subiu em 1971.'}]},
+     after:{A:{sci:'Satélites', app:'+10'}, B:{app:'-10', stab:'-5'}}},
+    {view:'A', switchTo:'B', switchPrompt:'Como os americanos reagiram? Clique na aba <b>EUA</b>.', title:'O "choque do Sputnik"',
+     text:P('Os americanos ficam assustados: se os soviéticos põem um satélite em órbita, também podem lançar mísseis a qualquer lugar.')},
+    {view:'B', title:'A resposta americana',
+     task:{type:'law', nat:'B', prompt:'O Congresso vota:',
+       opts:[{n:'Criar a NASA', d:'Agência espacial civil (1958)', ok:true, yes:380, no:30, r:'✅ A <b>NASA</b> é criada, e o governo investe pesado em ciência nas escolas e universidades.'}]},
+     after:{B:{sci:'NASA', eco:'-10'}}},
+    {skip:{ago:'3 anos e meio depois', date:'12 de abril de 1961', view:'A', set:{A:{sci:'Voo tripulado', app:'+15'}},
+      fx:F => { F.marker(63.3, 45.9, '🚀', 'Vostok 1'); },
+      lines:['<b>Yuri Gagarin</b> é o primeiro ser humano no espaço: "A Terra é azul!".', 'Em 1963, <b>Valentina Tereshkova</b> é a primeira mulher no espaço.']}},
+    {view:'B', title:'"Escolhemos ir à Lua"',
+     text:P('O presidente <b>John Kennedy</b> promete levar um homem à Lua antes do fim da década.'),
+     task:{type:'research', nat:'B', prompt:'Pesquise as tecnologias do Programa Apollo:',
+       opts:[{n:'Foguete Saturno V', icon:'🚀', d:'110 metros de altura', ok:true, r:'🚀 O <b>Saturno V</b> é até hoje um dos foguetes mais potentes já construídos. O programa empregou 400 mil pessoas.'},
+             {n:'Avião a hélice', icon:'✈️', ok:false, d:'', r:'No espaço não há ar para hélices funcionarem.'}]},
+     after:{B:{sci:'Programa Apollo', eco:'-15'}}},
+    {view:'B', cam:[-80.6, 28.5, 4.5], title:'16 de julho de 1969',
+     act:{prompt:'Lance a Apollo 11: clique no Cabo Canaveral (Flórida).', lon:-80.6, lat:28.5, r:2, z:5, hint:'Fica na costa leste da Flórida.',
+       do:F => { F.missile([-80.6, 28.5], [-40, 50]); F.text(-80.6, 29.5, 'Apollo 11', '#1f4e8c'); }, wait:2400},
+     after:{B:{app:'+25', sci:'Homem na Lua'}}, afterText:'Em <b>20 de julho de 1969</b>, Neil Armstrong pisa na Lua: "Um pequeno passo para um homem, um salto gigante para a humanidade".'},
+    {view:'B', title:'Placar da corrida',
+     task:{type:'ranking', stat:'eco', prompt:'Veja o ranking de economia: quem tinha mais recursos para gastar na corrida?', doneText:'A corrida espacial era também uma disputa de propaganda na Guerra Fria. Em 1975, as naves Apollo e Soyuz se acoplaram no espaço — um sinal de aproximação.'}},
+    {title:'Pergunta para a turma',
+     quiz:{q:'Quem foi o primeiro ser humano a ir ao espaço?', o:['Neil Armstrong', 'Yuri Gagarin', 'Buzz Aldrin'], a:1, e:'Gagarin, em 1961. Armstrong foi o primeiro a pisar na Lua, em 1969.'}}
+  ]},
+// 20 ---------------------------------------------------------------
+{ id:'redemocratizacao', year:'1988', date:'1º de abril de 1964', era:1960, world:'Brasil', icon:'🗳️', title:'Do golpe de 1964 à Constituição de 1988',
+  sub:'Ditadura, Diretas Já e a "Constituição Cidadã"',
+  nat:{
+    A:{name:'Brasil', short:'Brasil', flag:'Brasil', leader:'Presidente João Goulart', s:{eco:100, pop:80, app:45, stab:30, mil:40, sci:'Petrobras'}}
+  },
+  steps:[
+    {view:'A', cam:[-47.88, -15.79, 3.5], title:'1964',
+     text:P('Em meio à Guerra Fria e a uma grave crise política, militares, com apoio de parte da sociedade e do governo dos EUA, derrubam o presidente <b>João Goulart</b>.') + P('Começa uma <b>ditadura militar</b> de 21 anos: eleições diretas para presidente acabam, partidos são fechados e há censura.')},
+    {skip:{ago:'4 anos depois', date:'13 de dezembro de 1968', set:{A:{leader:'Gen. Costa e Silva', app:'-10', stab:'-10', sci:'(censura)'}},
+      lines:['O <b>AI-5</b> fecha o Congresso e suspende direitos.', 'Opositores são presos, torturados, exilados ou mortos. Artistas como Chico Buarque, Caetano Veloso e Gilberto Gil sofrem censura ou exílio.']}},
+    {view:'A', title:'O "milagre" e a conta',
+     choice:[{t:'Crescer pegando empréstimos no exterior', ok:true, r:'A economia cresce mais de 10% ao ano (1968–73), mas a desigualdade aumenta e a <b>dívida externa</b> explode.'},
+             {t:'Reduzir a desigualdade primeiro', ok:false, r:'O governo da época dizia que era preciso "crescer o bolo para depois dividir".'}],
+     after:{A:{eco:'+40'}}},
+    {skip:{ago:'11 anos depois', date:'1979', set:{A:{eco:'-25', leader:'Gen. João Figueiredo', stab:'+10'}},
+      lines:['A crise do petróleo traz inflação e dívida.', 'Greves no ABC paulista. A <b>Lei da Anistia</b> permite a volta dos exilados.']}},
+    {view:'A', cam:[-46.63, -23.55, 4.5], title:'Diretas Já!',
+     text:P('Em 1984, milhões vão às ruas pedindo eleição direta para presidente.'),
+     act:{prompt:'Clique na Praça da Sé, em São Paulo.', lon:-46.63, lat:-23.55, r:1.5, z:5, hint:'São Paulo, no Sudeste.',
+       do:F => { F.ring(-46.63, -23.55, '#e0b240', 30); F.text(-46.63, -22.7, 'Diretas Já!', '#2d6a2d'); }, wait:1500},
+     after:{A:{app:'+20'}}},
+    {view:'A', title:'Emenda Dante de Oliveira',
+     task:{type:'law', nat:'A', prompt:'O Congresso vota a emenda das eleições diretas (precisava de 320 votos):',
+       opts:[{n:'Emenda Dante de Oliveira', d:'Eleições diretas para presidente', ok:true, yes:298, no:65, r:'❌ Faltaram <b>22 votos</b>. A emenda não passou. Em 1985, o colégio eleitoral escolhe <b>Tancredo Neves</b> — que adoece e morre; <b>José Sarney</b> assume. A ditadura acaba.'}]},
+     after:{A:{leader:'Presidente José Sarney', stab:'+15'}}},
+    {view:'A', cam:[-47.86, -15.8, 5], title:'A Constituinte',
+     task:{type:'law', nat:'A', prompt:'Ulysses Guimarães preside a Assembleia Constituinte. Votem a nova Constituição:',
+       opts:[{n:'Constituição de 1988', d:'Direitos sociais, SUS, voto aos 16, fim da censura', ok:true, yes:474, no:15, r:'✅ Promulgada em <b>5 de outubro de 1988</b>: a "Constituição Cidadã".'}]},
+     after:{A:{app:'+20', stab:'+20', sci:'SUS e universalização do ensino'}}},
+    {title:'Pergunta para a turma',
+     quiz:{q:'O que foi o movimento Diretas Já?', o:['Uma campanha para fechar o Congresso', 'Uma campanha popular por eleições diretas para presidente', 'Um plano econômico'], a:1, e:'Em 1984, comícios gigantes pediram o direito de votar para presidente.'}}
+  ]},
+// 21 ---------------------------------------------------------------
+{ id:'planoreal', year:'1994', date:'março de 1990', era:2000, world:'Brasil', icon:'💵', title:'O Plano Real',
+  sub:'Como o Brasil venceu a hiperinflação',
+  nat:{
+    A:{name:'Brasil', short:'Brasil', flag:'Brasil', leader:'Presidente Fernando Collor', s:{eco:60, pop:147, app:50, stab:30, mil:40, sci:'Inflação de 80% ao mês'}}
+  },
+  steps:[
+    {view:'A', cam:[-47.88, -15.79, 3.5], title:'Preços que mudam todo dia',
+     text:P('No fim dos anos 80, a inflação chegava a mais de <b>80% ao mês</b>. No supermercado, funcionários remarcavam preços várias vezes ao dia. Quem recebia salário corria para gastar antes que o dinheiro perdesse valor.') + P('Vários planos fracassaram: Cruzado, Bresser, Verão... e o Plano Collor, que <b>confiscou a poupança</b> das pessoas.'),
+     choice:[{t:'Congelar os preços por decreto', ok:false, r:'Já tinha sido tentado (Plano Cruzado, 1986): faltaram produtos e a inflação voltou mais forte.'},
+             {t:'✔ Buscar um plano sem congelamento e sem confisco', ok:true, r:'Essa foi a ideia da equipe econômica de 1993.'}]},
+    {skip:{ago:'3 anos depois', date:'1993', set:{A:{leader:'Presidente Itamar Franco (ministro da Fazenda: FHC)', stab:'+10'}},
+      lines:['Collor sofre impeachment em 1992.', 'O presidente <b>Itamar Franco</b> nomeia <b>Fernando Henrique Cardoso</b> ministro da Fazenda, com economistas como Pedro Malan, Gustavo Franco, Pérsio Arida e André Lara Resende.']}},
+    {view:'A', title:'Etapa 1: contas em ordem',
+     task:{type:'law', nat:'A', prompt:'Aprove o ajuste das contas do governo:',
+       opts:[{n:'Fundo Social de Emergência', d:'Cortes e reorganização do orçamento', ok:true, yes:360, no:120, r:'✅ O governo para de gastar mais do que arrecada — base do plano.'}]},
+     after:{A:{stab:'+5'}}},
+    {view:'A', title:'Etapa 2: a URV',
+     task:{type:'research', nat:'A', prompt:'Escolha a "moeda de transição" (março de 1994):',
+       opts:[{n:'URV — Unidade Real de Valor', icon:'📊', d:'Preços e salários em URV, que acompanhava o dólar', ok:true, r:'📊 Durante 4 meses, tudo tem preço em URV. As pessoas se acostumam com valores estáveis.'},
+             {n:'Imprimir mais dinheiro', icon:'🖨️', d:'', ok:false, r:'Imprimir dinheiro sem lastro é justamente o que alimenta a inflação.'}]},
+     after:{A:{sci:'URV'}}},
+    {view:'A', cam:[-43.2, -22.9, 4.5], title:'1º de julho de 1994',
+     act:{prompt:'Lance o Real: clique na Casa da Moeda, no Rio de Janeiro.', lon:-43.2, lat:-22.9, r:1.5, z:5, hint:'Rio de Janeiro.',
+       do:F => { F.text(-43.2, -22, '💵 R$ 1,00 = 2.750 cruzeiros reais', '#2d6a2d'); F.ring(-43.2, -22.9, '#2d6a2d', 22); }, wait:1600},
+     after:{A:{eco:'+40', app:'+30', stab:'+30', sci:'Real estável'}}, afterText:'A inflação cai de cerca de 47% ao mês (junho de 1994) para menos de 3% ao mês no fim do ano.'},
+    {skip:{ago:'6 meses depois', date:'1º de janeiro de 1995', set:{A:{leader:'Presidente Fernando Henrique Cardoso'}},
+      lines:['Com o sucesso do Real, FHC é eleito presidente.', 'Os mais pobres, que não tinham como se proteger da inflação, foram os que mais ganharam com o fim dela.']}},
+    {title:'Pergunta para a turma',
+     quiz:{q:'Qual foi a "moeda de transição" usada antes do Real?', o:['O Cruzado', 'A URV (Unidade Real de Valor)', 'O Dólar'], a:1, e:'A URV serviu de referência estável de março a junho de 1994.'}}
+  ]},
 ];
 
 // ---------------- onde jogar: Enciclopédia, linha do tempo e menu ----------------
@@ -803,7 +1245,7 @@ if (typeof ENC_SECTIONS !== 'undefined'){
   ENC_SECTIONS.splice(1, 0, {id:'modohistoria', n:'🎬 Modo História', f:hsListHTML});
   if (typeof TIMELINE !== 'undefined' && !TIMELINE.some(e => /Chernobyl/.test(e[1]))) TIMELINE.push([1986, 'Acidente nuclear de Chernobyl, na Ucrânia (então parte da URSS).']);
   // linha do tempo: um ▶ nos acontecimentos que dá para jogar
-  const TL_MATCH = {tordesilhas:/Tordesilhas/, vasco:/Vasco da Gama/, cabral:/Cabral/, familia_real:/família real/i, independencia:/Independência do Brasil/, sarajevo:/Primeira Guerra/, hiroshima:/Hiroshima/, cuba:/Mísseis/, chernobyl:/Chernobyl/, muro:/Muro de Berlim/};
+  const TL_MATCH = {constantinopla:/Constantinopla/, mexico:/Tenochtitl/, eua:/Independência dos Estados Unidos/, revfrancesa:/Revolução Francesa/, abolicao:/Lei Áurea/, revrussa:/Revolução Russa/, crise29:/Bolsa de Nova York/, espaco:/pisa na Lua/, redemocratizacao:/Constituição brasileira/, planoreal:/Plano Real/, tordesilhas:/Tordesilhas/, vasco:/Vasco da Gama/, cabral:/Cabral/, familia_real:/família real/i, independencia:/Independência do Brasil/, sarajevo:/Primeira Guerra/, hiroshima:/Hiroshima/, cuba:/Mísseis/, chernobyl:/Chernobyl/, muro:/Muro de Berlim/};
   const tl = ENC_SECTIONS.find(s => s.id === 'historia');
   if (tl) tl.f = () => `<div class="enc-intro">Acontecimentos reais que moldaram o mundo do jogo. ▶ = dá para <b>jogar no mapa</b> (Modo História).</div>` +
     TIMELINE.slice().sort((a, b) => a[0] - b[0]).map(([y, t]) => { const sc = HIST_SCENES.find(x => +x.year === y && TL_MATCH[x.id] && TL_MATCH[x.id].test(t));
