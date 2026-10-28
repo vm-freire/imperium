@@ -106,7 +106,7 @@ function openJoinRoom(){
     if (!/^[A-Z0-9]{6}$/.test(code)){ err.textContent = 'O código tem 6 letras/números.'; SFX.error(); return; }
     const u = NET.user; let r;
     try { r = await NET.be.joinRoom(code, u.uid, u.name); } catch(e){ err.textContent = e.message; SFX.error(); return; }
-    const E = {notfound:'Sala não encontrada.', started:'Esta partida já começou e só aceita os jogadores originais.', full:'A sala está cheia.'};
+    const E = {notfound:'Sala não encontrada.', started:'Esta sala ainda não aceita quem chega depois: o dono do servidor precisa rodar o arquivo supabase/entrar_depois.sql no Supabase.', full:'A sala está cheia.'};
     if (!r || r.error){ err.textContent = E[(r||{}).error] || 'Não foi possível entrar.'; SFX.error(); return; }
     closeModal(); SFX.fanfare(); openLobby(code);
   };
@@ -154,16 +154,18 @@ function renderLobby(){
     ${Array.from({length:r.maxPlayers-members.length}, ()=>`<div class="slot empty"><span class="slot-n">+</span><div class="slot-info"><b>Vaga livre</b><small>Passe o código ${r.code} para um amigo</small></div></div>`).join('')}
     <div class="m-actions" style="justify-content:flex-start;margin-top:14px">
       ${r.status==='lobby' ? `<button class="btn green" id="lb-nation">${me.cfg?'✏️ Mudar minha nação':'🏰 Escolher minha nação'}</button>` : ''}
+      ${r.status!=='lobby' && !(r.humans||[]).some(h=>h.uid===u.uid) ? `<button class="btn green" id="lb-nation">🏰 Escolher um país e entrar na partida</button>` : ''}
       ${isHost ? `<button class="btn primary" id="lb-start">${r.status==='lobby'?'▶ Iniciar partida':'▶ Retomar partida'}</button>` : `<span class="muted">${r.status==='lobby'?'Aguardando o anfitrião iniciar...':r.status==='running'?'Partida em andamento — entrando...':'Aguardando o anfitrião retomar a partida.'}</span>`}
       ${r.status!=='lobby' && r.status==='running' ? `<button class="btn green" id="lb-enter">🌍 Entrar no mundo</button>` : ''}
       <button class="btn" id="lb-back">← Minhas salas</button>
       ${isHost ? `<button class="btn danger" id="lb-del" style="margin-left:auto">🗑️ Excluir sala</button>` : ''}
     </div>
+    ${r.status!=='lobby' && !(r.humans||[]).some(h=>h.uid===u.uid) ? `<div class="tip">🕐 A partida já começou (mês ${r.turn||0}). Você pode entrar governando um país da IA que nenhum jogador escolheu: ele começa como está agora no mundo — um pouco atrás dos outros.</div>` : ''}
     ${missing.length && r.status!=='lobby' ? `<div class="tip">Faltam ${missing.length} jogador(es) online: ${missing.map(([,mb])=>esc(mb.name)).join(', ')}.</div>` : ''}`);
   $$('[data-lf]').forEach(cv=>{ const c = (ON.players[cv.dataset.lf]||{}).cfg; if (c) drawFlag(cv.getContext('2d'), c.flag, 0, 0, 66, 44); });
   if (keep) body.scrollTop = keep;
   $('#lb-copy').onclick = ()=>{ navigator.clipboard && navigator.clipboard.writeText(r.code); toast('Código copiado: ' + r.code, 'good'); };
-  const nb = $('#lb-nation'); if (nb) nb.onclick = ()=>{ SFX.page(); chooseOnlineNation(); };
+  const nb = $('#lb-nation'); if (nb) nb.onclick = ()=>{ SFX.page(); chooseOnlineNation(r.status !== 'lobby'); };
   const sb = $('#lb-start'); if (sb) sb.onclick = ()=>hostStart();
   const eb = $('#lb-enter'); if (eb) eb.onclick = ()=>maybeEnterGame(true);
   $('#lb-back').onclick = ()=>{ unsubAll(); SFX.click(); openOnlineHub(); };
@@ -193,7 +195,9 @@ function roomGone(code){
   setTimeout(()=>{ toast(`A sala ${code} foi excluída pelo anfitrião.`, 'bad'); openOnlineHub(); }, 150);
 }
 function takenNations(){ return Object.entries(ON.players).filter(([uid, pl])=>uid !== NET.user.uid && pl.cfg && pl.cfg.existing).map(([,pl])=>pl.cfg.existing); }
-function chooseOnlineNation(){
+function chooseOnlineNation(late){
+  // quem chega com a partida em andamento assume um país que já existe no mundo
+  if (late){ C.mode = 'existing'; C.gameMode = ON.room.mode; C.onlineRoom = ON.room.code; openCreate(false); C.cfg.era = ON.room.era; C.cfg.gameMode = ON.room.mode; renderStep(); return; }
   const m = openModal(`<div class="m-icon">🏰</div><div class="m-title">Sua nação nesta sala</div>
     <div class="mode-cards"><div class="mode-card" id="on-new"><div class="ic">✒️</div><b>Criar uma nova nação</b><span>Desenhe as fronteiras e escolha onde fica no mapa.</span></div>
     <div class="mode-card" id="on-ex"><div class="ic">🌍</div><b>Governar um país existente</b><span>Países já escolhidos por outros jogadores ficam bloqueados.</span></div></div>
@@ -208,6 +212,13 @@ async function saveOnlineCfg(cfg){
   const code = C.onlineRoom; C.onlineRoom = null;
   const clean = JSON.parse(JSON.stringify(cfg)); delete clean.online;
   await NET.be.setPlayer(code, NET.user.uid, {cfg:clean, ready:true, lastSeen:Date.now(), name:NET.user.name});
+  // partida em andamento: entra na lista de jogadores e já vai para o mundo
+  try { const r = await NET.be.getRoom(code), u = NET.user, mb = r && r.members[u.uid];
+    if (r && r.status !== 'lobby' && mb && !(r.humans||[]).some(h=>h.uid === u.uid)){
+      const taken = roomHumans(r).map(h=>h.cfg && h.cfg.existing).filter(Boolean);
+      if (!clean.existing || taken.includes(clean.existing)){ SFX.error(); toast('Escolha um país existente que nenhum jogador esteja governando.', 'bad'); }
+      else await NET.be.updateRoom(code, {humans:(r.humans||[]).concat([{uid:u.uid, name:mb.name, slot:mb.slot, cfg:clean, late:true, joinTurn:r.turn||0}]), updatedAt:Date.now()});
+    } } catch(e){ toast(esc(e.message), 'bad'); }
   MapView.placement = null; hideAllScreens(); $('#scr-menu').classList.remove('hidden');
   toast('Nação registrada na sala!', 'good'); openLobby(code);
 }
@@ -244,7 +255,7 @@ async function doHostStart(exclude){
 //  Entrar no mundo
 // ------------------------------------------------------------
 // configurações congeladas na sala (salas antigas: busca nos dados dos jogadores)
-function roomHumans(r){ return (r.humans||[]).map(h=>({uid:h.uid, name:h.name, slot:h.slot, cfg:h.cfg || (ON.players[h.uid]||{}).cfg})); }
+function roomHumans(r){ return (r.humans||[]).map(h=>({uid:h.uid, name:h.name, slot:h.slot, cfg:h.cfg || (ON.players[h.uid]||{}).cfg, late:!!h.late})); }
 const backupKey = (code, uid) => `imperium_onbak_${code}_${uid}`;
 async function maybeEnterGame(force){
   const r = ON.room; if (!r || r.status !== 'running' || ON.inGame || ON.entering) return;
@@ -277,6 +288,7 @@ async function enterGame(r){
     if (r.world) cfg.world = JSON.parse(JSON.stringify(r.world));
     else { const hc = (humans.find(h=>h.uid === r.host)||{}).cfg; if (hc && hc.world) cfg.world = JSON.parse(JSON.stringify(hc.world)); }
     newGame(cfg);
+    if (me.late) G.turn = r.turn || 0;
   }
   ON.lastSave = 0;
   G.online.host = r.host === uid; G.online.code = code; G.online.uid = uid;
@@ -288,6 +300,12 @@ async function enterGame(r){
   MapView.buildPaths(extra); MapView.buildBase(extra);
   const w = await NET.be.getWorld(code);
   if (w){ applyWorld(w, true); if (!G.online.host && w.turn > G.turn) setTimeout(()=>onWorld(w), 600); } else { recount(); computeAdjacency(); }
+  // chegou depois e o país escolhido já foi conquistado: volta para escolher outro
+  if (!data && humans.find(h=>h.uid === uid).late && !G.nations[1].cells){
+    ON.inGame = false; G = null; unsubAll();
+    try { const rr = await NET.be.getRoom(code); await NET.be.updateRoom(code, {humans:(rr.humans||[]).filter(h=>h.uid !== uid), updatedAt:Date.now()}); await NET.be.setPlayer(code, uid, {cfg:null}); } catch(e){}
+    SFX.error(); toast('Esse país não existe mais neste mundo (foi conquistado). Escolha outro.', 'bad'); openLobby(code); return;
+  }
   if (G.online.host && !w) await publishWorld();
   derive(); MapView.dirty = true; MapView.rails = computeRails(); computeFronts();
   UI.speed = 0; showHUD(); document.body.classList.add('online');
@@ -295,7 +313,7 @@ async function enterGame(r){
   ON.subs.push(NET.be.watchEvents(code, evs=>onEvents(evs)));
   clearInterval(ON.timer); ON.timer = setInterval(onlineTick, 1000);
   syncHumans(); publishPlayer(); onlineSave(true); unlock('online_primeira');
-  setTimeout(()=>{ goHome(); toast(`🌐 Você entrou no mundo da sala ${code}.`, 'good'); }, 500);
+  setTimeout(()=>{ if (!G || !G.online) return; goHome(); toast(`🌐 Você entrou no mundo da sala ${code}.`, 'good'); }, 500);
 }
 function leaveOnline(){
   if (G && G.online) onlineSave(true);
@@ -386,7 +404,7 @@ function applyWorld(w, initial){
     // remove pendências já confirmadas
     ON.pending = ON.pending.filter(pd=>pd.cells.some(c=>{ const canon = w.owner.charCodeAt(c) - 64; return canon !== toCanon(pd.to); }));
     for (const row of w.nations){
-      const [id, pop, pc, power, navy, tech, alive, cap, capital, leader, leaderAge, hm, ltitle, lreal] = row, n = G.nations[id]; if (!n || n.human) continue;
+      const [id, pop, pc, power, navy, tech, alive, cap, capital, leader, leaderAge, hm, ltitle, lreal] = row, n = G.nations[id]; if (!n || n.human || n.playerOrigin) continue;
       Object.assign(n, {pop, pc, power, navy, tech, alive:!!alive, cap, capital, leader, leaderAge, histMil:hm, leaderTitle:ltitle||null, realLeader:!!lreal});
       ON.snapPower[id] = power;
     }
@@ -490,7 +508,13 @@ function syncHumans(){
   if (!G || !G.online) return;
   for (const [uid, pl] of Object.entries(ON.players)){
     if (uid === NET.user.uid || !pl.canon) continue;
-    const n = G.nations[fromCanon(pl.canon)]; if (!n || !n.human) continue;
+    const n = G.nations[fromCanon(pl.canon)]; if (!n) continue;
+    if (!n.human){
+      const h = ON.room && (ON.room.humans||[]).find(x=>x.uid === uid); if (!h || n.id === 1) continue;
+      Object.assign(n, {human:true, uid, slot:h.slot, empty:false, alive:true, atWar:false, alliance:false, pact:false});
+      G.aiWars = (G.aiWars||[]).filter(w=>w.a !== n.id && w.b !== n.id);
+      addLog(`🌐 ${pl.name || h.name} entrou na partida e agora governa ${pl.nationName || n.name}.`, 'dip'); toast(`🌐 ${esc(pl.name || h.name)} entrou na partida governando ${esc(pl.nationName || n.name)}.`, 'dip');
+    }
     Object.assign(n, {name:pl.nationName||n.name, color:pl.color||n.color, flag:pl.flag||n.flag, gov:pl.gov||n.gov, relig:pl.relig||n.relig, pop:pl.pop||n.pop, pc:pl.pc||n.pc, power:pl.power||0, navy:pl.navy||0, tech:pl.tech||0, capital:pl.capital||n.capital, leader:pl.leader||n.leader});
     if (pl.alive === false && n.alive && !n.cells){ n.alive = false; }
   }

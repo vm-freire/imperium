@@ -168,7 +168,7 @@ begin
   if not found then return jsonb_build_object('error', 'notfound'); end if;
   d := r.data;
   if (d->'members') ? me::text then return d; end if;
-  if d->>'status' <> 'lobby' then return jsonb_build_object('error', 'started'); end if;
+  -- a sala aceita jogadores mesmo com a partida em andamento (quem chega depois entra num país da IA)
   select coalesce(array_agg((v->>'slot')::int), '{}') into used from jsonb_each(d->'members') as e(k, v);
   if coalesce(array_length(used, 1), 0) >= (d->>'maxPlayers')::int then return jsonb_build_object('error', 'full'); end if;
   while s = any(used) loop s := s + 1; end loop;

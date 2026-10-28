@@ -49,7 +49,6 @@ class LocalBackend {
   async joinRoom(code, uid, name){
     const r = this._get('mp_room_' + code, null); if (!r) return {error:'notfound'};
     if (r.members[uid]) return r;
-    if (r.status !== 'lobby') return {error:'started'};
     const used = Object.values(r.members).map(x=>x.slot); if (used.length >= r.maxPlayers) return {error:'full'};
     let slot = 0; while (used.includes(slot)) slot++;
     r.members[uid] = {name, slot, joinedAt:Date.now()}; r.memberUids = (r.memberUids||[]).concat([uid]); r.updatedAt = Date.now();
@@ -157,7 +156,6 @@ class SupabaseBackend {
     const rp = await this._rpc('room_join', {p_code:code, p_name:name}); if (!rp.missing) return rp.data;
     const r = await this.getRoom(code); if (!r) return {error:'notfound'};
     if (r.members[uid]) return r;
-    if (r.status !== 'lobby') return {error:'started'};
     const used = Object.values(r.members).map(x=>x.slot); if (used.length >= r.maxPlayers) return {error:'full'};
     let slot = 0; while (used.includes(slot)) slot++;
     await this.updateRoom(code, {members:{[uid]:{name, slot, joinedAt:Date.now()}}, memberUids:(r.memberUids||[]).concat([uid]), updatedAt:Date.now()});
