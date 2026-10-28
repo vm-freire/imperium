@@ -202,7 +202,8 @@ function playerLocalDefense(cell){
 }
 
 // ------------------------------------------------------------
-//  Ocupação: territórios conquistados resistem
+//  Ocupação: territórios conquistados resistem (protestos e sabotagem),
+//  mas o que foi conquistado não volta para o dono antigo
 // ------------------------------------------------------------
 function occupationTurn(){
   const p = G.p; if (!p.occ) return;
@@ -214,12 +215,13 @@ function occupationTurn(){
     if (corpsNear(cell, 3).length) continue;                 // guarnecido
     if (Math.random() < 0.035 * (1.3 - p.stability/100)){
       const back = G.nations[o.from] && G.nations[o.from].alive ? o.from : 0;
-      (revolts[back] = revolts[back] || []).push(cell); delete p.occ[k];
+      (revolts[back] = revolts[back] || []).push(cell);
     }
   }
   for (const to in revolts){
-    transferCells(revolts[to], 1, +to);
-    addLog(`🔥 Rebeldes expulsaram nossas tropas de ${revolts[to].length} região(ões) ocupada(s)${+to ? ' e voltaram a ' + G.nations[to].name : ''}. Mantenha exércitos perto das terras conquistadas!`, 'bad');
+    const k = revolts[to].length;
+    p.stability = clamp(p.stability - Math.min(4, k*0.8), 0, 100); p.treasury -= p.gdp*0.0015*k;
+    addLog(`🔥 Resistência em ${k} região(ões) ocupada(s)${+to ? ' (antigos ' + G.nations[to].name + ')' : ''}: protestos e sabotagem custam estabilidade e dinheiro. Exércitos por perto acalmam a região.`, 'bad');
   }
 }
 function occupiedCount(){ return Object.keys(G.p.occ||{}).length; }

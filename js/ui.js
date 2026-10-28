@@ -952,7 +952,7 @@ function onMapClick(c, x, y){
       ${cityPopSection(c)}
       ${b && b.t !== 'cidade' ? `<div class="box" style="margin:6px 0"><b>${buildingLevelName(b)}</b>${b.up?`<br><small>🏗️ Evoluindo para ${treeNode(b.t,(b.path||[]).concat([b.up.id])).n} — ${b.up.due-G.turn} meses</small>`:''}
         <button class="btn sm green" style="width:100%;margin-top:4px" id="pop-evo">⬆️ Evoluir construção</button></div>` : ''}
-      ${p.occ && p.occ[c] ? '<div style="color:var(--red2)">🔥 Território ocupado: mantenha um exército a até 3 regiões para evitar revoltas.</div>' : ''}
+      ${p.occ && p.occ[c] ? '<div style="color:var(--red2)">🔥 Território ocupado: a região é nossa, mas resiste: um exército a até 3 regiões evita protestos e sabotagem.</div>' : ''}
       <div class="muted">${p.homeCells.includes(c)?'Território original':'Território conquistado'} · ~${fmtNum(cellArea(c),0)} km²</div>`, x, y);
     const eb = pop.querySelector('#pop-evo'); if (eb) eb.onclick = ()=>{ closePopover(); openEvolve(b); };
     bindCityPop(pop, c, x, y);

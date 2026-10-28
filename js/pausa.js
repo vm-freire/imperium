@@ -1,8 +1,7 @@
 // ============================================================
 //  IMPERIUM — Pausa justa e fim dos "restinhos" de país
-//  • Jogo pausado: o mapa fica travado (atacar, mover, construir,
-//    colonizar...). Só o menu lateral funciona. Para agir no mapa,
-//    o tempo precisa correr — e a IA age junto
+//  • Jogo pausado: o tempo para e nenhum ataque começa (nem por
+//    janelas abertas antes). Abas, obras e o resto do mapa funcionam
 //  • Restos de país: quem fica com quase nada se rende e some do
 //    mapa (com a capital). Clicar perto de um pedacinho inimigo no
 //    mar acerta o alvo, e a aba Militar ataca por setores (estados)
@@ -14,7 +13,7 @@ function mapLocked(){ return !!(G && !G.over && !G.online && !G.story && UI.spee
 // aviso sobre o mapa enquanto estiver pausado
 (function(){
   const box = document.createElement('div'); box.id = 'pause-banner';
-  box.innerHTML = '⏸ <b>Jogo pausado</b> — o mapa fica travado. Use o menu da esquerda ou aperte <b>▶</b> para jogar (a IA também age).';
+  box.innerHTML = '⏸ <b>Jogo pausado</b> — o tempo parou. Construa e use os menus à vontade; <b>ataques só com o tempo correndo</b> (▶).';
   box.style.cssText = 'position:fixed;left:50%;top:78px;transform:translateX(-50%);z-index:40;background:rgba(36,23,11,.92);color:#f3e6c4;border:1px solid #c9a13b;border-radius:8px;padding:6px 14px;font-size:13.5px;box-shadow:0 4px 14px rgba(0,0,0,.35);pointer-events:none;display:none;max-width:90vw;text-align:center';
   document.body.appendChild(box);
   setInterval(() => { const on = mapLocked() && document.body.classList.contains('ingame') && !UI.modalOpen; if ((box.style.display !== 'none') !== on) box.style.display = on ? '' : 'none'; }, 400);
@@ -31,14 +30,8 @@ function nearestEnemyCell(c, r){
   return best;
 }
 
-let _pzToast = 0;
 const _pzClick = onMapClick;
 onMapClick = function(c, x, y){
-  if (mapLocked()){
-    if (Date.now() - _pzToast > 2500){ _pzToast = Date.now(); SFX.error(); toast('⏸ O jogo está pausado: o mapa fica travado. Aperte ▶ (ou ⏩) para agir — a IA também age.', 'bad'); }
-    const sp = $('#speed'); if (sp){ sp.style.transition = 'box-shadow .2s'; sp.style.boxShadow = '0 0 0 3px #e0b240'; setTimeout(() => sp.style.boxShadow = '', 900); }
-    return;
-  }
   // clicou no mar ou em terra sem dono ao lado de um pedacinho inimigo: mira nele
   if (G && c >= 0 && !MapView.buildMode && (!Grid.land[c] || Grid.owner[c] === 0) && G.wars.length){ const e = nearestEnemyCell(c, 2); if (e >= 0) c = e; }
   return _pzClick(c, x, y);
@@ -108,7 +101,8 @@ document.addEventListener('click', e => {
 });
 
 // ---------- pausado: nenhum ataque começa, nem por janelas abertas antes da pausa ----------
-function pzBlocked(){ if (!mapLocked()) return false; SFX.error(); toast('⏸ O jogo está pausado: ataques só com o tempo correndo (aperte ▶).', 'bad'); return true; }
+function pzBlocked(){ if (!mapLocked()) return false; SFX.error(); toast('⏸ O jogo está pausado: ataques só com o tempo correndo (aperte ▶).', 'bad');
+  const sp = $('#speed'); if (sp){ sp.style.transition = 'box-shadow .2s'; sp.style.boxShadow = '0 0 0 3px #e0b240'; setTimeout(() => sp.style.boxShadow = '', 900); } return true; }
 const _pzAtk = launchAttack;
 launchAttack = function(){ if (pzBlocked()) return; return _pzAtk.apply(this, arguments); };
 const _pzNuke = launchNuke;
@@ -116,6 +110,3 @@ launchNuke = function(){ if (pzBlocked()) return; return _pzNuke.apply(this, arg
 // mísseis e ataques aéreos são imediatos; as operações secretas só se resolvem quando o mês passa
 const _pzSab = startSabotage;
 startSabotage = function(key){ const M = SAB_METHODS[key]; if (M && !M.months[1] && mapLocked()) return {ok:false, why:'⏸ Jogo pausado: ataques só com o tempo correndo (aperte ▶).'}; return _pzSab.apply(this, arguments); };
-// ao pausar, fecha o que estiver aberto sobre o mapa (ataque, exército, frota)
-const _pzSpeed = setSpeed;
-setSpeed = function(s){ _pzSpeed.apply(this, arguments); if (s === 0 && mapLocked() && typeof closePopover === 'function') closePopover(); };

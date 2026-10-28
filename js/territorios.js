@@ -1,7 +1,8 @@
 // ============================================================
 //  IMPERIUM — Negociação de territórios
-//  • Na janela de cada vizinho: comprar, vender ou trocar regiões
-//    de fronteira (estados reais quando existem), com dinheiro
+//  • Na janela de cada nação: comprar, vender ou trocar regiões
+//    (estados reais quando existem), com dinheiro — da fronteira ou
+//    longe dela (uma colônia, um território do outro lado do mar)
 //  • Eles aceitam conforme o preço, as relações e a força de cada um
 //  • Capitais não entram; ninguém vende mais de 1/3 do país
 //  • Também aqui: o risco de derramamento nas plataformas de petróleo
@@ -11,13 +12,16 @@
 const LAND_NEG_COOLDOWN = 6;   // meses entre propostas para a mesma nação
 
 // regiões de "owner" que encostam em "other" (agrupadas por estado real; sem estado, blocos de fronteira)
-function borderRegions(owner, other){
+function borderRegions(owner, other, all){
   const cs = typeof cellStates === 'function' ? cellStates() : null;
   const capCell = owner === 1 ? G.p.capCell : G.nations[owner].cap;
   const total = owner === 1 ? G.nations[1].cells : G.nations[owner].cells;
   const border = [];
   for (let i = 0; i < NCELLS; i++) if (Grid.land[i] && Grid.owner[i] === owner && neighbors4(i).some(nb => Grid.land[nb] && Grid.owner[nb] === other)) border.push(i);
   const regs = new Map(), used = new Set();
+  // longe da fronteira também: o resto do país, depois das regiões de fronteira
+  if (all){ const bs = new Set(border); for (let i = 0; i < NCELLS; i++) if (Grid.land[i] && Grid.owner[i] === owner && !bs.has(i)) border.push(i); }
+  const nb0 = new Set(border.filter(i => neighbors4(i).some(nb => Grid.land[nb] && Grid.owner[nb] === other)));
   for (const c of border){
     if (used.has(c)) continue;
     const si = cs ? cs[c] : -1;
@@ -31,11 +35,12 @@ function borderRegions(owner, other){
     }
     cells.forEach(x => used.add(x));
     if (!cells.length || cells.includes(capCell) || cells.length > total/3) continue;
-    regs.set(key, {key, cells, name});
+    regs.set(key, {key, cells, name, far: !cells.some(x => nb0.has(x))});
   }
-  let k = 0;
-  const list = [...regs.values()].sort((a, b) => a.cells.length - b.cells.length).slice(0, 14);
-  for (const r of list) if (!r.name) r.name = `Fronteira ${String.fromCharCode(65 + k++)}`;
+  let k = 0, kf = 0;
+  const list = [...regs.values()].sort((a, b) => (a.far - b.far) || a.cells.length - b.cells.length).slice(0, all ? 40 : 14);
+  for (const r of list) if (!r.name) r.name = r.far ? `Região ${String.fromCharCode(65 + kf++)}` : `Fronteira ${String.fromCharCode(65 + k++)}`;
+  for (const r of list) if (r.far) r.name += ' (longe)';
   return list;
 }
 
@@ -60,6 +65,7 @@ function landDealChance(n, give, take, money){
   if (G.p.atk > n.power*2) c += 0.12;                  // pressão do vizinho mais forte
   c -= (n.ag||0.3)*0.25;                                // nacionalistas não gostam de vender terra
   if (take && take.cells.length > n.cells*0.15) c -= 0.15;
+  if (take && take.far) c -= 0.05;                     // terra longe da nossa fronteira: um pouco mais difícil
   return clamp(c, 0.02, 0.93);
 }
 
@@ -88,15 +94,15 @@ function proposeLandDeal(n, give, take, money){
 
 function openLandDeal(id){
   const n = G.nations[id], p = G.p; if (!n || !n.alive) return;
-  if (!adjacent(1, id)){ toast(`Não temos fronteira com ${esc(n.name)}.`, 'bad'); return; }
-  const theirs = borderRegions(id, 1), ours = borderRegions(1, id);
+  const theirs = borderRegions(id, 1, true), ours = borderRegions(1, id, true);
+  if (!theirs.length && !ours.length){ toast(`Não há regiões negociáveis com ${esc(n.name)}.`, 'bad'); return; }
   let give = null, take = null, money = 0;
   // faixa do dinheiro: passos inteiros que passam pelo zero (o controle não "pula" para o lado errado)
   const maxPay0 = Math.max(0, Math.min(p.treasury, p.gdp*0.5)), maxGet0 = n.pop*n.pc*0.06;
   const step = Math.max(1, Math.round((maxPay0 + maxGet0)/400)), maxPay = Math.floor(maxPay0/step)*step, maxGet = Math.floor(maxGet0/step)*step;
   const opt = (list, side) => `<option value="">— nenhuma —</option>` + list.map((r, i) => `<option value="${i}">${esc(r.name)} · ${r.cells.length} região(ões) · vale ~${fmtMoney(regionValue(side === 'them' ? id : 1, r))}</option>`).join('');
   const m = openModal(`<div class="m-icon">🗺️</div><div class="m-title">Negociar territórios com ${esc(n.name)}</div>
-    <div class="tip">Compre, venda ou troque regiões da fronteira. Capitais não entram. ${esc(n.name)} aceita conforme o preço, as relações (${n.rel > 0 ? '+' : ''}${n.rel}) e a nossa força.</div>
+    <div class="tip">Compre, venda ou troque regiões — da fronteira ou longe dela. Capitais não entram.${adjacent(1, id) ? '' : ` Não temos fronteira com ${esc(n.name)}: as regiões compradas ficam separadas do nosso país.`} ${esc(n.name)} aceita conforme o preço, as relações (${n.rel > 0 ? '+' : ''}${n.rel}) e a nossa força.</div>
     <div class="grid2" style="gap:12px">
       <div class="field"><label>📥 Pedimos deles</label><select id="ld-take">${opt(theirs, 'them')}</select></div>
       <div class="field"><label>📤 Damos a eles</label><select id="ld-give">${opt(ours, 'us')}</select></div>
@@ -152,10 +158,10 @@ function openLandDeal(id){
 const _ldOpen = openNation;
 openNation = function(id){
   _ldOpen(id);
-  const n = G.nations[id]; if (!n || n.human || n.atWar || !adjacent(1, id)) return;
+  const n = G.nations[id]; if (!n || n.human || n.atWar || !n.alive) return;
   const grid = $('#modal') && $('#modal').querySelector('.btn-grid'); if (!grid) return;
   const wait = (n._landNeg||-99) + LAND_NEG_COOLDOWN - G.turn;
-  grid.insertAdjacentHTML('afterbegin', `<button class="btn sm" data-ldeal="${id}" ${wait > 0 ? 'disabled' : ''} title="${wait > 0 ? `Aguarde ${wait} mês(es)` : 'Comprar, vender ou trocar regiões de fronteira'}">🗺️ Negociar territórios</button>`);
+  grid.insertAdjacentHTML('afterbegin', `<button class="btn sm" data-ldeal="${id}" ${wait > 0 ? 'disabled' : ''} title="${wait > 0 ? `Aguarde ${wait} mês(es)` : 'Comprar, vender ou trocar regiões (perto ou longe)'}">🗺️ Negociar territórios</button>`);
 };
 document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-ldeal]'); if (!b || b.disabled || !G) return; SFX.page(); openLandDeal(+b.dataset.ldeal); });
 
