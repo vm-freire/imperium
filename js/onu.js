@@ -144,7 +144,8 @@ EVENTS.onu_sessao = {icon:'🏛️', title:'Assembleia Geral da ONU', special:tr
       {t:'❌ Votar contra', h:unCouncil().includes(1) ? 'Somos do Conselho: nosso "não" é veto!' : 'Amigos seguem o nosso voto', f:()=>unVote(res, -1, false)},
       {t:'⚪ Abster-se', h:'Sem compromisso', f:()=>unVote(res, 0, false)},
       {t:'📣 Votar a favor + campanha', h:`Diplomatas convencem indecisos (${c})`, f:()=>unVote(res, 1, true)},
-      {t:'📣 Votar contra + campanha', h:`Diplomatas convencem indecisos (${c})`, f:()=>unVote(res, -1, true)}
+      {t:'📣 Votar contra + campanha', h:`Diplomatas convencem indecisos (${c})`, f:()=>unVote(res, -1, true)},
+      {t:'🚪 Sair da ONU', h:'Não votamos; democracias −8 relação, outras −3 · dá para voltar depois de 1 ano', f:()=>{ const r = unLeave(); if (r.ok) addLog(r.msg, 'dip'); unSilentSession(res); }}
     ]; }};
 EVENTS.onu_fundacao = {icon:'🏛️', title:'Nasce a ONU', special:true,
   text:() => 'Depois da Segunda Guerra, as nações criam a Organização das Nações Unidas (1945) para evitar novas guerras. Todo ano haverá uma Assembleia: sanções, missões de paz e tratados. As 5 maiores potências formam o Conselho de Segurança e podem vetar resoluções.',
@@ -172,8 +173,8 @@ endTurn = function(){
 };
 
 // fora da ONU: a assembleia acontece sem o nosso voto (e ainda pode nos sancionar)
-function unSilentSession(){
-  const res = unPickResolution(), t = unTally(res, 0, false); unApply(res, t, 0);
+function unSilentSession(res0){
+  const res = res0 || unPickResolution(), t = unTally(res, 0, false); unApply(res, t, 0);
   const un = unState(), T = UN_TYPES[res.type];
   un.history.unshift({turn:G.turn, type:res.type, target:res.target||null, passed:t.passed, yes:t.yes, no:t.no, veto:t.veto||null}); un.history = un.history.slice(0, 20);
   addLog(`🏛️ ONU (sem a nossa participação) — ${T.n}${res.target ? ' (' + (res.target === 1 ? G.p.name : G.nations[res.target].name) + ')' : ''}: ${t.passed ? 'aprovada' : t.veto ? 'vetada' : 'rejeitada'}.`, res.target === 1 && t.passed ? 'bad' : 'info');
@@ -224,8 +225,20 @@ document.addEventListener('click', e => {
   m.querySelectorAll('[data-sn]').forEach(b => b.onclick = () => { SFX.click(); closeModal(); unState().proposed = G.turn; changeRel(G.nations[+b.dataset.sn], -15); unVote({type:'sancao', target:+b.dataset.sn}, 1, false); refreshAll(); });
 });
 
-document.addEventListener('click', e => {
-  const btn = e.target.closest && e.target.closest('[data-unmb]'); if (!btn || !G) return;
-  if (btn.dataset.unmb === 'leave') confirmModal('🚪', 'Sair da ONU?', 'Deixamos de votar e de poder vetar. As democracias não vão gostar (−8 relação; outras nações −3). A ONU ainda pode aprovar sanções contra nós. Dá para voltar depois de 1 ano.', 'Sair da ONU', () => { const r = unLeave(); toast(esc(r.ok ? r.msg : r.why), r.ok ? 'dip' : 'bad'); if (r.ok) addLog(r.msg, 'dip'); refreshAll(); }, true);
+function unMembership(kind){
+  if (kind === 'leave') confirmModal('🚪', 'Sair da ONU?', 'Deixamos de votar e de poder vetar. As democracias não vão gostar (−8 relação; outras nações −3). A ONU ainda pode aprovar sanções contra nós. Dá para voltar depois de 1 ano.', 'Sair da ONU', () => { const r = unLeave(); toast(esc(r.ok ? r.msg : r.why), r.ok ? 'dip' : 'bad'); if (r.ok) addLog(r.msg, 'dip'); refreshAll(); }, true);
   else { const r = unJoin(); if (r.ok){ SFX.bell(); toast(esc(r.msg), 'good'); addLog(r.msg, 'dip'); } else { SFX.error(); toast(esc(r.why), 'bad'); } refreshAll(); }
-});
+}
+document.addEventListener('click', e => { const btn = e.target.closest && e.target.closest('[data-unmb]'); if (!btn || !G) return; unMembership(btn.dataset.unmb); });
+
+// menu do jogo (☰): sair ou voltar para a ONU a qualquer momento
+const _unMenu = openGameMenu;
+openGameMenu = function(){
+  _unMenu.apply(this, arguments);
+  const md = $('#modal'), ref = md && (md.querySelector('#gm-opt') || md.querySelector('#og-opt')); if (!ref || !G || G.story) return;
+  const out = unActive() && unOut();
+  ref.insertAdjacentHTML('beforebegin', !unActive()
+    ? `<button class="choice" disabled><b>🏛️ ONU</b><span>A ONU só é criada em ${UN_YEAR}</span></button>`
+    : `<button class="choice" id="gm-un"><b>${out ? '🤝 Voltar para a ONU' : '🚪 Sair da ONU'}</b><span>${out ? 'Voltamos a votar nas assembleias (+4 relação com todos)' : 'Deixamos de votar e de vetar; democracias −8 relação, outras −3'}</span></button>`);
+  const b = md.querySelector('#gm-un'); if (b) b.onclick = () => { closeModal(); unMembership(out ? 'join' : 'leave'); };
+};
